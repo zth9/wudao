@@ -1,0 +1,452 @@
+from __future__ import annotations
+
+import importlib
+import json
+import sys
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+
+def load_app(tmp_path, monkeypatch):
+    home_dir = tmp_path / "home"
+    db_path = tmp_path / "wudao.db"
+    monkeypatch.setenv("WUDAO_HOME", str(home_dir))
+    monkeypatch.setenv("WUDAO_DB_PATH", str(db_path))
+
+    for name in list(sys.modules):
+        if name.startswith("src"):
+            sys.modules.pop(name, None)
+
+    module = importlib.import_module("src.app")
+    return module
+
+
+def test_health_and_seeded_settings(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert health.json() == {"status": "ok", "db": True}
+
+    providers = client.get("/api/settings")
+    assert providers.status_code == 200
+    items = providers.json()
+    by_id = {item["id"]: item for item in items}
+    assert "claude" in by_id
+    assert "openai" in by_id
+    assert by_id["claude"]["endpoint"] == ""
+    assert by_id["claude"]["model"] == ""
+    assert by_id["claude"]["api_key"] is None
+    assert by_id["openai"]["endpoint"] == ""
+    assert by_id["openai"]["model"] == ""
+    assert by_id["openai"]["api_key"] is None
+
+
+def test_provider_crud_and_reorder(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    created = client.post(
+        "/api/settings",
+        json={
+            "name": "Test Provider",
+            "endpoint": "https://example.com/v1",
+            "model": "test-model",
+            "is_default": False,
+        },
+    )
+    assert created.status_code == 201
+    provider = created.json()
+
+    updated = client.put(f"/api/settings/{provider['id']}", json={"is_default": True, "model": "updated-model"})
+    assert updated.status_code == 200
+    assert updated.json()["model"] == "updated-model"
+
+    listed = client.get("/api/settings")
+    ids = [item["id"] for item in listed.json()]
+    reordered = client.put("/api/settings/order", json={"ids": list(reversed(ids))})
+    assert reordered.status_code == 200
+    assert [item["id"] for item in reordered.json()] == list(reversed(ids))
+
+    deleted = client.delete(f"/api/settings/{provider['id']}")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"ok": True}
+
+
+def test_default_provider_selection_persists_across_restart(tmp_path, monkeypatch):
+    first_module = load_app(tmp_path, monkeypatch)
+    first_client = TestClient(first_module.app)
+
+    updated = first_client.put("/api/settings/openai", json={"is_default": True})
+    assert updated.status_code == 200
+    assert updated.json()["is_default"] == 1
+
+    reloaded_module = load_app(tmp_path, monkeypatch)
+    reloaded_client = TestClient(reloaded_module.app)
+
+    providers = reloaded_client.get("/api/settings")
+    assert providers.status_code == 200
+    default_ids = [item["id"] for item in providers.json() if item["is_default"] == 1]
+    assert default_ids == ["openai"]
+
+
+def test_task_crud_stats_and_session_linking(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    created = client.post(
+        "/api/tasks",
+        json={"title": "迁移后端", "type": "refactor", "context": "改成 Python", "priority": 1},
+    )
+    assert created.status_code == 201
+    task = created.json()
+    assert task["status"] == "execution"
+
+    task_id = task["id"]
+    fetched = client.get(f"/api/tasks/{task_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["title"] == "迁移后端"
+
+    linked = client.patch(
+        f"/api/tasks/{task_id}/sessions",
+        json={"sessionId": "session-1", "sessionName": "主终端", "providerId": "claude"},
+    )
+    assert linked.status_code == 200
+    assert "session-1" in linked.json()["session_ids"]
+
+    runtime_link = client.patch(
+        f"/api/tasks/{task_id}/sessions",
+        json={"sessionId": "runtime-openai-1", "sessionName": "Reviewer codex", "providerId": "openai"},
+    )
+    assert runtime_link.status_code == 200
+
+    replaced = client.patch(
+        f"/api/tasks/{task_id}/sessions",
+        json={
+            "sessionId": "codex-cli-1",
+            "sessionName": "Reviewer codex",
+            "providerId": "openai",
+            "replaceSessionIds": ["runtime-openai-1"],
+        },
+    )
+    assert replaced.status_code == 200
+    replaced_body = replaced.json()
+    assert "runtime-openai-1" not in json.loads(replaced_body["session_ids"])
+    assert "codex-cli-1" in json.loads(replaced_body["session_ids"])
+    assert "runtime-openai-1" not in json.loads(replaced_body["session_names"])
+    assert json.loads(replaced_body["session_names"])["codex-cli-1"] == "Reviewer codex"
+    assert "runtime-openai-1" not in json.loads(replaced_body["session_providers"])
+    assert json.loads(replaced_body["session_providers"])["codex-cli-1"] == "openai"
+
+    updated = client.put(f"/api/tasks/{task_id}", json={"status": "done", "priority": 0})
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "done"
+
+    stats = client.get("/api/tasks/stats")
+    assert stats.status_code == 200
+    assert stats.json()["done"] == 1
+    assert stats.json()["high_priority"] == 0
+
+    deleted = client.delete(f"/api/tasks/{task_id}")
+    assert deleted.status_code == 200
+    assert deleted.json()["ok"] is True
+
+
+def test_task_chat_stream_persists_messages(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    created = client.post("/api/tasks", json={"title": "任务聊天", "type": "feature"})
+    task_id = created.json()["id"]
+
+    async def fake_stream_chat(provider_id, messages):
+        assert provider_id
+        assert messages
+        yield "第一段"
+        yield "第二段"
+
+    monkeypatch.setattr(module, "stream_chat", fake_stream_chat)
+
+    response = client.post(f"/api/tasks/{task_id}/chat", json={"message": "继续", "providerId": "claude"})
+    assert response.status_code == 200
+    text = response.text
+    assert '"delta": "第一段"' in text
+    assert '"done": true' in text
+
+    fetched = client.get(f"/api/tasks/{task_id}")
+    history = json.loads(fetched.json()["chat_messages"])
+    assert history[-1]["role"] == "assistant"
+    assert history[-1]["content"] == "第一段第二段"
+
+
+def test_task_parse_supports_openai_responses_delta_stream(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+    llm_module = importlib.import_module("src.llm")
+    module.db.execute(
+        "UPDATE providers SET endpoint = ?, model = ? WHERE id = 'openai'",
+        ("https://example.com/v1", "gpt-5"),
+    )
+
+    class DummyStreamResponse:
+        status_code = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def aread(self) -> bytes:
+            return b""
+
+        async def aiter_lines(self):
+            yield 'data: {"type":"response.output_text.delta","delta":"{\\"title\\":\\"修复 OpenAI 任务解析\\",\\"type\\":\\"bugfix\\",\\"context\\":\\"兼容 Responses API 流式文本输出\\"}"}'
+            yield "data: [DONE]"
+
+    class DummyAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        def stream(self, method, endpoint, headers=None, json=None):
+            return DummyStreamResponse()
+
+    monkeypatch.setattr(llm_module.httpx, "AsyncClient", DummyAsyncClient)
+
+    response = client.post(
+        "/api/tasks/parse",
+        json={"input": "修复新建任务时选择 openai 供应商的报错", "providerId": "openai"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "title": "修复 OpenAI 任务解析",
+        "type": "bugfix",
+        "context": "兼容 Responses API 流式文本输出",
+    }
+
+
+def test_user_memory_and_open_path(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    async def fake_save_user_memory(content):
+        return {
+            "content": content,
+            "path": str(Path(tmp_path) / "home" / "profile" / "user-memory.md"),
+            "mirrored": True,
+            "mirroredUri": "viking://user/profile.md",
+            "mirrorError": None,
+        }
+
+    monkeypatch.setattr(module, "save_wudao_user_memory", fake_save_user_memory)
+
+    updated = client.put("/api/contexts/user-memory", json={"content": "长期偏好"})
+    assert updated.status_code == 200
+    assert updated.json()["mirrored"] is True
+
+    opened: list[list[str]] = []
+
+    class DummyPopen:
+        def __init__(self, args, *unused, **kwargs):
+            opened.append(args)
+
+    monkeypatch.setattr(module.subprocess, "Popen", DummyPopen)
+    allowed_path = Path(tmp_path) / "home" / "workspace" / "demo"
+    allowed_path.mkdir(parents=True, exist_ok=True)
+
+    open_resp = client.post("/api/open-path", json={"path": str(allowed_path)})
+    assert open_resp.status_code == 200
+    assert open_resp.json() == {"ok": True}
+    assert opened and opened[0][0] == "open"
+
+
+def test_terminal_websocket_list(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    with client.websocket_connect("/ws/terminal") as ws:
+        ws.send_text(json.dumps({"type": "list"}))
+        payload = json.loads(ws.receive_text())
+
+    assert payload["type"] == "sessions"
+    assert payload["sessions"] == []
+
+
+def test_terminal_websocket_rejects_invalid_codex_resume_id(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+    terminal_module = importlib.import_module("src.terminal")
+
+    monkeypatch.setattr(terminal_module, "_has_codex_session", lambda session_id: False)
+    monkeypatch.setattr(terminal_module, "_has_any_codex_session", lambda: True)
+
+    def fail_popen(*args, **kwargs):
+        raise AssertionError("subprocess.Popen should not be called for invalid resume requests")
+
+    monkeypatch.setattr(terminal_module.subprocess, "Popen", fail_popen)
+
+    with client.websocket_connect("/ws/terminal") as ws:
+        ws.send_text(json.dumps({
+            "type": "create",
+            "providerId": "openai",
+            "resumeSessionId": "backend-session-1",
+            "clientRef": "local-1",
+        }))
+        payload = json.loads(ws.receive_text())
+
+    assert payload == {
+        "type": "error",
+        "message": "Session not found or no longer recoverable",
+        "clientRef": "local-1",
+    }
+
+
+def test_terminal_websocket_create_returns_discovered_codex_cli_session_id(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+    terminal_module = importlib.import_module("src.terminal")
+
+    class DummyProcess:
+        pid = 321
+
+        def poll(self):
+            return None
+
+    class DummyThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            return None
+
+    monkeypatch.setattr(terminal_module.subprocess, "Popen", lambda *args, **kwargs: DummyProcess())
+    monkeypatch.setattr(terminal_module.os, "openpty", lambda: (11, 12))
+    monkeypatch.setattr(terminal_module.os, "close", lambda fd: None)
+    monkeypatch.setattr(terminal_module, "_set_winsize", lambda fd, rows, cols: None)
+    monkeypatch.setattr(terminal_module, "generate_task_claude_md", lambda task_id, cwd: None)
+    monkeypatch.setattr(terminal_module, "_resolve_fixed_provider_cli_session_id", lambda provider_id, process, cwd: "actual-codex-session-id")
+    monkeypatch.setattr(terminal_module.threading, "Thread", DummyThread)
+
+    with client.websocket_connect("/ws/terminal") as ws:
+        ws.send_text(json.dumps({
+            "type": "create",
+            "providerId": "openai",
+            "taskId": "2026-03-10-1",
+            "clientRef": "local-1",
+        }))
+        payload = json.loads(ws.receive_text())
+
+    assert payload["type"] == "created"
+    assert payload["clientRef"] == "local-1"
+    assert payload["cliSessionId"] == "actual-codex-session-id"
+
+
+def test_terminal_websocket_restore_recovers_broken_codex_runtime_id_from_workspace_session(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+    terminal_module = importlib.import_module("src.terminal")
+
+    created = client.post("/api/tasks", json={"title": "恢复 Codex", "type": "feature"})
+    task_id = created.json()["id"]
+    workspace_dir = Path(tmp_path) / "home" / "workspace" / task_id
+    session_file = Path(tmp_path) / "home" / ".codex" / "sessions" / "2026" / "03" / "10" / "rollout-2026-03-10T10-00-00-actual-codex-session-id.jsonl"
+    session_file.parent.mkdir(parents=True, exist_ok=True)
+    session_file.write_text(
+        json.dumps(
+            {
+                "type": "session_meta",
+                "payload": {
+                    "id": "actual-codex-session-id",
+                    "cwd": str(workspace_dir),
+                },
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    class DummyProcess:
+        pid = 321
+
+        def poll(self):
+            return None
+
+    class DummyThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            return None
+
+    monkeypatch.setattr(terminal_module, "_has_codex_session", lambda session_id: False)
+    monkeypatch.setattr(terminal_module, "CODEX_SESSIONS_ROOT", Path(tmp_path) / "home" / ".codex" / "sessions")
+    monkeypatch.setattr(terminal_module.subprocess, "Popen", lambda *args, **kwargs: DummyProcess())
+    monkeypatch.setattr(terminal_module.os, "openpty", lambda: (11, 12))
+    monkeypatch.setattr(terminal_module.os, "close", lambda fd: None)
+    monkeypatch.setattr(terminal_module, "_set_winsize", lambda fd, rows, cols: None)
+    monkeypatch.setattr(terminal_module, "generate_task_claude_md", lambda task_id, cwd: None)
+    monkeypatch.setattr(terminal_module.threading, "Thread", DummyThread)
+
+    with client.websocket_connect("/ws/terminal") as ws:
+        ws.send_text(json.dumps({
+            "type": "create",
+            "providerId": "openai",
+            "taskId": task_id,
+            "resumeSessionId": "broken-runtime-id",
+            "clientRef": "local-1",
+        }))
+        payload = json.loads(ws.receive_text())
+
+    assert payload["type"] == "created"
+    assert payload["cliSessionId"] == "actual-codex-session-id"
+
+
+def test_app_shutdown_closes_terminal_sessions(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    called: list[str] = []
+
+    async def fake_close_all_sessions():
+        called.append("terminal")
+
+    async def fake_close_openviking_bridge():
+        called.append("openviking")
+
+    monkeypatch.setattr(module.terminal_manager, "close_all_sessions", fake_close_all_sessions)
+    monkeypatch.setattr(module, "close_openviking_bridge", fake_close_openviking_bridge)
+
+    with TestClient(module.app):
+        pass
+
+    assert called == ["openviking", "terminal"]
+
+
+def test_app_startup_warms_openviking_bridge(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    called: list[bool] = []
+
+    async def fake_get_openviking_status(*args, **kwargs):
+        called.append(True)
+        return {
+            "available": True,
+            "mode": "embedded",
+            "workspacePath": str(Path(tmp_path) / "home" / "contexts"),
+            "configPath": None,
+            "pythonBin": "python3",
+            "message": None,
+        }
+
+    monkeypatch.setattr(module, "get_openviking_status", fake_get_openviking_status)
+
+    with TestClient(module.app):
+        pass
+
+    assert called == [True]

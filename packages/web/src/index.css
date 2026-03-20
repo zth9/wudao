@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    --background: #FFFFFF;
+    --foreground: #1D1D1F;
+  }
+
+  .dark {
+    --background: #000000;
+    --foreground: #F5F5F7;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground dark:bg-black dark:text-system-gray-100;
+    font-family: var(--apple-font);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-system-gray-300/50 dark:bg-system-gray-600/50;
+    border-radius: 100px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* Global Selection Style */
+  ::selection {
+    @apply bg-apple-blue/30 text-foreground dark:text-white;
+  }
+
+  .theme-transition,
+  .theme-transition * {
+    transition: background-color 0.5s ease, border-color 0.5s ease, color 0.5s ease, fill 0.5s ease, stroke 0.5s ease !important;
+  }
+}
+
+@layer components {
+  /* Enhanced Apple Glass Effect */
+  .apple-glass {
+    @apply backdrop-blur-apple bg-white/70 border-b border-black/5;
+    @apply dark:bg-system-gray-800/80 dark:border-white/10;
+  }
+
+  .apple-card {
+    @apply rounded-apple-xl bg-white shadow-apple-card border border-black/5;
+    @apply dark:bg-system-gray-800 dark:border-white/10 dark:shadow-none;
+  }
+
+  .apple-sidebar {
+    @apply apple-glass border-r border-black/5;
+    @apply dark:bg-black dark:border-white/10;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .apple-btn {
+    @apply px-4 py-2 rounded-apple font-medium transition-all duration-200 active:scale-95 disabled:opacity-50;
+  }
+
+  .apple-btn-primary {
+    @apply apple-btn bg-apple-blue text-white hover:bg-apple-blue/90;
+  }
+
+  .apple-btn-secondary {
+    @apply apple-btn bg-system-gray-100 text-foreground hover:bg-system-gray-200;
+    @apply dark:bg-white/5 dark:text-system-gray-100 dark:hover:bg-white/10;
+  }
+
+  .apple-input {
+    @apply px-3 py-1.5 rounded-apple bg-white border border-system-gray-200 focus:border-apple-blue focus:ring-2 focus:ring-apple-blue/20 outline-none transition-all;
+    @apply dark:bg-black/40 dark:border-white/10 dark:text-system-gray-100;
+  }
+
+  .apple-memory-textarea {
+    resize: none;
+    color-scheme: light;
+  }
+
+  .dark .apple-memory-textarea {
+    color-scheme: dark;
+  }
+
+  /* Standard Apple Dropdown with Glassmorphism */
+  .apple-dropdown {
+    @apply backdrop-blur-apple bg-white/70 rounded-apple-xl shadow-apple-lg border border-black/5 p-1 z-40;
+    @apply dark:bg-black/60 dark:border-white/10 dark:shadow-2xl;
+  }
+
+  .apple-floating-panel {
+    @apply backdrop-blur-apple bg-white/80 rounded-apple-2xl shadow-apple-lg border border-black/5;
+    @apply dark:bg-black/60 dark:border-white/10 dark:shadow-2xl;
+  }
+
+  .apple-dropdown-item {
+    @apply w-full text-left px-3 py-2 rounded-apple-lg text-xs transition-all duration-200;
+    @apply hover:bg-black/5 dark:hover:bg-white/5;
+  }
+
+  .apple-dropdown-item-active {
+    @apply bg-apple-blue text-white shadow-apple-sm hover:bg-apple-blue/90;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Terminal sizing fixes */
+  .terminal-host {
+    @apply min-w-0 min-h-0 overflow-hidden;
+  }
+  .xterm {
+    @apply p-2;
+  }
+  .xterm-viewport {
+    @apply !overflow-y-auto !overflow-x-hidden;
+  }
+}

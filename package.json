@@ -1,0 +1,11 @@
+{
+  "name": "wudao",
+  "private": true,
+  "scripts": {
+    "dev": "./scripts/dev.sh",
+    "test": "pnpm --filter server test && pnpm --filter web test"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
