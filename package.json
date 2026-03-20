@@ -2,6 +2,8 @@
   "name": "wudao",
   "private": true,
   "scripts": {
+    "preinstall": "./scripts/ensure-uv.sh",
+    "postinstall": "./scripts/sync-server-python.sh",
     "dev": "./scripts/dev.sh",
     "test": "pnpm --filter server test && pnpm --filter web test"
   },

@@ -123,6 +123,8 @@
 ## 常用命令
 
 ```bash
+# 先安装 uv，例如 macOS 下可执行：
+# brew install uv
 pnpm install
 pnpm dev
 ./scripts/dev.sh
@@ -139,6 +141,9 @@ pnpm --filter web test
 pnpm --filter server test:watch
 pnpm --filter web test:watch
 ```
+
+- 首次执行 `pnpm install` 前需要系统已安装 `uv`
+- 根目录 `pnpm install` 会自动检查 `uv` 并同步 `packages/server` 的 Python 环境，`uv` 缓存固定在仓库 `workspace/uv-cache`
 
 ## 系统架构
 

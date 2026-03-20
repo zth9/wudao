@@ -8,11 +8,16 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 
-def load_app(tmp_path, monkeypatch):
-    home_dir = tmp_path / "home"
-    db_path = tmp_path / "wudao.db"
+def load_app(tmp_path, monkeypatch, *, home_dir: Path | None = None, db_path: Path | None = None, set_db_path: bool = True):
+    if home_dir is None:
+        home_dir = tmp_path / "home"
     monkeypatch.setenv("WUDAO_HOME", str(home_dir))
-    monkeypatch.setenv("WUDAO_DB_PATH", str(db_path))
+    if set_db_path:
+        if db_path is None:
+            db_path = tmp_path / "wudao.db"
+        monkeypatch.setenv("WUDAO_DB_PATH", str(db_path))
+    else:
+        monkeypatch.delenv("WUDAO_DB_PATH", raising=False)
 
     for name in list(sys.modules):
         if name.startswith("src"):
@@ -90,6 +95,31 @@ def test_default_provider_selection_persists_across_restart(tmp_path, monkeypatc
     assert providers.status_code == 200
     default_ids = [item["id"] for item in providers.json() if item["is_default"] == 1]
     assert default_ids == ["openai"]
+
+
+def test_app_creates_missing_database_parent_for_explicit_db_path(tmp_path, monkeypatch):
+    db_path = tmp_path / "missing" / "db" / "wudao.db"
+    assert not db_path.parent.exists()
+
+    module = load_app(tmp_path, monkeypatch, db_path=db_path)
+    client = TestClient(module.app)
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert db_path.exists()
+
+
+def test_app_uses_wudao_home_for_default_database_path(tmp_path, monkeypatch):
+    home_dir = tmp_path / "custom-home"
+    db_path = home_dir / "wudao.db"
+    assert not db_path.parent.exists()
+
+    module = load_app(tmp_path, monkeypatch, home_dir=home_dir, set_db_path=False)
+    client = TestClient(module.app)
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert db_path.exists()
 
 
 def test_task_crud_stats_and_session_linking(tmp_path, monkeypatch):

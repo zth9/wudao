@@ -2,6 +2,19 @@
 
 > 用户视角的变更记录。每完成一个可感知的功能后，由 Claude Code 更新。
 
+## 2026-03-20
+
+- **首次启动不再因为数据库目录缺失而失败**：
+  - 修复了新机器首次执行 `pnpm dev` 时，如果 `~/.wudao` 或自定义 `WUDAO_DB_PATH` 的父目录还不存在，服务端会在导入 `db.py` 时直接报 `sqlite3.OperationalError: unable to open database file` 的问题
+  - 数据库默认路径现在会跟随 `WUDAO_HOME` 解析，同时会在建立 SQLite 连接前主动创建数据库父目录，避免第一次启动卡死在 `uvicorn --reload` 子进程里
+  - 已补充显式 `WUDAO_DB_PATH` 缺父目录、以及仅配置 `WUDAO_HOME` 时默认数据库路径跟随变更的回归测试
+
+- **`pnpm install` 现在会自动准备 server Python 环境**：
+  - 根目录安装链路已新增 `uv` 前置检查；如果本机还没装 `uv`，`pnpm install` 会直接给出安装提示，而不是等到启动或测试时才失败
+  - 在 `uv` 可用时，`pnpm install` 会继续自动执行 `uv sync --project packages/server --locked --all-groups`，把后端 `.venv` 一并准备好
+  - `uv` 缓存现已固定写到仓库 `workspace/uv-cache`，避免首次安装把临时文件散落到用户全局目录
+  - 本轮已完成 `pnpm install --force` 与 `pnpm test`
+
 ## 2026-03-19
 
 - **默认 provider 不再内置仓库密钥**：
