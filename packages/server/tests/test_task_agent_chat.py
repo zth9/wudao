@@ -221,6 +221,58 @@ def test_agent_chat_run_syncs_agents_artifact_when_write_tool_updates_agents_md(
     assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "artifact", "text"]
 
 
+def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, monkeypatch):
+    app_module, runner = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "recover from tool error")
+
+    call_count = 0
+
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {"type": "tool_call", "toolName": "task_read_context", "input": {"taskId": "current"}}
+
+        assert tool_transcript == [
+            {"type": "tool_call", "toolName": "task_read_context", "input": {"taskId": "current"}},
+            {
+                "type": "tool_result",
+                "toolName": "task_read_context",
+                "output": {"ok": False, "error": "task_id is invalid"},
+            },
+        ]
+        return {"type": "assistant_text", "content": "先告诉我这个报错的出现环境和复现步骤。"}
+
+    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+
+    response = client.post(
+        f"/api/tasks/{task_id}/agent-chat/runs",
+        json={"message": "", "providerId": "claude"},
+    )
+    assert response.status_code == 200
+
+    payloads = parse_sse_payloads(response.text)
+    assert payloads[0]["type"] == "run.started"
+    assert payloads[1]["item"]["role"] == "user"
+    assert payloads[2]["item"]["kind"] == "tool_call"
+    assert payloads[4]["item"]["kind"] == "tool_result"
+    assert payloads[4]["item"]["status"] == "failed"
+    assert payloads[4]["item"]["content_json"] == {
+        "toolName": "task_read_context",
+        "output": {"ok": False, "error": "task_id is invalid"},
+    }
+    assert payloads[-1] == {"type": "run.completed", "runId": payloads[0]["runId"]}
+    assert all(payload["type"] != "run.failed" for payload in payloads)
+
+    thread = client.get(f"/api/tasks/{task_id}/agent-chat/thread").json()
+    assert thread["runs"][0]["status"] == "completed"
+    assert thread["runs"][0]["last_error"] is None
+
+    history = json.loads(client.get(f"/api/tasks/{task_id}").json()["chat_messages"])
+    assert history[-1] == {"role": "assistant", "content": "先告诉我这个报错的出现环境和复现步骤。"}
+
+
 def test_agent_chat_run_marks_failed_run_and_keeps_legacy_projection_consistent(tmp_path, monkeypatch):
     app_module, runner = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)

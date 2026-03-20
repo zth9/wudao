@@ -309,6 +309,109 @@ def test_runner_executes_task_context_tool_and_reads_target_task_context(tmp_pat
     assert thread["messages"][2]["content_json"]["content"] == "我已经读完目标任务上下文。"
 
 
+def test_runner_keeps_run_alive_after_recoverable_tool_error(tmp_path, monkeypatch):
+    app_module, runner, model_adapter, thread_store, _ = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "工具误用后继续对话")
+
+    call_count = 0
+
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {
+                "type": "tool_call",
+                "toolName": "task_read_context",
+                "input": {"taskId": "current"},
+            }
+
+        assert tool_transcript == [
+            {"type": "tool_call", "toolName": "task_read_context", "input": {"taskId": "current"}},
+            {
+                "type": "tool_result",
+                "toolName": "task_read_context",
+                "output": {"ok": False, "error": "task_id is invalid"},
+            },
+        ]
+        return {"type": "assistant_text", "content": "先确认下报错出现在哪个环境，以及是否能稳定复现。"}
+
+    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+
+    run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
+    projected_history = [{"role": "user", "content": "先帮我排查这个问题"}]
+
+    async def collect():
+        return [
+            event
+            async for event in runner.run_agent_loop(
+                task_id=task_id,
+                run_id=run["id"],
+                provider_id="claude",
+                history=projected_history,
+                projected_history=projected_history,
+            )
+        ]
+
+    import asyncio
+
+    events = asyncio.run(collect())
+    assert events[-1] == {"type": "run.completed", "runId": "run-1"}
+    assert all(event["type"] != "run.failed" for event in events)
+
+    thread = thread_store.get_task_agent_thread(task_id)
+    assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "text"]
+    assert thread["messages"][1]["status"] == "failed"
+    assert thread["messages"][1]["content_json"] == {
+        "toolName": "task_read_context",
+        "output": {"ok": False, "error": "task_id is invalid"},
+    }
+    assert thread["messages"][2]["content_json"]["content"] == "先确认下报错出现在哪个环境，以及是否能稳定复现。"
+
+    history = json.loads(client.get(f"/api/tasks/{task_id}").json()["chat_messages"])
+    assert history[-1] == {"role": "assistant", "content": "先确认下报错出现在哪个环境，以及是否能稳定复现。"}
+
+
+def test_model_adapter_prompt_prefers_first_turn_clarification(tmp_path, monkeypatch):
+    _, _, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_chat_complete(messages, provider_id):
+        captured["messages"] = messages
+        captured["provider_id"] = provider_id
+        return '{"assistant_text":"先说下当前掌握的信息。","tool_calls":[]}'
+
+    async def fake_execute(_task_id, _input_data):
+        return {}
+
+    monkeypatch.setattr(model_adapter, "chat_complete", fake_chat_complete)
+
+    tool = model_adapter.AgentTool(
+        name="workspace_list",
+        description="列出 workspace",
+        input_schema={},
+        execute=fake_execute,
+    )
+
+    import asyncio
+
+    response = asyncio.run(
+        model_adapter.complete_agent_turn(
+            "claude",
+            [{"role": "user", "content": "帮我看下这个任务"}],
+            [tool],
+        )
+    )
+
+    assert response.assistant_text == "先说下当前掌握的信息。"
+    prompt_messages = captured["messages"]
+    assert isinstance(prompt_messages, list)
+    system_prompt = str(prompt_messages[-1]["content"])
+    assert "首轮对话默认先通过 assistant_text 与用户沟通" in system_prompt
+    assert "不要为了“先了解情况”就读取当前 workspace" in system_prompt
+    assert "不要把 current、当前任务、空字符串之类的值当作 taskId" in system_prompt
+
+
 def test_model_adapter_parses_minimax_tool_call_markup(tmp_path, monkeypatch):
     _, _, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
 

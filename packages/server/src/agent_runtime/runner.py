@@ -19,7 +19,7 @@ Emitter = Callable[[dict[str, Any]], Awaitable[None]]
 MAX_TOOL_ROUNDS = 8
 TEXT_CHUNK_SIZE = 12
 
-ToolExecutionResult = tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]
+ToolExecutionResult = tuple[dict[str, Any], dict[str, Any] | None, str | None, bool]
 NormalizedToolCall = tuple[str, dict[str, Any]]
 
 
@@ -88,6 +88,10 @@ def _final_response_from_step(step: dict[str, Any]) -> str:
     return str(step.get("content") or "").strip() or "未生成有效回复"
 
 
+def _is_recoverable_tool_error(exc: Exception) -> bool:
+    return isinstance(exc, (ValueError, RuntimeError))
+
+
 def _persist_run_error(
     task_id: str,
     run_id: str,
@@ -132,9 +136,10 @@ async def _execute_single_tool(
 ) -> ToolExecutionResult:
     """执行单个工具调用并持久化结果。
 
-    返回 (call_item, result_item, error)：
-    - 成功时返回 (call_item, result_item, None)
-    - 失败时返回 (call_item, None, error_message)
+    返回 (call_item, result_item, error, fatal)：
+    - 成功时返回 (call_item, result_item, None, False)
+    - 可恢复失败时返回 (call_item, failed_result_item, error_message, False)
+    - 致命失败时返回 (call_item, None, error_message, True)
     """
     call_item = append_agent_message(
         task_id,
@@ -149,7 +154,9 @@ async def _execute_single_tool(
         output = await execute_agent_tool(task_id, tool_name, tool_input)
     except Exception as exc:
         err = error_message(exc)
-        return call_item, None, err
+        if _is_recoverable_tool_error(exc):
+            return call_item, _build_failed_tool_result(task_id, run_id, tool_name, err), err, False
+        return call_item, None, err, True
 
     result_item = append_agent_message(
         task_id,
@@ -159,7 +166,7 @@ async def _execute_single_tool(
         status="completed",
         content_json={"toolName": tool_name, "output": output},
     )
-    return call_item, result_item, None
+    return call_item, result_item, None, False
 
 
 def _persist_tool_error(
@@ -176,6 +183,28 @@ def _persist_tool_error(
         kind="error",
         status="failed",
         content_json={"toolName": tool_name, "error": error},
+    )
+
+
+def _build_failed_tool_result(
+    task_id: str,
+    run_id: str,
+    tool_name: str,
+    error: str,
+) -> dict[str, Any]:
+    return append_agent_message(
+        task_id,
+        run_id,
+        role="tool",
+        kind="tool_result",
+        status="failed",
+        content_json={
+            "toolName": tool_name,
+            "output": {
+                "ok": False,
+                "error": error,
+            },
+        },
     )
 
 
@@ -227,17 +256,25 @@ async def _process_tool_execution(
     tool_input: dict[str, Any],
     tool_transcript: list[dict[str, Any]],
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """执行工具并 yield 事件，失败时 yield run.failed 并终止。"""
-    call_item, result_item, error = await _execute_single_tool(task_id, run_id, tool_name, tool_input)
+    """执行工具并 yield 事件；致命失败会终止 run，可恢复失败会回流为 failed tool_result。"""
+    call_item, result_item, error, fatal = await _execute_single_tool(task_id, run_id, tool_name, tool_input)
 
     yield {"type": "message.completed", "item": call_item}
     yield {"type": "tool.started", "item": call_item}
 
-    if error:
+    if fatal:
         failed_item = _persist_tool_error(task_id, run_id, tool_name, error)
         update_agent_run(run_id, status="failed", checkpoint_json=None, last_error=error)
         yield {"type": "message.completed", "item": failed_item}
         yield {"type": "run.failed", "runId": run_id, "error": error}
+        return
+
+    if result_item is None:
+        fallback_error = error or "tool execution failed"
+        failed_item = _persist_tool_error(task_id, run_id, tool_name, fallback_error)
+        update_agent_run(run_id, status="failed", checkpoint_json=None, last_error=fallback_error)
+        yield {"type": "message.completed", "item": failed_item}
+        yield {"type": "run.failed", "runId": run_id, "error": fallback_error}
         return
 
     yield {"type": "message.completed", "item": result_item}

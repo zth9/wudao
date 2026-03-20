@@ -31,6 +31,7 @@
 - **`pnpm dev` 已可被 `Ctrl+C` 正常终止**：根目录开发入口已改为 `scripts/dev.sh` 统一拉起前后端，并负责转发 `INT / TERM / HUP`；现在在手动中断时会优雅停掉前后端，不再落成 `ELIFECYCLE 129`
 - **工具调用解析兼容已补强**：`agent_runtime/model_adapter.py` 现已兼容解析 `minimax:tool_call` + `<invoke>` / `<parameter>`、顶层单个 JSON tool call、“多行多个 JSON tool call”，以及写文件场景下常见的 `path + content` 顶层 payload / `tool + path + content` 顶层 payload；同一轮模型回复里的多次工具调用也会顺序执行，不再只吃第一条
 - **工具调用 JSON 包络重复输出已兼容**：当模型异常输出多个连续的 `{"assistant_text": "...", "tool_calls": [...]}` JSON 包络，甚至重复输出完全相同的包络时，后端现会按包逐个提取 `assistant_text` 与嵌套 `tool_calls`，并对完全重复的工具调用做去重；这类回复不再原样泄漏到聊天区，而会正常进入工具执行链路
+- **Agentic Chat 首轮策略与工具容错已补强**：运行时 system prompt 现已明确要求首轮默认先通过对话补齐目标、范围、环境和复现信息，而不是为了“先了解情况”就读取当前 workspace；同时，`task_read_context` 这类工具的常见误用（例如把 `current` 当成 `taskId`、目标上下文不存在）现会回流为失败的 `tool_result` 继续提供给模型决策，不再立刻把整轮 run 标成 failed
 - 已具备自然语言建任务、规划对话、`AGENTS.md` 产物生成、任务级 workspace、多终端执行与会话恢复
 - 创建任务并进入详情页后，现已恢复自动发起首轮规划对话；首轮请求会自动组装任务标题、类型与初步意图作为任务信息发送给大模型
 - 已支持在任务 workspace 中同时维护 `CLAUDE.md` 与 `GEMINI.md` 两个指向 `AGENTS.md` 的兼容软链，便于不同 CLI 共享同一份任务产物
