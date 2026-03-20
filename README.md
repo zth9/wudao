@@ -43,13 +43,12 @@ flowchart TD
 ## 快速开始
 
 ```bash
-# 先安装 uv，例如 macOS 下可执行：
-# brew install uv
 pnpm install
 pnpm dev
 ```
 
-- `pnpm install` 现在会先检查本机是否已安装 `uv`，随后自动同步 `packages/server` 的 Python 虚拟环境
+- `pnpm install` 现在会在缺少系统 `uv` 时，自动把项目本地 `uv` 安装到 `workspace/tools/uv`
+- 安装流程随后会自动同步 `packages/server` 的 Python 虚拟环境
 - `uv` 缓存会默认写到仓库内的 `workspace/uv-cache`，避免把临时文件散落到全局目录
 
 常用验证命令：
@@ -76,7 +75,8 @@ wudao/
 │   └── server/       # FastAPI 后端
 ├── scripts/
 │   ├── dev.sh                 # 前后端联合开发入口
-│   ├── ensure-uv.sh           # 安装前检查本机 uv
+│   ├── ensure-uv.sh           # 安装前确保 uv 可用，必要时 bootstrap 本地 uv
+│   ├── uv.sh                  # 统一解析系统 uv / 项目本地 uv
 │   └── sync-server-python.sh  # install 后同步 server Python 环境
 ├── status.md
 └── workspace/        # 仓库内临时文件目录

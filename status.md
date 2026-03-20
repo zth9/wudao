@@ -8,10 +8,12 @@
 
 当前能力基线：
 
+- **`pnpm install` 现可自动 bootstrap 项目本地 `uv`**：根目录安装链路不再要求用户先手动安装系统级 `uv`；当本机缺少 `uv` 时，仓库会自动把官方 `uv` 安装到 `workspace/tools/uv`，随后继续执行 `uv sync --project packages/server --locked --all-groups`，把后端 `.venv` 与 `httpx[socks]` 等 Python 依赖一并准备好
+- **服务端现已内置 `httpx` 的 SOCKS 代理支持**：`packages/server` 的 Python 依赖已从 `httpx` 切到 `httpx[socks]`，首次安装或后续 `pnpm install` 时会把 `socksio` 一并装进 `.venv`；当本机设置了 `ALL_PROXY` / `HTTPS_PROXY` 等 SOCKS 代理环境变量时，任务解析与聊天请求不再因为缺少 `socksio` 而直接 500
 - **开发代理已固定指向 `127.0.0.1:3000`**：前端 `vite` 开发代理原先写的是 `localhost:3000`，而后端 `uvicorn --reload` 实际只绑定 `127.0.0.1:3000`；在部分机器上这会把 `/api`、`/ws` 请求错误转发到其他本地 3000 端口服务，表现为设置页请求返回 `Cannot POST /api/settings`。现在代理已改为显式命中 `127.0.0.1:3000`
 - **设置页供应商加载/保存失败不再静默卡死**：前端 `settingsStore` 现会在供应商接口失败时正确结束 `loading`，并把错误提示回传到设置页；供应商弹窗保存时也已补上“保存中”态与失败提示，不会再表现成模型供应商列表一直转圈、点击保存却没有任何反馈
 - **首次启动数据库初始化已补齐目录自举**：服务端数据库路径现会默认跟随 `WUDAO_HOME` 解析，并在模块导入阶段主动创建数据库父目录；首次在新机器上执行 `pnpm dev` 时，不会再因为 `~/.wudao` 或自定义数据库目录尚不存在而在 `sqlite3.connect()` 阶段直接失败
-- **`pnpm install` 已自动同步服务端 Python 环境**：根目录安装链路现会先校验本机 `uv`，通过后自动执行 `uv sync --project packages/server --locked --all-groups`；同时把 `uv` 缓存固定到仓库 `workspace/uv-cache`，减少首次启动遗漏 Python 依赖的问题
+- **`pnpm install` 已自动同步服务端 Python 环境**：根目录安装链路现会自动执行 `uv sync --project packages/server --locked --all-groups`；同时把 `uv` 缓存固定到仓库 `workspace/uv-cache`，减少首次启动遗漏 Python 依赖的问题
 - **默认 provider seed 已收缩为最小元数据**：后端 `db.py` 新初始化数据库时仍会预置 provider 行，但仓库内不再硬编码 `api_key`、`endpoint` 或 `model`；这些配置统一留在 `providers` 表里由用户自行填写，现有数据库中的 provider 配置也不会在启动时被自动改写，并已补充服务端回归测试
 - **记忆页编辑框已改为整窗高度**：记忆页中的用户记忆与 Agent 记忆编辑模块现会直接占满视图剩余空间，编辑框本身吃满整张卡片，不再停留在约 80% 高度并把页面撑出额外滚动条；由于高度已固定，右下角的 textarea 拖拽手柄也已移除
 - **默认模型供应商持久化已修复**：设置页把某个供应商设为默认后，服务重启不再被数据库初始化强行改回 Claude；后端当前只会在“默认值缺失”或“出现多个默认值”时做一次兜底归一化，并已补上 `tests/test_app.py` 的重启回归测试

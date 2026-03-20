@@ -27,8 +27,11 @@ set -euo pipefail
   - 统一拉起前端 `vite` 与后端 `uvicorn --reload`
   - 负责转发 `INT / TERM / HUP`，避免 `pnpm dev` 在 `Ctrl+C` 时落成 `ELIFECYCLE 129`
 - `scripts/ensure-uv.sh`
-  - 作为根目录 `pnpm install` 的 `preinstall` 钩子，检查本机是否已安装 `uv`
-  - 缺失时直接失败并输出安装指引，避免后续 `uv run` / `uv sync` 到启动阶段才报错
+  - 作为根目录 `pnpm install` 的 `preinstall` 钩子，优先复用系统 `uv`，缺失时自动 bootstrap 项目本地 `uv`
+  - 项目本地 `uv` 安装在 `workspace/tools/uv`，避免要求用户先手动配置系统级 `uv`
+- `scripts/uv.sh`
+  - 统一解析 `uv` 可执行文件，优先使用项目本地 `workspace/tools/uv/uv`，其次才回退到系统 `uv`
+  - 所有 server 相关 `uv run` / `uv sync` 脚本应统一走这个 wrapper，避免同仓库内不同入口的行为不一致
 - `scripts/sync-server-python.sh`
   - 作为根目录 `pnpm install` 的 `postinstall` 钩子，自动执行 `uv sync --project packages/server --locked --all-groups`
   - 统一把 `uv` 缓存写到仓库 `workspace/uv-cache`，避免临时文件散落到全局目录

@@ -11,4 +11,4 @@ mkdir -p "$UV_CACHE_DIR"
 export UV_CACHE_DIR
 
 echo "[Wudao] Syncing Python environment for packages/server with uv..."
-uv sync --project "$SERVER_DIR" --locked --all-groups
+"$ROOT_DIR/scripts/uv.sh" sync --project "$SERVER_DIR" --locked --all-groups

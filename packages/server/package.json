@@ -2,9 +2,9 @@
   "name": "server",
   "private": true,
   "scripts": {
-    "dev": "TZ=Asia/Shanghai uv run --project . uvicorn src.app:app --host 127.0.0.1 --port 3000 --reload",
-    "start": "TZ=Asia/Shanghai uv run --project . python -m src.main",
-    "test": "TZ=Asia/Shanghai uv run --project . pytest",
-    "test:watch": "TZ=Asia/Shanghai uv run --project . pytest -f"
+    "dev": "TZ=Asia/Shanghai ../../scripts/uv.sh run --project . uvicorn src.app:app --host 127.0.0.1 --port 3000 --reload",
+    "start": "TZ=Asia/Shanghai ../../scripts/uv.sh run --project . python -m src.main",
+    "test": "TZ=Asia/Shanghai ../../scripts/uv.sh run --project . pytest",
+    "test:watch": "TZ=Asia/Shanghai ../../scripts/uv.sh run --project . pytest -f"
   }
 }

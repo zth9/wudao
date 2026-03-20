@@ -4,6 +4,16 @@
 
 ## 2026-03-20
 
+- **`pnpm install` 现在会自动准备项目本地 `uv`**：
+  - 根目录安装链路不再要求用户先手动安装系统级 `uv`；如果机器上没有 `uv`，仓库会自动把官方 `uv` bootstrap 到 `workspace/tools/uv`
+  - `packages/server` 的 `dev / start / test` 入口现也统一改走仓库内的 `scripts/uv.sh` wrapper，优先复用项目本地 `uv`，避免不同入口对系统环境的依赖不一致
+  - 安装完成后仍会继续自动执行 `uv sync --project packages/server --locked --all-groups`，把后端虚拟环境和 Python 依赖一并准备好
+
+- **服务端现在会随安装一并带上 SOCKS 代理依赖**：
+  - 修复了当本机通过 `ALL_PROXY` / `HTTPS_PROXY` 等环境变量配置 SOCKS 代理时，任务解析或聊天请求会因为 `httpx` 缺少 `socksio` 而直接返回 `Using SOCKS proxy, but the 'socksio' package is not installed` 的问题
+  - `packages/server` 的依赖现已改为 `httpx[socks]`，`pnpm install` 触发的 `uv sync` 会把 `socksio` 一并装进后端虚拟环境
+  - 拉到这版代码后，在受影响机器上重新执行一次 `pnpm install` 即可补齐依赖
+
 - **开发环境的 `/api` 和 `/ws` 不会再误打到其他本地 3000 端口服务**：
   - 修复了前端 `vite` 开发代理使用 `localhost:3000`、而后端 `uvicorn --reload` 实际绑定 `127.0.0.1:3000` 的不一致
   - 在部分机器上，这会导致设置页等请求被转发到其他本地服务，并返回 `Cannot POST /api/settings` 这类非 Wudao 后端的 HTML 404
@@ -20,7 +30,7 @@
   - 已补充显式 `WUDAO_DB_PATH` 缺父目录、以及仅配置 `WUDAO_HOME` 时默认数据库路径跟随变更的回归测试
 
 - **`pnpm install` 现在会自动准备 server Python 环境**：
-  - 根目录安装链路已新增 `uv` 前置检查；如果本机还没装 `uv`，`pnpm install` 会直接给出安装提示，而不是等到启动或测试时才失败
+  - 根目录安装链路现会先确保 `uv` 可用；缺失时会自动 bootstrap 项目本地 `uv`，而不是等到启动或测试时才失败
   - 在 `uv` 可用时，`pnpm install` 会继续自动执行 `uv sync --project packages/server --locked --all-groups`，把后端 `.venv` 一并准备好
   - `uv` 缓存现已固定写到仓库 `workspace/uv-cache`，避免首次安装把临时文件散落到用户全局目录
   - 本轮已完成 `pnpm install --force` 与 `pnpm test`
