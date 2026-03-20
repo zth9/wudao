@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, Check, X, Shield, Globe, Cpu, Loader2 } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, Check, X, Shield, Globe, Cpu, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
@@ -60,6 +60,8 @@ export default function SettingsView() {
   const { 
     providers, 
     loading, 
+    error,
+    clearError,
     fetch: fetchProviders, 
     add: create, 
     update, 
@@ -72,6 +74,7 @@ export default function SettingsView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [reordering, setReordering] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,16 +107,18 @@ export default function SettingsView() {
   };
 
   useEffect(() => {
-    fetchProviders();
+    void fetchProviders();
   }, [fetchProviders]);
 
   const openCreate = () => {
+    clearError();
     setForm(EMPTY_FORM);
     setEditingId(null);
     setDialogOpen(true);
   };
 
   const openEdit = (p: Provider) => {
+    clearError();
     setForm({
       name: p.name,
       endpoint: p.endpoint,
@@ -128,18 +133,22 @@ export default function SettingsView() {
   };
 
   const closeDialog = () => {
+    clearError();
     setDialogOpen(false);
     setEditingId(null);
+    setSaving(false);
     setForm(EMPTY_FORM);
   };
 
   const handleSave = async () => {
-    if (editingId) {
-      await update(editingId, form);
-    } else {
-      await create(form);
+    setSaving(true);
+    const ok = editingId
+      ? await update(editingId, form)
+      : await create(form);
+    setSaving(false);
+    if (ok) {
+      closeDialog();
     }
-    closeDialog();
   };
 
   const handleCancelChanges = () => {
@@ -166,7 +175,7 @@ export default function SettingsView() {
     );
   }, [form, editingId, providers]);
 
-  const canSave = form.name && form.endpoint && form.model;
+  const canSave = Boolean(form.name.trim() && form.endpoint.trim() && form.model.trim());
 
   const handleMove = async (index: number, offset: number) => {
     const nextIndex = index + offset;
@@ -283,6 +292,15 @@ export default function SettingsView() {
             </div>
 
             <div className="divide-y divide-black/5 dark:divide-white/5">
+              {error && (
+                <div className="mx-4 mt-4 rounded-apple-lg border border-apple-red/20 bg-apple-red/10 px-4 py-3 text-sm text-apple-red dark:border-apple-red/30 dark:bg-apple-red/15">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                </div>
+              )}
+
               {loading && (
                  <div className="p-12 text-center text-system-gray-400 dark:text-system-gray-300">
                     <Loader2 size={24} className="animate-spin mx-auto mb-2" />
@@ -350,7 +368,9 @@ export default function SettingsView() {
                           <Edit size={16} />
                         </button>
                         <button
-                          onClick={() => remove(p.id)}
+                          onClick={() => {
+                            void remove(p.id);
+                          }}
                           className="p-1.5 rounded-apple text-system-gray-400 dark:text-system-gray-300 hover:text-apple-red transition-colors"
                         >
                           <Trash2 size={16} />
@@ -395,6 +415,15 @@ export default function SettingsView() {
                 </div>
 
                 <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                   {error && (
+                      <div className="rounded-apple-lg border border-apple-red/20 bg-apple-red/10 px-4 py-3 text-sm text-apple-red dark:border-apple-red/30 dark:bg-apple-red/15">
+                         <div className="flex items-start gap-2">
+                            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                            <span>{error}</span>
+                         </div>
+                      </div>
+                   )}
+
                    <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-1.5">
@@ -478,10 +507,11 @@ export default function SettingsView() {
                    )}
                    <button
                      onClick={handleSave}
-                     disabled={!canSave}
-                     className="apple-btn-primary px-8 shadow-apple-sm min-w-[120px]"
+                     disabled={!canSave || saving}
+                     className="apple-btn-primary px-8 shadow-apple-sm min-w-[120px] inline-flex items-center justify-center gap-2 disabled:opacity-60"
                    >
-                     {editingId ? t('common.update') : t('common.save')}
+                     {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+                     {saving ? t('common.loading') : editingId ? t('common.update') : t('common.save')}
                    </button>
                 </div>
              </motion.div>

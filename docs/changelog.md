@@ -4,6 +4,11 @@
 
 ## 2026-03-20
 
+- **设置页的供应商请求失败现在会直接给出反馈**：
+  - 修复了当 `/api/settings` 请求失败时，设置页模型供应商区域会一直停留在 loading 态的问题；现在请求失败也会正确结束转圈，并展示具体错误
+  - 新建或编辑供应商时，保存按钮现已补上保存中状态；如果创建、更新或保存后的刷新失败，弹窗会保留并显示错误信息，不再表现成“点保存没反应”
+  - 已补充 `settingsStore` 回归测试，并完成 `pnpm --filter web test`
+
 - **首次启动不再因为数据库目录缺失而失败**：
   - 修复了新机器首次执行 `pnpm dev` 时，如果 `~/.wudao` 或自定义 `WUDAO_DB_PATH` 的父目录还不存在，服务端会在导入 `db.py` 时直接报 `sqlite3.OperationalError: unable to open database file` 的问题
   - 数据库默认路径现在会跟随 `WUDAO_HOME` 解析，同时会在建立 SQLite 连接前主动创建数据库父目录，避免第一次启动卡死在 `uvicorn --reload` 子进程里

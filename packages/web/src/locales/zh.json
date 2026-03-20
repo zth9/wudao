@@ -144,6 +144,7 @@
     "discard": "放弃更改",
     "no_providers": "暂无供应商配置",
     "loading_providers": "正在加载供应商...",
+    "provider_request_failed": "供应商请求失败",
     "config_panel": "悟道系统配置面板",
     "user_profile": "个人资料",
     "nickname": "显示昵称",

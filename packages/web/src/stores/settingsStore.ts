@@ -21,11 +21,36 @@ interface SettingsState {
   setTaskSortOrder: (order: "asc" | "desc") => void;
   providers: Provider[];
   loading: boolean;
-  fetch: () => Promise<void>;
-  add: (data: Omit<Provider, "id" | "created_at" | "sort_order">) => Promise<void>;
-  update: (id: string, data: Partial<Provider>) => Promise<void>;
-  reorder: (ids: string[]) => Promise<void>;
-  remove: (id: string) => Promise<void>;
+  error: string | null;
+  clearError: () => void;
+  fetch: () => Promise<boolean>;
+  add: (data: Omit<Provider, "id" | "created_at" | "sort_order">) => Promise<boolean>;
+  update: (id: string, data: Partial<Provider>) => Promise<boolean>;
+  reorder: (ids: string[]) => Promise<boolean>;
+  remove: (id: string) => Promise<boolean>;
+}
+
+function resolveSettingsError(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const jsonStart = error.message.indexOf("{");
+  if (jsonStart >= 0) {
+    try {
+      const parsed = JSON.parse(error.message.slice(jsonStart)) as { error?: string; detail?: string };
+      if (typeof parsed.error === "string" && parsed.error.trim()) {
+        return parsed.error.trim();
+      }
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+        return parsed.detail.trim();
+      }
+    } catch {
+      // Fall through to the raw message when the response body is not valid JSON.
+    }
+  }
+
+  return error.message || fallback;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -44,31 +69,67 @@ export const useSettingsStore = create<SettingsState>()(
       setTaskSortOrder: (taskSortOrder) => set({ taskSortOrder }),
       providers: [],
       loading: false,
+      error: null,
+      clearError: () => set({ error: null }),
 
       fetch: async () => {
-        set({ loading: true });
-        const providers = await api.list();
-        set({ providers, loading: false });
+        set({ loading: true, error: null });
+        try {
+          const providers = await api.list();
+          set({ providers, loading: false, error: null });
+          return true;
+        } catch (error) {
+          set({
+            loading: false,
+            error: resolveSettingsError(error, "Failed to load providers"),
+          });
+          return false;
+        }
       },
 
       add: async (data) => {
-        await api.create(data);
-        await get().fetch();
+        set({ error: null });
+        try {
+          await api.create(data);
+          return await get().fetch();
+        } catch (error) {
+          set({ error: resolveSettingsError(error, "Failed to save provider") });
+          return false;
+        }
       },
 
       update: async (id, data) => {
-        await api.update(id, data);
-        await get().fetch();
+        set({ error: null });
+        try {
+          await api.update(id, data);
+          return await get().fetch();
+        } catch (error) {
+          set({ error: resolveSettingsError(error, "Failed to save provider") });
+          return false;
+        }
       },
 
       reorder: async (ids) => {
-        const providers = await api.reorder(ids);
-        set({ providers });
+        set({ error: null });
+        try {
+          const providers = await api.reorder(ids);
+          set({ providers, error: null });
+          return true;
+        } catch (error) {
+          set({ error: resolveSettingsError(error, "Failed to reorder providers") });
+          return false;
+        }
       },
 
       remove: async (id) => {
-        await api.delete(id);
-        await get().fetch();
+        set({ error: null });
+        try {
+          await api.delete(id);
+          return await get().fetch();
+        } catch (error) {
+          set({ error: resolveSettingsError(error, "Failed to delete provider") });
+          return false;
+        }
       },
     }),
     {

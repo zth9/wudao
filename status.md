@@ -8,6 +8,7 @@
 
 当前能力基线：
 
+- **设置页供应商加载/保存失败不再静默卡死**：前端 `settingsStore` 现会在供应商接口失败时正确结束 `loading`，并把错误提示回传到设置页；供应商弹窗保存时也已补上“保存中”态与失败提示，不会再表现成模型供应商列表一直转圈、点击保存却没有任何反馈
 - **首次启动数据库初始化已补齐目录自举**：服务端数据库路径现会默认跟随 `WUDAO_HOME` 解析，并在模块导入阶段主动创建数据库父目录；首次在新机器上执行 `pnpm dev` 时，不会再因为 `~/.wudao` 或自定义数据库目录尚不存在而在 `sqlite3.connect()` 阶段直接失败
 - **`pnpm install` 已自动同步服务端 Python 环境**：根目录安装链路现会先校验本机 `uv`，通过后自动执行 `uv sync --project packages/server --locked --all-groups`；同时把 `uv` 缓存固定到仓库 `workspace/uv-cache`，减少首次启动遗漏 Python 依赖的问题
 - **默认 provider seed 已收缩为最小元数据**：后端 `db.py` 新初始化数据库时仍会预置 provider 行，但仓库内不再硬编码 `api_key`、`endpoint` 或 `model`；这些配置统一留在 `providers` 表里由用户自行填写，现有数据库中的 provider 配置也不会在启动时被自动改写，并已补充服务端回归测试

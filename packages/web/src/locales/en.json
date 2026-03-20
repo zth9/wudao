@@ -144,6 +144,7 @@
     "discard": "Discard",
     "no_providers": "No providers configured yet",
     "loading_providers": "Loading providers...",
+    "provider_request_failed": "Provider request failed",
     "config_panel": "Wudao Configuration Panel",
     "user_profile": "User Profile",
     "nickname": "Nickname",
