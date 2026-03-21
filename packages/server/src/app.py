@@ -43,6 +43,7 @@ from .task_helpers import (
     to_due_at_sort_key,
 )
 from .task_agent_chat import register_task_agent_chat_routes
+from .task_sdk_runner import register_sdk_runner_routes
 from .task_service import (
     append_status_log,
     error_message,
@@ -168,6 +169,10 @@ def create_app() -> FastAPI:
             await _warm_openviking_on_startup()
             yield
         finally:
+            from .sdk_runner.sdk_runner import registry as sdk_registry
+            from .sdk_runner.sdk_approval import approval_manager
+            await sdk_registry.shutdown()
+            approval_manager.clear()
             await close_openviking_bridge()
             await terminal_manager.close_all_sessions()
 
@@ -540,6 +545,11 @@ def create_app() -> FastAPI:
         existing = db.query_one("SELECT id FROM tasks WHERE id = ?", (task_id,))
         if not existing:
             return JSONResponse({"error": "Task not found"}, status_code=404)
+        # Clean up SDK runner processes for this task
+        from .sdk_runner.sdk_runner import registry as sdk_registry
+        from .sdk_runner.sdk_store import list_task_sdk_runs
+        for run in list_task_sdk_runs(task_id):
+            sdk_registry.cancel(run["id"])
         closed_sessions = terminal_manager.close_sessions_by_task_id(task_id)
         db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
         return JSONResponse({"ok": True, "closedSessions": closed_sessions})
@@ -605,6 +615,7 @@ def create_app() -> FastAPI:
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     register_task_agent_chat_routes(app)
+    register_sdk_runner_routes(app)
 
     @app.websocket("/ws/terminal")
     async def terminal_ws(websocket: WebSocket) -> None:

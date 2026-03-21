@@ -368,5 +368,31 @@
       "label": "Default",
       "desc": "Confirm permissions for each action"
     }
+  },
+  "sdkRunner": {
+    "title": "SDK Runner",
+    "empty": "Agent has not started any SDK execution yet",
+    "emptyHint": "Ask the Agent in the chat to perform coding tasks — it will invoke Claude Code SDK automatically",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "cancel": "Cancel Run",
+    "approve": "Approve",
+    "deny": "Deny",
+    "approvalPending": "Awaiting Approval",
+    "approvalApproved": "Approved",
+    "approvalDenied": "Denied",
+    "approvalTimeout": "Timed Out",
+    "cost": "Cost",
+    "tokens": "Tokens",
+    "duration": "Duration",
+    "turns": "Turns",
+    "thinking": "Thinking...",
+    "toolUse": "Tool Call",
+    "toolResult": "Tool Result",
+    "error": "Error",
+    "progress": "Progress"
   }
 }

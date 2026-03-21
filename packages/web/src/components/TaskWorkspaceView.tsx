@@ -7,6 +7,7 @@ import {
   useTaskSessions,
   makeTermSession,
 } from "../stores/terminalStore";
+import { useSdkRunnerStore } from "../stores/sdkRunnerStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useWs } from "../contexts/WsContext";
 import { Header } from "./task-panel/Header";
@@ -32,6 +33,9 @@ const TaskListDrawer = lazy(async () => ({ default: (await loadTaskListDrawer())
 const TaskArtifactsDrawer = lazy(loadTaskArtifactsDrawer);
 const TiledTerminalPanel = lazy(loadTiledTerminalPanel);
 const NewTaskTerminalDialog = lazy(async () => ({ default: (await loadNewTaskTerminalDialog()).NewTaskTerminalDialog }));
+
+const SdkRunnerPanelLazy = lazy(() => import("./sdk-runner/SdkRunnerPanel").then(m => ({ default: m.SdkRunnerPanel })));
+const SdkRunnerPanel = SdkRunnerPanelLazy;
 
 function TerminalPanelFallback() {
   const { t } = useTranslation();
@@ -126,6 +130,8 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     generateDocs,
   } = useTaskStore();
 
+  const { sdkPanelOpen, openSdkPanel, closeSdkPanel, clearSdkRunner, fetchSdkRuns } = useSdkRunnerStore();
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const providerRef = useRef<string | null>(null);
 
@@ -162,8 +168,12 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
 
   useEffect(() => {
     fetchOne(taskId);
-    return () => clearCurrent();
-  }, [taskId, fetchOne, clearCurrent]);
+    fetchSdkRuns(taskId);
+    return () => {
+      clearCurrent();
+      clearSdkRunner();
+    };
+  }, [taskId, fetchOne, clearCurrent, fetchSdkRuns, clearSdkRunner]);
 
   useEffect(() => {
     if (showTaskList) {
@@ -560,6 +570,10 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onToggleArtifacts={handleToggleArtifacts}
         terminalOpen={!terminalCollapsed}
         onToggleTerminal={() => setTerminalCollapsed(!terminalCollapsed)}
+        sdkRunnerOpen={sdkPanelOpen}
+        onToggleSdkRunner={() => {
+          if (sdkPanelOpen) closeSdkPanel(); else openSdkPanel();
+        }}
         onOpenTaskList={handleOpenTaskList}
       />
 
@@ -630,7 +644,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         )}
 
         {/* Artifacts Resizer */}
-        {artifactsOpen && (
+        {artifactsOpen && !sdkPanelOpen && (
           <div
             onMouseDown={handleArtifactsDragStart}
             className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative z-30"
@@ -639,9 +653,9 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           </div>
         )}
 
-        {/* Artifacts Area (Right) */}
+        {/* Artifacts Area (Right) — hidden when SDK Runner is open */}
         <AnimatePresence initial={false}>
-          {artifactsOpen && (
+          {artifactsOpen && !sdkPanelOpen && (
             <motion.div
               ref={artifactsPanelRef}
               initial={{ width: 0, opacity: 0 }}
@@ -662,6 +676,24 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* SDK Runner Panel (Right, parallel to terminal) */}
+        {sdkPanelOpen && (
+          <>
+            <div className="w-[1px] shrink-0 bg-black/5 dark:bg-white/5" />
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 420, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="shrink-0 flex flex-col overflow-hidden bg-white/50 dark:bg-black/40"
+            >
+              <Suspense fallback={<SidePanelFallback />}>
+                <SdkRunnerPanel taskId={taskId} />
+              </Suspense>
+            </motion.div>
+          </>
+        )}
       </div>
 
       {showNewDialog && (

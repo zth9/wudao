@@ -2,6 +2,18 @@
 
 > 用户视角的变更记录。每完成一个可感知的功能后，由 Claude Code 更新。
 
+## 2026-03-21
+
+- **SDK Runner 面板一期已落地**：
+  - 任务工作台右侧新增 SDK Runner 面板，与终端并列显示——终端是用户手动操作的，SDK Runner 是 Agent 自动驱动的
+  - 在左侧 Agent Chat 中与 Agent 对话时，Agent 可通过 `invoke_sdk_runner` 工具调度 Claude Code SDK 执行编码任务
+  - SDK 执行过程在面板中实时可视化：文件读写、Bash 命令、测试结果、思考过程等以结构化时间线卡片展示
+  - 权限审批：文件操作自动通过，Bash 命令等通过面板内联审批卡片让用户允许/拒绝，10 分钟无响应自动拒绝
+  - 面板通过头部 ⚡ 按钮开关，Agent 启动 SDK run 时自动展开
+  - 后端新增进程注册表管理 SDK 子进程生命周期，应用关闭和任务删除时自动清理
+  - 新增 `task_sdk_runs` / `task_sdk_events` 两张持久化表，SDK 事件流可回放
+  - Phase 1 仅支持 Claude Agent SDK，Codex SDK 集成已规划为后续 TODO
+
 ## 2026-03-20
 
 - **Agentic Chat 首轮现在会默认先沟通，不再轻易因工具误用整轮失败**：

@@ -365,3 +365,45 @@ export const system = {
   openPath: (path: string) =>
     request<{ ok: boolean }>("/open-path", { method: "POST", body: JSON.stringify({ path }) }),
 };
+
+// SDK Runner
+export type SdkRunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+
+export interface SdkRun {
+  id: string;
+  task_id: string;
+  agent_run_id: string | null;
+  status: SdkRunStatus;
+  prompt: string;
+  cwd: string | null;
+  total_cost_usd: number;
+  total_tokens: number;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SdkEventType =
+  | "sdk_run.started" | "sdk_run.completed" | "sdk_run.failed" | "sdk_run.cancelled"
+  | "sdk.text_delta" | "sdk.text_completed" | "sdk.thinking"
+  | "sdk.tool_use" | "sdk.tool_result"
+  | "sdk.approval_request" | "sdk.approval_resolved"
+  | "sdk.progress" | "sdk.cost_update" | "sdk.error";
+
+export interface SdkEvent {
+  type: SdkEventType;
+  run_id: string;
+  [key: string]: unknown;
+}
+
+export const sdkRunner = {
+  listRuns: (taskId: string) =>
+    request<{ runs: SdkRun[] }>(`/tasks/${taskId}/sdk-runner/runs`),
+  approve: (taskId: string, runId: string, approvalId: string, approved: boolean) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/sdk-runner/${runId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ approval_id: approvalId, approved }),
+    }),
+  cancel: (taskId: string, runId: string) =>
+    request<{ ok: boolean }>(`/tasks/${taskId}/sdk-runner/${runId}/cancel`, { method: "POST" }),
+};

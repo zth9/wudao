@@ -24,6 +24,7 @@ KNOWN_TOOL_NAMES = {
     "workspace_apply_patch",
     "task_read_context",
     "terminal_snapshot",
+    "invoke_sdk_runner",
 }
 TOOL_META_KEYS = {
     "assistant_text",

@@ -13,6 +13,7 @@ from .workspace_tools import (
     workspace_write_file_tool,
     workspace_tools_prompt_schema,
 )
+from ..sdk_runner.sdk_tools import invoke_sdk_runner_tool, sdk_tools_prompt_schema
 
 
 def list_agent_tools() -> list[AgentTool]:
@@ -60,6 +61,19 @@ def list_agent_tools() -> list[AgentTool]:
             description=terminal_schemas["terminal_snapshot"]["description"],
             input_schema=terminal_schemas["terminal_snapshot"]["inputSchema"],
             execute=terminal_snapshot_tool,
+        ),
+        *_sdk_runner_tools(),
+    ]
+
+
+def _sdk_runner_tools() -> list[AgentTool]:
+    sdk_schemas = {item["name"]: item for item in sdk_tools_prompt_schema()}
+    return [
+        AgentTool(
+            name="invoke_sdk_runner",
+            description=sdk_schemas["invoke_sdk_runner"]["description"],
+            input_schema=sdk_schemas["invoke_sdk_runner"]["inputSchema"],
+            execute=invoke_sdk_runner_tool,
         ),
     ]
 

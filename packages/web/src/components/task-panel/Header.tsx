@@ -40,6 +40,8 @@ interface Props {
   onToggleArtifacts?: () => void;
   terminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  sdkRunnerOpen?: boolean;
+  onToggleSdkRunner?: () => void;
   onOpenTaskList: () => void;
 }
 
@@ -57,6 +59,8 @@ export function Header({
   onToggleArtifacts,
   terminalOpen = true,
   onToggleTerminal,
+  sdkRunnerOpen = false,
+  onToggleSdkRunner,
   onOpenTaskList,
 }: Props) {
   const { t, i18n } = useTranslation();
@@ -300,6 +304,19 @@ export function Header({
           title={t('tasks.terminal')}
         >
           <TerminalSquare size={16} />
+        </button>
+
+        <button
+          onClick={onToggleSdkRunner}
+          className={cn(
+            "p-2 rounded-full transition-colors",
+            sdkRunnerOpen
+              ? "bg-apple-blue/10 text-apple-blue"
+              : "hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400"
+          )}
+          title={t('sdkRunner.title')}
+        >
+          <Zap size={16} />
         </button>
 
         <button

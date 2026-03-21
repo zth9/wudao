@@ -197,6 +197,41 @@ class DatabaseManager:
             """
         )
 
+    def _create_sdk_runner_tables(self) -> None:
+        self.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS task_sdk_runs (
+              id TEXT PRIMARY KEY,
+              task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+              agent_run_id TEXT,
+              status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending','running','completed','failed','cancelled')),
+              prompt TEXT NOT NULL DEFAULT '',
+              cwd TEXT,
+              total_cost_usd REAL NOT NULL DEFAULT 0,
+              total_tokens INTEGER NOT NULL DEFAULT 0,
+              last_error TEXT,
+              created_at TEXT DEFAULT (datetime('now')),
+              updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS task_sdk_events (
+              id TEXT PRIMARY KEY,
+              sdk_run_id TEXT NOT NULL REFERENCES task_sdk_runs(id) ON DELETE CASCADE,
+              seq INTEGER NOT NULL,
+              event_type TEXT NOT NULL,
+              payload_json TEXT NOT NULL DEFAULT '{}',
+              created_at TEXT DEFAULT (datetime('now')),
+              UNIQUE (sdk_run_id, seq)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_task_sdk_runs_task_created
+              ON task_sdk_runs(task_id ASC, created_at ASC, id ASC);
+            CREATE INDEX IF NOT EXISTS idx_task_sdk_events_run_seq
+              ON task_sdk_events(sdk_run_id ASC, seq ASC, id ASC);
+            """
+        )
+
     def _migrate_tasks_table(self) -> None:
         if not self._table_exists("tasks"):
             self._create_tasks_table()
@@ -376,6 +411,7 @@ class DatabaseManager:
 
         self._migrate_tasks_table()
         self._create_task_agent_runtime_tables()
+        self._create_sdk_runner_tables()
 
         self.execute("UPDATE tasks SET status = 'execution' WHERE status IS NULL OR status != 'done'")
         self.execute("UPDATE tasks SET priority = 2 WHERE priority IS NULL")

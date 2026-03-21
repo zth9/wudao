@@ -32,6 +32,8 @@
 - **工具调用解析兼容已补强**：`agent_runtime/model_adapter.py` 现已兼容解析 `minimax:tool_call` + `<invoke>` / `<parameter>`、顶层单个 JSON tool call、“多行多个 JSON tool call”，以及写文件场景下常见的 `path + content` 顶层 payload / `tool + path + content` 顶层 payload；同一轮模型回复里的多次工具调用也会顺序执行，不再只吃第一条
 - **工具调用 JSON 包络重复输出已兼容**：当模型异常输出多个连续的 `{"assistant_text": "...", "tool_calls": [...]}` JSON 包络，甚至重复输出完全相同的包络时，后端现会按包逐个提取 `assistant_text` 与嵌套 `tool_calls`，并对完全重复的工具调用做去重；这类回复不再原样泄漏到聊天区，而会正常进入工具执行链路
 - **Agentic Chat 首轮策略与工具容错已补强**：运行时 system prompt 现已明确要求首轮默认先通过对话补齐目标、范围、环境和复现信息，而不是为了“先了解情况”就读取当前 workspace；同时，`task_read_context` 这类工具的常见误用（例如把 `current` 当成 `taskId`、目标上下文不存在）现会回流为失败的 `tool_result` 继续提供给模型决策，不再立刻把整轮 run 标成 failed
+- **SDK Runner 面板一期已落地**：后端新增 `sdk_runner/` 模块（sdk_store / sdk_adapter / sdk_runner / sdk_approval / sdk_tools），封装 Claude Agent SDK 的 `query()` 调用，提供 SSE 实时事件流、权限审批（10 分钟超时自动拒绝）、进程注册表管理；前端新增 `SdkRunnerPanel` 面板与终端并列展示，Agent 在对话中通过 `invoke_sdk_runner` 工具触发 SDK 执行，执行过程（文件读写、Bash 命令、测试结果）在面板中实时可视化；SDK Runner 面板通过头部 ⚡ 按钮开关，Agent 启动 SDK run 时自动展开
+
 - 已具备自然语言建任务、规划对话、`AGENTS.md` 产物生成、任务级 workspace、多终端执行与会话恢复
 - 创建任务并进入详情页后，现已恢复自动发起首轮规划对话；首轮请求会自动组装任务标题、类型与初步意图作为任务信息发送给大模型
 - 已支持在任务 workspace 中同时维护 `CLAUDE.md` 与 `GEMINI.md` 两个指向 `AGENTS.md` 的兼容软链，便于不同 CLI 共享同一份任务产物
@@ -99,6 +101,7 @@
 
 - [ ] Task 体验持续打磨（交互细节、空状态、恢复引导）
 - [ ] Agentic Chat 二期：artifact sync、run 恢复与更细的 provider/tool 策略
+- [ ] SDK Runner 面板：Agent 驱动的 Claude Code SDK 集成，任务工作台右侧实时展示 SDK 执行过程
 
 ## 待开始
 
