@@ -1,7 +1,7 @@
 # 任务工作台一体化
 
-> 将任务详情页作为唯一任务工作台入口：左侧负责任务信息与 Agentic Chat，右侧负责终端与产物。
-> v2.5 · 2026-03-16（按当前前后端实现收口）
+> 将任务详情页作为唯一任务工作台入口：左侧负责任务信息与 Agentic Chat，右侧负责按任务记忆的执行抽屉。
+> v2.6 · 2026-03-21（按当前前后端实现收口）
 
 ---
 
@@ -51,15 +51,23 @@ flowchart LR
     subgraph Workspace[任务详情工作台]
         direction LR
         Left[左侧任务面板]
-        Right[右侧执行面板]
+        Right[右侧抽屉区]
     end
 
     Left --> Header[Header\n标题 / 状态 / 优先级 / 截止时间]
     Left --> Chat[TaskChat\nAgentic Chat 时间线 / 输入框 / Provider 切换]
 
-    Right --> Terminal[TiledTerminalPanel\n多终端平铺 / 恢复历史会话]
-    Right --> Artifacts[TaskArtifactsDrawer\nAGENTS.md 预览]
+    Right --> Terminal[TiledTerminalPanel\n终端抽屉]
+    Right --> SDK[SdkRunnerPanel\nAgent Runner 抽屉]
+    Right --> Artifacts[TaskArtifactsDrawer\n产物抽屉]
 ```
+
+补充说明：
+
+- 新任务首次进入详情页时，默认只显示左侧聊天区
+- `终端 / Agent Runner / 产物` 三块当前都是独立抽屉，可同时打开
+- 每个任务都会单独记忆这三个抽屉的开关状态，以及终端 / Agent Runner / 产物抽屉宽度；重新进入同一任务时恢复上次布局
+- 三个抽屉当前都按固定宽度右侧抽屉处理，左侧聊天区宽度由右侧抽屉总宽度反推，不再把终端当成单独的特殊分栏
 
 ### 2.3 左侧任务面板
 
@@ -72,7 +80,8 @@ flowchart LR
    - 编辑优先级 `P0-P4`
    - 编辑截止时间
    - 在 `execution / done` 之间切换
-   - 展开/收起终端区
+   - 展开/收起终端抽屉
+   - 展开/收起 Agent Runner 抽屉
    - 展开/收起产物抽屉
    - 打开 workspace、删除任务
 
@@ -89,24 +98,40 @@ flowchart LR
 - 该种子消息由 `buildInitialTaskInfoMessage()` 基于标题、类型、上下文等元数据拼装
 - 当前前端默认走 `/api/tasks/{task_id}/agent-chat/*` 结构化链路；旧 `/chat` SSE 仍保留为兼容路径
 
-### 2.4 右侧执行面板
+### 2.4 右侧抽屉区
 
-右侧由 `TiledTerminalPanel` 与 `TaskArtifactsDrawer` 组合：
+右侧当前由三个互不排斥的独立抽屉组成：
 
-- 顶部操作区（终端面板内部）：
-  - 新建终端
-  - 恢复全部历史会话
-- 会话区：
-  - 展示任务已绑定的历史 `session_ids`
-  - 对未打开但可恢复的历史会话提供恢复入口
-- 终端区：
-  - 无终端时展示空状态
-  - 有终端时按 1/2/3 列平铺展示
-  - 支持拖拽重排
-- 产物抽屉：
-  - 当前主产物是 `AGENTS.md`
-  - 预览基于 Markdown 渲染
-  - 可直接打开任务 workspace
+1. `TiledTerminalPanel`
+   - 作为终端抽屉按需展开
+   - 抽屉外壳需与左侧 `TaskChat` 保持一致：单独 header、固定 header 高度、统一底色 / 描边 / 阴影语义
+   - 当前与 Agent Runner、产物抽屉共用同一套固定宽度 + 左侧拖拽分割线 + 本地持久化宽度模型
+   - 顶部操作区支持新建终端、恢复全部历史会话
+   - 会话区展示任务已绑定的历史 `session_ids`
+   - 终端区无终端时展示空状态；有终端时按 1/2/3 列平铺，支持拖拽重排
+
+2. `SdkRunnerPanel`
+   - 作为 Agent Runner 抽屉独立展开，不再与产物抽屉互斥
+   - 抽屉外壳与聊天框、终端抽屉、产物抽屉保持统一 header 高度与背景
+   - 当前与终端、产物抽屉共用同一套固定宽度 + 左侧拖拽分割线 + 本地持久化宽度模型
+   - 支持回放当前任务的全部 SDK run 历史
+   - 终端关闭时也必须能单独展示
+
+3. `TaskArtifactsDrawer`
+   - 当前主产物是 `AGENTS.md`
+   - 抽屉外壳与其它抽屉保持统一 header 高度与背景
+   - 当前与终端、Agent Runner 抽屉共用同一套固定宽度 + 左侧拖拽分割线 + 本地持久化宽度模型
+   - 预览基于 Markdown 渲染
+   - 可直接打开任务 workspace
+   - 点击“生成 / 重新生成 AGENTS.md”后会自动展开
+
+补充规范：
+
+- 右侧三个抽屉与左侧 `TaskChat` 一样，都必须有单独的顶部 header，而不是把标题散落在内容区
+- header 高度统一为固定 `49px`，避免终端 / Agent Runner / 产物之间切换时出现上下错位
+- 抽屉外层背景、分割线和表面颜色统一，内部内容区再按各自场景组织次级信息
+- header 固定在抽屉顶部，内容区独立滚动，不允许滚动时把 header 一起带走
+- 三个抽屉都通过各自左侧分割线 resize，约束规则一致：始终保留聊天区最小宽度，并保留其它已打开抽屉的当前宽度
 
 ---
 
@@ -158,6 +183,19 @@ flowchart LR
 - Claude：创建时通常就能拿到稳定的可恢复会话 ID
 - OpenAI/Codex 一类运行时可链接 Provider：允许先用运行时 session id 维持任务关联，再在后续同步时收敛
 - Gemini / 其他固定 session provider：只有拿到真实 CLI 会话 ID 后才会长期持久化
+
+### 3.4 客户端布局状态
+
+前端额外在本地持久化一份按任务隔离的工作台布局状态，用于恢复用户上一次的使用习惯。当前包含：
+
+- `terminalOpen`
+- `terminalWidth`
+- `sdkRunnerOpen`
+- `artifactsOpen`
+- `sdkRunnerWidth`
+- `artifactsWidth`
+
+这份状态当前保存在浏览器本地 `localStorage`，不写入后端 `tasks` 表，也不会跨设备同步。
 
 ---
 
@@ -246,12 +284,14 @@ Dashboard 进入或定时刷新
 |------|------|
 | `packages/web/src/App.tsx` | 一级视图切换与任务详情路由装配 |
 | `packages/web/src/components/TaskListView.tsx` | 任务列表、筛选、排序、创建入口 |
-| `packages/web/src/components/TaskWorkspaceView.tsx` | 任务详情整体布局、自动首聊、产物抽屉与终端面板装配 |
+| `packages/web/src/components/TaskWorkspaceView.tsx` | 任务详情整体布局、自动首聊、三抽屉装配与布局恢复 |
 | `packages/web/src/components/task-panel/Header.tsx` | 元数据编辑、状态切换、任务切换 |
 | `packages/web/src/components/task-panel/TaskChat.tsx` | Agent timeline、输入区、工具卡片、生成文档入口 |
 | `packages/web/src/components/TiledTerminalPanel.tsx` | 多终端平铺、恢复历史会话、拖拽重排 |
+| `packages/web/src/components/sdk-runner/SdkRunnerPanel.tsx` | SDK run 历史与结构化时间线 |
 | `packages/web/src/components/TaskArtifactsDrawer.tsx` | `AGENTS.md` 预览与 workspace 打开入口 |
 | `packages/web/src/stores/taskStore.ts` | 任务详情状态、legacy chat 与 agent chat 流 |
+| `packages/web/src/stores/taskWorkspaceStore.ts` | 按任务持久化右侧抽屉开关与宽度 |
 | `packages/web/src/stores/terminalStore.ts` | 前端终端会话状态与任务会话映射 |
 | `packages/server/src/app.py` | 任务 HTTP API、legacy chat、workspace 打开与 `/ws/terminal` 挂载 |
 | `packages/server/src/task_agent_chat.py` | Agent Chat thread / run 路由 |

@@ -366,7 +366,7 @@ export const system = {
     request<{ ok: boolean }>("/open-path", { method: "POST", body: JSON.stringify({ path }) }),
 };
 
-// SDK Runner
+// Agent Runner
 export type SdkRunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
 export interface SdkRun {

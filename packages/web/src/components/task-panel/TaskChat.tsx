@@ -20,6 +20,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettingsStore } from "../../stores/settingsStore";
 import MarkdownContent from "../MarkdownContent";
+import { TASK_WORKSPACE_HEADER_HEIGHT_PX, TaskWorkspacePanelHeader } from "../TaskWorkspacePanelHeader";
 import { cn } from "../../utils/cn";
 import { shouldSubmitOnEnter } from "../../utils/ime";
 import { extractSdkRunIdFromToolOutput, shortSdkRunId } from "../../utils/sdk-runner";
@@ -505,30 +506,28 @@ export function TaskChat({
   return (
     <div className="relative flex-1 h-full min-h-0 overflow-hidden bg-[#EDEDED] dark:bg-[#191919]">
       {/* Sub-header: Absolute Top */}
-      <div
-        data-task-chat-header="true"
-        className="absolute top-0 left-0 right-0 z-20"
-      >
-        <div
-          data-task-chat-header-panel="true"
-          className="flex items-center justify-between border-b border-black/5 bg-white/90 backdrop-blur-apple dark:border-white/10 dark:bg-[#1c1c1e]/85 px-4 py-3"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-apple-md border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-apple-blue">
-              <Bot size={14} />
-            </div>
-            <span className="text-[11px] font-bold uppercase tracking-widest text-system-gray-500 dark:text-system-gray-400">{t('tasks.agent_chat')}</span>
-          </div>
-        </div>
-      </div>
+      <TaskWorkspacePanelHeader
+        title={t('tasks.agent_chat')}
+        icon={Bot}
+        wrapperProps={{
+          "data-task-chat-header": "true",
+          className: "absolute top-0 left-0 right-0 z-20",
+        }}
+        panelProps={{
+          "data-task-chat-header-panel": "true",
+        }}
+      />
 
       {/* Messages: Scrollable */}
       <div className="absolute inset-0 z-0 bg-transparent">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="h-full overflow-y-auto px-4 space-y-6 scrollbar-thin scrollbar-thumb-black/5 dark:scrollbar-thumb-white/5 pt-[60px]"
-          style={{ paddingBottom: `calc(${textareaHeight}px + ${TASK_CHAT_INPUT_PANEL_BOTTOM_PADDING_PX}px)` }}
+          className="h-full overflow-y-auto px-4 space-y-6 scrollbar-thin scrollbar-thumb-black/5 dark:scrollbar-thumb-white/5"
+          style={{
+            paddingTop: `${TASK_WORKSPACE_HEADER_HEIGHT_PX}px`,
+            paddingBottom: `calc(${textareaHeight}px + ${TASK_CHAT_INPUT_PANEL_BOTTOM_PADDING_PX}px)`,
+          }}
         >
           {items.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">

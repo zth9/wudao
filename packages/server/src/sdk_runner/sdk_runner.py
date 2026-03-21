@@ -1,4 +1,4 @@
-"""SDK Runner — process registry + lifecycle management.
+"""Agent Runner — process registry + lifecycle management.
 
 Manages running SDK subprocess tasks via asyncio. Tracks active runs
 so they can be cancelled individually or cleaned up on shutdown.

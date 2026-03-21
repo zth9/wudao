@@ -26,7 +26,7 @@ SDK_RUNNER_TOOL_DEFINITIONS: tuple[SdkRunnerToolDefinition, ...] = (
             "Invoke Claude Code Runner to execute a coding task in a target project directory. "
             "Use this when the user explicitly wants Claude Code / Claude Agent SDK to write code, "
             "fix bugs, add features, run tests, or perform coding work. "
-            "The runner execution will be visible in the SDK Runner panel. "
+            "The runner execution will be visible in the Agent Runner panel. "
             "Returns the sdk_run_id which the frontend uses to subscribe to live events."
         ),
     ),

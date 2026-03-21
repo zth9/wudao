@@ -1,4 +1,4 @@
-"""SDK Runner routes — SSE event streaming, approval, cancellation."""
+"""Agent Runner routes — SSE event streaming, approval, cancellation."""
 
 from __future__ import annotations
 

@@ -12,6 +12,7 @@ import {
 import { useTerminalStore } from "./terminalStore";
 import { useSdkRunnerStore } from "./sdkRunnerStore";
 import { useSettingsStore } from "./settingsStore";
+import { useTaskWorkspaceStore } from "./taskWorkspaceStore";
 import type { SortOption } from "../components/task-panel/constants";
 import {
   type ChatMessage,
@@ -80,10 +81,14 @@ function parseAgentStatus(value: unknown): AgentTimelineStatus {
   return value === "streaming" || value === "failed" || value === "waiting_approval" ? value : "completed";
 }
 
-function connectSdkRun(taskId: string, sdkRunId: string): void {
+function connectSdkRun(taskId: string, sdkRunId: string, options?: { reveal?: boolean }): void {
   const normalizedSdkRunId = sdkRunId.trim();
   if (!normalizedSdkRunId) {
     return;
+  }
+
+  if (options?.reveal) {
+    useTaskWorkspaceStore.getState().setTaskLayout(taskId, { sdkRunnerOpen: true });
   }
 
   const { fetchSdkRuns, subscribeSdkEvents } = useSdkRunnerStore.getState();
@@ -97,7 +102,7 @@ function maybeRevealSdkRun(taskId: string, content: unknown): void {
     return;
   }
 
-  connectSdkRun(taskId, sdkRunId);
+  connectSdkRun(taskId, sdkRunId, { reveal: true });
 }
 
 function findLatestSdkRunIdInThread(thread: AgentThread | null): string | null {

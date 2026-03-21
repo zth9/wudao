@@ -34,7 +34,7 @@ def _run(coro):
 def create_task_id() -> str:
     app_module = importlib.import_module("src.app")
     client = TestClient(app_module.app)
-    response = client.post("/api/tasks", json={"title": "SDK Runner Test", "type": "feature"})
+    response = client.post("/api/tasks", json={"title": "Agent Runner Test", "type": "feature"})
     assert response.status_code == 201
     return response.json()["id"]
 

@@ -1,1 +1,1 @@
-"""SDK Runner — Claude Agent SDK integration for Wudao."""
+"""Agent Runner — Claude Agent SDK integration for Wudao."""

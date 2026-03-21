@@ -59,13 +59,17 @@ vi.mock("../../stores/sdkRunnerStore", () => ({
 import { SdkRunnerPanel } from "./SdkRunnerPanel";
 
 describe("SdkRunnerPanel", () => {
-  it("renders sdk text and tool results with markdown", () => {
+  it("renders agent runner content inside the unified drawer shell", () => {
     const html = renderToStaticMarkup(
       createElement(SdkRunnerPanel, {
         taskId: "task-1",
+        onClose: () => undefined,
       }),
     );
 
+    expect(html).toContain('data-task-workspace-drawer="true"');
+    expect(html).toContain('data-task-workspace-drawer-header="true"');
+    expect(html).toContain("height:49px");
     expect(html).toContain("<h1");
     expect(html).toContain("执行结果</h1>");
     expect(html).toContain("<ul");

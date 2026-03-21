@@ -86,7 +86,7 @@
     "tool_output_label": "Output",
     "expand_tool": "Expand Details",
     "collapse_tool": "Collapse Details",
-    "open_sdk_runner": "Open SDK Runner",
+    "open_sdk_runner": "Open Agent Runner",
     "approval_label": "Approval",
     "artifact_updated_label": "Artifact Updated",
     "error_label": "Run Error",
@@ -371,9 +371,9 @@
     }
   },
   "sdkRunner": {
-    "title": "SDK Runner",
-    "empty": "Agent has not started any SDK execution yet",
-    "emptyHint": "Ask the Agent in the chat to perform coding tasks — it will invoke Claude Code SDK automatically",
+    "title": "Agent Runner",
+    "empty": "The Agent has not started any Agent Runner execution yet",
+    "emptyHint": "Ask the Agent in the chat to perform coding tasks — it will invoke Claude Code through Agent Runner automatically",
     "running": "Running",
     "completed": "Completed",
     "failed": "Failed",
@@ -396,8 +396,8 @@
     "error": "Error",
     "progress": "Progress",
     "history": "Run History",
-    "historyReady": "Select an SDK run to inspect",
-    "historyHint": "All SDK runs for the current task are kept above. Click one to replay its details.",
+    "historyReady": "Select an Agent Runner run to inspect",
+    "historyHint": "All Agent Runner runs for the current task are kept above. Click one to replay its details.",
     "noPrompt": "No startup prompt recorded"
   }
 }

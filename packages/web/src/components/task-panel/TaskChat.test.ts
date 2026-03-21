@@ -134,7 +134,7 @@ describe("TaskChat", () => {
     expect(html).toContain("AGENTS.md");
   });
 
-  it("为 invoke_claude_code_runner 工具结果提供打开对应 SDK Runner 的入口", () => {
+  it("为 invoke_claude_code_runner 工具结果提供打开对应 Agent Runner 的入口", () => {
     const html = renderToStaticMarkup(
       createElement(TaskChat, {
         taskId: "2026-03-21-1",

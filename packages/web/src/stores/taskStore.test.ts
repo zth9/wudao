@@ -18,6 +18,7 @@ const {
   mockRemoveByTaskId,
   mockFetchSdkRuns,
   mockSubscribeSdkEvents,
+  mockSetTaskLayout,
   capturedCallbacks,
   capturedAgentCallbacks,
 } = vi.hoisted(() => {
@@ -58,6 +59,7 @@ const {
     mockRemoveByTaskId: vi.fn(),
     mockFetchSdkRuns: vi.fn(),
     mockSubscribeSdkEvents: vi.fn(),
+    mockSetTaskLayout: vi.fn(),
     capturedCallbacks: callbacks,
     capturedAgentCallbacks: agentCallbacks,
   };
@@ -91,6 +93,14 @@ vi.mock("./sdkRunnerStore", () => ({
     getState: () => ({
       fetchSdkRuns: mockFetchSdkRuns,
       subscribeSdkEvents: mockSubscribeSdkEvents,
+    }),
+  },
+}));
+
+vi.mock("./taskWorkspaceStore", () => ({
+  useTaskWorkspaceStore: {
+    getState: () => ({
+      setTaskLayout: mockSetTaskLayout,
     }),
   },
 }));
@@ -164,6 +174,7 @@ beforeEach(() => {
   mockAgentAbortController.abort.mockReset();
   mockFetchSdkRuns.mockReset();
   mockSubscribeSdkEvents.mockReset();
+  mockSetTaskLayout.mockReset();
   mockGetAgentChatThread.mockResolvedValue({ task_id: "2026-02-26-1", runs: [], messages: [] });
 });
 
@@ -656,6 +667,7 @@ describe("agent chat timeline", () => {
 
     expect(mockFetchSdkRuns).toHaveBeenCalledWith("t1");
     expect(mockSubscribeSdkEvents).toHaveBeenCalledWith("t1", "sdk-run-42");
+    expect(mockSetTaskLayout).toHaveBeenCalledWith("t1", { sdkRunnerOpen: true });
     expect(useTaskStore.getState().agentTimeline.at(-1)).toEqual({
       id: "sdk-result-1",
       kind: "tool_result",

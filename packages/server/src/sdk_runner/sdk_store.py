@@ -1,4 +1,4 @@
-"""SDK Runner persistence layer — CRUD for task_sdk_runs / task_sdk_events."""
+"""Agent Runner persistence layer — CRUD for task_sdk_runs / task_sdk_events."""
 
 from __future__ import annotations
 

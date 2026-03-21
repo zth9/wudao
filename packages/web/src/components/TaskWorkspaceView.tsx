@@ -9,6 +9,7 @@ import {
 } from "../stores/terminalStore";
 import { useSdkRunnerStore } from "../stores/sdkRunnerStore";
 import { useSettingsStore } from "../stores/settingsStore";
+import { DEFAULT_TASK_WORKSPACE_LAYOUT, useTaskWorkspaceStore } from "../stores/taskWorkspaceStore";
 import { useWs } from "../contexts/WsContext";
 import { Header } from "./task-panel/Header";
 import { TaskChat } from "./task-panel/TaskChat";
@@ -18,7 +19,13 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { buildInitialTaskInfoMessage } from "../utils/task-chat";
-import { getArtifactsDragPreview, getCollapsedChatPanelWidth } from "./task-workspace-layout";
+import {
+  getArtifactsDragPreview,
+  getCollapsedChatPanelWidth,
+  getSdkRunnerDragPreview,
+  getTerminalDragPreview,
+  resolveRightDrawerLayout,
+} from "./task-workspace-layout";
 import {
   TASK_LIST_DRAWER_BACKDROP_CLASS,
   TASK_LIST_DRAWER_PANEL_CLASS,
@@ -28,13 +35,14 @@ const loadTaskListDrawer = () => import("./task-panel/TaskListDrawer");
 const loadTaskArtifactsDrawer = () => import("./TaskArtifactsDrawer");
 const loadTiledTerminalPanel = () => import("./TiledTerminalPanel");
 const loadNewTaskTerminalDialog = () => import("./dialogs/NewTaskTerminalDialog");
+const loadSdkRunnerPanel = () => import("./sdk-runner/SdkRunnerPanel");
 
 const TaskListDrawer = lazy(async () => ({ default: (await loadTaskListDrawer()).TaskListDrawer }));
 const TaskArtifactsDrawer = lazy(loadTaskArtifactsDrawer);
 const TiledTerminalPanel = lazy(loadTiledTerminalPanel);
 const NewTaskTerminalDialog = lazy(async () => ({ default: (await loadNewTaskTerminalDialog()).NewTaskTerminalDialog }));
 
-const SdkRunnerPanelLazy = lazy(() => import("./sdk-runner/SdkRunnerPanel").then(m => ({ default: m.SdkRunnerPanel })));
+const SdkRunnerPanelLazy = lazy(() => loadSdkRunnerPanel().then(m => ({ default: m.SdkRunnerPanel })));
 const SdkRunnerPanel = SdkRunnerPanelLazy;
 
 function TerminalPanelFallback() {
@@ -93,8 +101,6 @@ interface Props {
 export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBack, onSwitchTask, onAutoStartChatHandled }: Props) {
   const { t } = useTranslation();
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [artifactsOpen, setArtifactsOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(40);
   const [isDragging, setIsDragging] = useState(false);
   const draggingRef = useRef(false);
   const { wsReady } = useWs();
@@ -104,14 +110,51 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
   const hasProviders = providers.length > 0;
 
   const [showTaskList, setShowTaskList] = useState(false);
-  const [terminalCollapsed, setTerminalCollapsed] = useState(false);
-  const [artifactsWidth, setArtifactsWidth] = useState(440);
   const [isArtifactsDragging, setIsArtifactsDragging] = useState(false);
+  const [isSdkRunnerDragging, setIsSdkRunnerDragging] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
 
   const chatPanelRef = useRef<HTMLDivElement>(null);
+  const terminalPanelRef = useRef<HTMLDivElement>(null);
+  const sdkRunnerPanelRef = useRef<HTMLDivElement>(null);
   const artifactsPanelRef = useRef<HTMLDivElement>(null);
   const artifactsInnerRef = useRef<HTMLDivElement>(null);
   const autoStartedTaskIdRef = useRef<string | null>(null);
+  const taskLayout = useTaskWorkspaceStore((state) => state.taskLayouts[taskId]);
+  const setTaskLayout = useTaskWorkspaceStore((state) => state.setTaskLayout);
+  const toggleTerminal = useTaskWorkspaceStore((state) => state.toggleTerminal);
+  const toggleArtifacts = useTaskWorkspaceStore((state) => state.toggleArtifacts);
+  const toggleSdkRunner = useTaskWorkspaceStore((state) => state.toggleSdkRunner);
+
+  const {
+    terminalOpen,
+    sdkRunnerOpen,
+    artifactsOpen,
+    terminalWidth,
+    sdkRunnerWidth,
+    artifactsWidth,
+  } = useMemo(
+    () => ({ ...DEFAULT_TASK_WORKSPACE_LAYOUT, ...taskLayout }),
+    [taskLayout],
+  );
+
+  const resolvedDrawerLayout = useMemo(
+    () =>
+      resolveRightDrawerLayout(
+        {
+          terminalOpen,
+          terminalWidth,
+          sdkRunnerOpen,
+          sdkRunnerWidth,
+          artifactsOpen,
+          artifactsWidth,
+        },
+        viewportWidth,
+      ),
+    [artifactsOpen, artifactsWidth, sdkRunnerOpen, sdkRunnerWidth, terminalOpen, terminalWidth, viewportWidth],
+  );
 
   const {
     tasks,
@@ -130,7 +173,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     generateDocs,
   } = useTaskStore();
 
-  const { sdkPanelOpen, openSdkPanel, closeSdkPanel, clearSdkRunner, fetchSdkRuns } = useSdkRunnerStore();
+  const { sdkRuns, openSdkPanel, closeSdkPanel, clearSdkRunner, fetchSdkRuns } = useSdkRunnerStore();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const providerRef = useRef<string | null>(null);
@@ -183,16 +226,25 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
   }, [showTaskList, fetch]);
 
   useEffect(() => {
-    if (!terminalCollapsed) {
+    if (terminalOpen) {
       void loadTiledTerminalPanel();
     }
-  }, [terminalCollapsed]);
+  }, [terminalOpen]);
 
   useEffect(() => {
     if (artifactsOpen) {
       void loadTaskArtifactsDrawer();
     }
   }, [artifactsOpen]);
+
+  useEffect(() => {
+    if (sdkRunnerOpen) {
+      void loadSdkRunnerPanel();
+      openSdkPanel(taskId);
+      return;
+    }
+    closeSdkPanel();
+  }, [sdkRunnerOpen, taskId, sdkRuns.length, openSdkPanel, closeSdkPanel]);
 
   useEffect(() => {
     if (showNewDialog) {
@@ -203,6 +255,15 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
   useEffect(() => {
     providerRef.current = currentTask?.provider_id ?? null;
   }, [currentTask?.provider_id]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
 
   useEffect(() => {
@@ -250,15 +311,15 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
   const handleGenerateDocs = useCallback(async () => {
     void loadTaskArtifactsDrawer();
     await generateDocs(taskId, providerRef.current ?? undefined);
-    setArtifactsOpen(true);
-  }, [generateDocs, taskId]);
+    setTaskLayout(taskId, { artifactsOpen: true });
+  }, [generateDocs, setTaskLayout, taskId]);
 
   const handleToggleArtifacts = useCallback(() => {
     if (!artifactsOpen) {
       void loadTaskArtifactsDrawer();
     }
-    setArtifactsOpen((current) => !current);
-  }, [artifactsOpen]);
+    toggleArtifacts(taskId);
+  }, [artifactsOpen, taskId, toggleArtifacts]);
 
   const handleShowNewDialog = useCallback(() => {
     void loadNewTaskTerminalDialog();
@@ -445,7 +506,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     e.preventDefault();
     draggingRef.current = true;
     setIsDragging(true);
-    let currentPct = panelWidth;
+    let currentWidth = resolvedDrawerLayout.terminalWidth;
 
     // Add an overlay to prevent iframe/terminal from capturing mouse events during drag
     const overlay = document.createElement("div");
@@ -458,11 +519,26 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     const onMove = (ev: MouseEvent) => {
       if (!draggingRef.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const pct = ((ev.clientX - rect.left) / rect.width) * 100;
-      currentPct = Math.min(Math.max(pct, 20), 80);
+      const { terminalWidth: nextWidth, chatPanelWidth } = getTerminalDragPreview({
+        containerRight: rect.right,
+        pointerClientX: ev.clientX,
+        viewportWidth: window.innerWidth,
+        layout: {
+          terminalOpen,
+          terminalWidth: resolvedDrawerLayout.terminalWidth,
+          sdkRunnerOpen,
+          sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
+          artifactsOpen,
+          artifactsWidth: resolvedDrawerLayout.artifactsWidth,
+        },
+      });
+      currentWidth = nextWidth;
 
       if (chatPanelRef.current) {
-        chatPanelRef.current.style.width = `${currentPct}%`;
+        chatPanelRef.current.style.width = chatPanelWidth;
+      }
+      if (terminalPanelRef.current) {
+        terminalPanelRef.current.style.width = `${currentWidth + 1}px`;
       }
     };
     const onUp = () => {
@@ -473,7 +549,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
       document.body.style.userSelect = "";
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
 
-      setPanelWidth(currentPct);
+      setTaskLayout(taskId, { terminalWidth: currentWidth });
 
       setTimeout(() => {
         setIsDragging(false);
@@ -485,7 +561,16 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     document.body.style.userSelect = "none";
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [panelWidth]);
+  }, [
+    artifactsOpen,
+    resolvedDrawerLayout.artifactsWidth,
+    resolvedDrawerLayout.sdkRunnerWidth,
+    resolvedDrawerLayout.terminalWidth,
+    sdkRunnerOpen,
+    setTaskLayout,
+    taskId,
+    terminalOpen,
+  ]);
 
   const handleArtifactsDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -506,8 +591,15 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
       const { artifactsWidth: nextWidth, chatPanelWidth } = getArtifactsDragPreview({
         containerRight: rect.right,
         pointerClientX: ev.clientX,
-        terminalCollapsed,
         viewportWidth: window.innerWidth,
+        layout: {
+          terminalOpen,
+          terminalWidth: resolvedDrawerLayout.terminalWidth,
+          sdkRunnerOpen,
+          sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
+          artifactsOpen,
+          artifactsWidth: resolvedDrawerLayout.artifactsWidth,
+        },
       });
       currentWidth = nextWidth;
 
@@ -530,7 +622,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
 
       // Update width state first while isArtifactsDragging is still true (duration: 0)
-      setArtifactsWidth(currentWidth);
+      setTaskLayout(taskId, { artifactsWidth: currentWidth });
 
       // Delay disabling the dragging state to skip the spring animation for the final width update
       setTimeout(() => {
@@ -543,7 +635,84 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     document.body.style.userSelect = "none";
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [artifactsWidth, terminalCollapsed]);
+  }, [
+    resolvedDrawerLayout.artifactsWidth,
+    resolvedDrawerLayout.sdkRunnerWidth,
+    resolvedDrawerLayout.terminalWidth,
+    setTaskLayout,
+    taskId,
+    terminalOpen,
+    sdkRunnerOpen,
+    artifactsOpen,
+  ]);
+
+  const handleSdkRunnerDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    setIsSdkRunnerDragging(true);
+    let currentWidth = sdkRunnerWidth;
+
+    const overlay = document.createElement("div");
+    overlay.style.position = "absolute";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "9999";
+    overlay.style.cursor = "col-resize";
+    document.body.appendChild(overlay);
+
+    const onMove = (ev: MouseEvent) => {
+      if (!draggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const { sdkRunnerWidth: nextWidth, chatPanelWidth } = getSdkRunnerDragPreview({
+        containerRight: rect.right,
+        pointerClientX: ev.clientX,
+        viewportWidth: window.innerWidth,
+        layout: {
+          terminalOpen,
+          terminalWidth: resolvedDrawerLayout.terminalWidth,
+          sdkRunnerOpen,
+          sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
+          artifactsOpen,
+          artifactsWidth: resolvedDrawerLayout.artifactsWidth,
+        },
+      });
+      currentWidth = nextWidth;
+
+      if (sdkRunnerPanelRef.current) {
+        sdkRunnerPanelRef.current.style.width = `${currentWidth}px`;
+      }
+      if (chatPanelRef.current && chatPanelWidth) {
+        chatPanelRef.current.style.width = chatPanelWidth;
+      }
+    };
+    const onUp = () => {
+      draggingRef.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+
+      setTaskLayout(taskId, { sdkRunnerWidth: currentWidth });
+
+      setTimeout(() => {
+        setIsSdkRunnerDragging(false);
+        setTimeout(() => window.dispatchEvent(new Event("resize")), 10);
+      }, 50);
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [
+    artifactsOpen,
+    resolvedDrawerLayout.artifactsWidth,
+    resolvedDrawerLayout.sdkRunnerWidth,
+    resolvedDrawerLayout.terminalWidth,
+    setTaskLayout,
+    taskId,
+    terminalOpen,
+    sdkRunnerOpen,
+  ]);
 
   if (!currentTask) {
     return (
@@ -568,12 +737,10 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onDeleteConfirm={() => void handleDeleteConfirm()}
         artifactsOpen={artifactsOpen}
         onToggleArtifacts={handleToggleArtifacts}
-        terminalOpen={!terminalCollapsed}
-        onToggleTerminal={() => setTerminalCollapsed(!terminalCollapsed)}
-        sdkRunnerOpen={sdkPanelOpen}
-        onToggleSdkRunner={() => {
-          if (sdkPanelOpen) closeSdkPanel(); else openSdkPanel(taskId);
-        }}
+        terminalOpen={terminalOpen}
+        onToggleTerminal={() => toggleTerminal(taskId)}
+        sdkRunnerOpen={sdkRunnerOpen}
+        onToggleSdkRunner={() => toggleSdkRunner(taskId)}
         onOpenTaskList={handleOpenTaskList}
       />
 
@@ -584,14 +751,19 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           layout={false}
           initial={false}
           animate={{
-            width: terminalCollapsed
-              ? (artifactsOpen ? getCollapsedChatPanelWidth(artifactsWidth) : "100%")
-              : `${panelWidth}%`,
+            width: getCollapsedChatPanelWidth({
+              terminalOpen,
+              terminalWidth: resolvedDrawerLayout.terminalWidth,
+              sdkRunnerOpen,
+              sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
+              artifactsOpen,
+              artifactsWidth: resolvedDrawerLayout.artifactsWidth,
+            }),
           }}
-          transition={isDragging || isArtifactsDragging ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 200 }}
+          transition={isDragging || isArtifactsDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 200 }}
           className={cn(
             "flex flex-col min-h-0 border-r border-black/5 dark:border-white/10 bg-white/20 dark:bg-white/5 shrink-0",
-            terminalCollapsed && "border-r-0"
+            !terminalOpen && "border-r-0"
           )}
           style={{ minWidth: 320 }}
         >
@@ -606,46 +778,83 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
             onSend={(message, providerId) => sendAgentChatMessage(taskId, message, providerId)}
             onProviderChange={handleProviderChange}
             onAbort={abortAgentChat}
-            onOpenSdkRun={(sdkRunId) => openSdkPanel(taskId, sdkRunId)}
+            onOpenSdkRun={(sdkRunId) => {
+              setTaskLayout(taskId, { sdkRunnerOpen: true });
+              openSdkPanel(taskId, sdkRunId);
+            }}
           />
         </motion.div>
 
-        {/* Resizer */}
-        {!terminalCollapsed && (
+        <AnimatePresence initial={false}>
+          {terminalOpen && (
+            <motion.div
+              ref={terminalPanelRef}
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: resolvedDrawerLayout.terminalWidth + 1, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={isDragging || isArtifactsDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 200 }}
+              className="shrink-0 flex min-w-0 flex-row overflow-hidden"
+            >
+              <div
+                onMouseDown={handleDragStart}
+                className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative"
+              >
+                <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
+              </div>
+
+              <div className="min-w-0 flex flex-1 flex-col relative overflow-hidden">
+                <Suspense fallback={<TerminalPanelFallback />}>
+                  <TiledTerminalPanel
+                    taskId={taskId}
+                    onNewTerminal={handleShowNewDialog}
+                    onClosePanel={() => setTaskLayout(taskId, { terminalOpen: false })}
+                    wsReady={wsReady}
+                    hasProviders={hasProviders}
+                    linkedSessionIds={linkedSessionIds}
+                    linkedSessionNameMap={linkedSessionNameMap}
+                    linkedSessionProviderMap={persistedSessionProviders}
+                    onRestoreSession={(sessionId) => handleNavigateToSession(sessionId, taskId)}
+                    onRestoreAll={() => handleRestoreAllSessions(linkedSessionIds, taskId)}
+                  />
+                </Suspense>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Agent Runner Divider */}
+        {sdkRunnerOpen && (
           <div
-            onMouseDown={handleDragStart}
-            className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative"
+            onMouseDown={handleSdkRunnerDragStart}
+            className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative z-30"
           >
-             <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
+            <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
           </div>
         )}
 
-        {/* Terminal Area (Right/Middle) */}
-        {!terminalCollapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={isDragging || isArtifactsDragging ? { duration: 0 } : { duration: 0.14, ease: "easeOut" }}
-            className="min-w-0 flex flex-col relative overflow-hidden flex-1"
-          >
-            <Suspense fallback={<TerminalPanelFallback />}>
-              <TiledTerminalPanel
-                taskId={taskId}
-                onNewTerminal={handleShowNewDialog}
-                wsReady={wsReady}
-                hasProviders={hasProviders}
-                linkedSessionIds={linkedSessionIds}
-                linkedSessionNameMap={linkedSessionNameMap}
-                linkedSessionProviderMap={persistedSessionProviders}
-                onRestoreSession={(sessionId) => handleNavigateToSession(sessionId, taskId)}
-                onRestoreAll={() => handleRestoreAllSessions(linkedSessionIds, taskId)}
-              />
-            </Suspense>
-          </motion.div>
-        )}
+        {/* Agent Runner Panel (Right) */}
+        <AnimatePresence initial={false}>
+          {sdkRunnerOpen && (
+            <motion.div
+              ref={sdkRunnerPanelRef}
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: resolvedDrawerLayout.sdkRunnerWidth, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 200 }}
+              className="shrink-0 flex flex-col overflow-hidden"
+            >
+              <Suspense fallback={<SidePanelFallback />}>
+                <SdkRunnerPanel
+                  taskId={taskId}
+                  onClose={() => setTaskLayout(taskId, { sdkRunnerOpen: false })}
+                />
+              </Suspense>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Artifacts Resizer */}
-        {artifactsOpen && !sdkPanelOpen && (
+        {artifactsOpen && (
           <div
             onMouseDown={handleArtifactsDragStart}
             className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative z-30"
@@ -654,47 +863,29 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           </div>
         )}
 
-        {/* Artifacts Area (Right) — hidden when SDK Runner is open */}
+        {/* Artifacts Area (Right) */}
         <AnimatePresence initial={false}>
-          {artifactsOpen && !sdkPanelOpen && (
+          {artifactsOpen && (
             <motion.div
               ref={artifactsPanelRef}
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: artifactsWidth, opacity: 1 }}
+              animate={{ width: resolvedDrawerLayout.artifactsWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={isArtifactsDragging ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 200 }}
-              className="shrink-0 flex flex-col overflow-hidden bg-white/50 dark:bg-black/40"
+              className="shrink-0 flex flex-col overflow-hidden"
             >
-              <div ref={artifactsInnerRef} style={{ width: artifactsWidth }} className="h-full flex flex-col min-h-0">
+              <div ref={artifactsInnerRef} style={{ width: resolvedDrawerLayout.artifactsWidth }} className="h-full flex flex-col min-h-0">
                 <Suspense fallback={<SidePanelFallback />}>
                   <TaskArtifactsDrawer
                     taskId={taskId}
                     agentDoc={currentTask?.id === taskId ? currentTask.agent_doc : null}
-                    onClose={() => setArtifactsOpen(false)}
+                    onClose={() => setTaskLayout(taskId, { artifactsOpen: false })}
                   />
                 </Suspense>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* SDK Runner Panel (Right, parallel to terminal) */}
-        {sdkPanelOpen && (
-          <>
-            <div className="w-[1px] shrink-0 bg-black/5 dark:bg-white/5" />
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 420, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="shrink-0 flex flex-col overflow-hidden bg-white/50 dark:bg-black/40"
-            >
-              <Suspense fallback={<SidePanelFallback />}>
-                <SdkRunnerPanel taskId={taskId} />
-              </Suspense>
-            </motion.div>
-          </>
-        )}
       </div>
 
       {showNewDialog && (
@@ -704,6 +895,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
             defaultProviderId={defaultProvider?.id || providers[0]?.id || ""}
             onConfirm={(providerId, permissionMode, name) => {
               setShowNewDialog(false);
+              setTaskLayout(taskId, { terminalOpen: true });
               createTaskSession({
                 taskId,
                 providerId,

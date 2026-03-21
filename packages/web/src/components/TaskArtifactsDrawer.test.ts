@@ -17,7 +17,7 @@ vi.mock("../services/api", () => ({
 import TaskArtifactsDrawer from "./TaskArtifactsDrawer";
 
 describe("TaskArtifactsDrawer", () => {
-  it("在暗黑模式下为产物标题和辅助文案声明可读颜色", () => {
+  it("使用统一抽屉壳层并为产物信息声明可读颜色", () => {
     const html = renderToStaticMarkup(
       createElement(TaskArtifactsDrawer, {
         taskId: "2026-03-08-1",
@@ -26,8 +26,10 @@ describe("TaskArtifactsDrawer", () => {
       })
     );
 
+    expect(html).toContain('data-task-workspace-drawer="true"');
+    expect(html).toContain('data-task-workspace-drawer-header="true"');
+    expect(html).toContain("height:49px");
     expect(html).toContain("text-xs font-bold text-foreground dark:text-foreground-dark");
-    expect(html).toContain("text-[10px] text-system-gray-400 dark:text-system-gray-300 mt-1");
     expect(html).toContain("text-[10px] text-system-gray-400 dark:text-system-gray-300 mt-0.5");
   });
 });

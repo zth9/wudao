@@ -87,7 +87,6 @@ function resetStore() {
     activeSdkRunId: null,
     sdkTimeline: [],
     sdkRunning: false,
-    sdkPanelOpen: false,
   });
 }
 
@@ -136,7 +135,6 @@ describe("sdkRunnerStore", () => {
     useSdkRunnerStore.getState().openSdkPanel("task-1", "sdk-run-1");
     await flushAsyncWork();
 
-    expect(useSdkRunnerStore.getState().sdkPanelOpen).toBe(true);
     expect(useSdkRunnerStore.getState().activeSdkRunId).toBe("sdk-run-1");
     expect(useSdkRunnerStore.getState().sdkTimeline.some((item) => item.kind === "text" && item.content.includes("第一次结果"))).toBe(true);
     expect(useSdkRunnerStore.getState().sdkRuns.map((run) => run.id)).toEqual(["sdk-run-2", "sdk-run-1"]);

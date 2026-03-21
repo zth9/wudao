@@ -149,7 +149,7 @@ def test_task_read_context_registered_and_executable(tmp_path, monkeypatch):
 def test_sdk_runner_tool_registry_exposes_runner_specific_tool_name(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
-    current_task_id = create_task(client, "SDK Runner 工具名")
+    current_task_id = create_task(client, "Agent Runner 工具名")
 
     del app_module
     del current_task_id
@@ -162,7 +162,7 @@ def test_sdk_runner_tool_registry_exposes_runner_specific_tool_name(tmp_path, mo
 def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_run(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, home_dir = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
-    task_id = create_task(client, "SDK Runner 默认目录")
+    task_id = create_task(client, "Agent Runner 默认目录")
     workspace_dir = home_dir / "workspace" / task_id
 
     sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
@@ -204,7 +204,7 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
 def test_legacy_invoke_sdk_runner_alias_still_executes_claude_code_runner(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
-    task_id = create_task(client, "SDK Runner 兼容别名")
+    task_id = create_task(client, "Agent Runner 兼容别名")
 
     sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
     captured: dict[str, object] = {}

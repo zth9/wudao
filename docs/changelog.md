@@ -4,43 +4,84 @@
 
 ## 2026-03-21
 
-- **SDK Runner 调用工具已切到具名 runner 名称**：
+- **右侧抽屉现已统一成和 Agentic 聊天一致的 header 壳层**：
+  - 任务终端、Agent Runner 和产物抽屉现在都带有独立的顶部 header，不再各自使用不同高度、不同底色的标题区
+  - 三个抽屉的 header 高度、背景、边框和整体表面色已统一到和左侧 Agentic 聊天一致，切换抽屉时不会再出现上下错位和色块跳变
+  - 终端抽屉把标题和操作按钮收进统一 header，原先的会话摘要与历史关联信息下沉到内容区顶部；Agent Runner 与产物抽屉也都补上了统一风格的关闭按钮
+  - 已新增通用 `TaskWorkspaceDrawerShell`，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
+
+- **任务详情的顶部 header 现已统一固定为 49px，Agent Runner 也恢复滚动**：
+  - 左侧 Agentic 聊天 header 与右侧三个抽屉 header 当前都已统一固定为 `49px` 高度，不再因为不同面板切换而出现轻微高低差
+  - 右侧抽屉壳层的 body 已改成纵向 flex 容器，header 固定在顶部、内容区独立滚动
+  - 修复了 Agent Runner 面板打开后时间线无法向下滚动的问题；现在历史列表和执行时间线都能正常滚动查看
+  - 已完成 `pnpm --filter web test`、`pnpm --filter web build` 与 `pnpm test`
+
+- **统一 header 现已按原始大小写显示，Agent Runner 图标也已区分**：
+  - 任务详情中共用的 header 组件已移除强制大写样式，标题现会按文案原始大小写渲染，不再统一转成全大写
+  - Agent Runner 的 header 图标已从和 Agentic 聊天相同的机器人图标改为独立图标，避免两个面板看起来像同一类信息
+  - 已完成 `pnpm --filter web test`、`pnpm --filter web build` 与 `pnpm test`
+
+- **Agent Runner 现在也可以拖拽改宽，抽屉宽度会一起记住**：
+  - 右侧 `Agent Runner` 左边框现在和产物抽屉一样支持拖拽改宽，不再固定死在默认宽度
+  - 当前任务的终端宽度、Agent Runner 宽度、产物抽屉宽度都会一起按任务持久化到浏览器本地缓存，重新进入同一任务时会恢复上次布局
+  - 在只打开 Agent Runner、或同时打开 Agent Runner + 产物抽屉时，拖拽预览也会同步更新聊天区宽度，避免拖拽态和最终态不一致
+  - 已补充 `taskWorkspaceStore` 与工作台宽度计算回归测试，并完成 `pnpm --filter web test`、`pnpm --filter web build` 与 `pnpm test`
+
+- **右侧三块现已统一成同一套固定宽度抽屉模型**：
+  - 终端不再作为特殊的中间 `flex` 区单独处理，而是和 Agent Runner、产物一起统一成三个按顺序排列的固定宽度右侧抽屉
+  - 三个抽屉现在共享同一套左侧分割线拖拽、最小宽度约束、聊天区保底宽度约束和本地持久化恢复逻辑
+  - 修复了拖拽 Agent Runner 时瞬间撑满、并把右侧产物推出屏幕的问题
+  - 已补充 `task-workspace-layout` 回归测试，并完成 `pnpm --filter web test`、`pnpm --filter web build` 与 `pnpm test`
+
+- **Agent 启动 Agent Runner 后现在会自动展开对应抽屉并切到这条 run**：
+  - 当任务聊天收到 `invoke_claude_code_runner` 的工具结果且其中返回了 `sdk_run_id`，前端现在会立即展开当前任务右侧的 Agent Runner 抽屉
+  - 同时会自动切换到这条对应的 run 并订阅它的事件流，不再需要用户先手动打开抽屉或再点一次工具卡片
+  - 已补充 `taskStore` 回归测试，并完成 `pnpm --filter web test`、`pnpm --filter web build` 与 `pnpm test`
+
+- **任务详情右侧现已改为按任务记忆的三抽屉布局**：
+  - 新任务首次进入详情页时，默认只显示左侧 Agent 聊天区，不再默认展开右侧执行面板
+  - `终端 / Agent Runner / 产物` 现已改为三个彼此独立的右侧抽屉，可以分别打开、关闭，并按任务单独记忆上次状态
+  - 修复了“终端关闭、只打开 Agent Runner 时面板没有展示出来”的问题；现在 Agent Runner 即使单独打开也会正常显示，且不再和产物抽屉互相挤掉
+  - 当前任务的聊天区宽度与产物抽屉宽度也会一起按任务记忆，重新进入同一任务时恢复上次布局
+  - 已补充 `taskWorkspaceStore`、工作台宽度计算与 `sdkRunnerStore` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
+
+- **Agent Runner 调用工具已切到具名 runner 名称**：
   - Agent Runtime 当前对模型暴露的 SDK 工具名已从通用的 `invoke_sdk_runner` 收敛为 `invoke_claude_code_runner`
   - 服务端会把每次 SDK run 的 `runner_type` 一并写入 `task_sdk_runs`，当前已显式记录为 `claude_code`，为后续接入 `invoke_codex_runner` 等 runner-specific 工具预留了稳定扩展位
   - 旧的 `invoke_sdk_runner` 仍保留为兼容别名，已落库的旧消息、旧线程回放和旧模型输出不会直接失效
   - 已更新 Agentic Chat 工具设计文档，并完成 `pnpm --filter server test`、`pnpm --filter web test` 与 `pnpm --filter web build`
 
-- **SDK Runner 结果现在按 Markdown 渲染**：
-  - 右侧 SDK Runner 面板中的最终文本结果和工具结果，现已从纯文本/`pre` 改为 Markdown 渲染
+- **Agent Runner 结果现在按 Markdown 渲染**：
+  - 右侧 Agent Runner 面板中的最终文本结果和工具结果，现已从纯文本/`pre` 改为 Markdown 渲染
   - SDK 返回的标题、列表、代码块、表格和链接现在会按结构化样式展示，阅读长结果时更接近左侧 Agent Chat 的体验
   - 已补充 `SdkRunnerPanel` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
 
-- **SDK Runner 现在会保留并切换当前任务的全部执行历史**：
-  - 修复了同一任务多次触发 SDK Runner 后，右侧面板只保留最近一次执行、看起来像“覆盖掉上一次”的问题
-  - 现在 SDK Runner 面板会保留当前任务下全部 SDK run 历史列表，并默认按最近一次优先展示；点击历史项即可回放对应 run 的持久化事件流
-  - Agent Chat 中 `invoke_sdk_runner` 的工具执行卡片也会直接带上“打开 SDK Runner”入口，点击后会自动展开右侧面板并定位到这次工具调用对应的 `sdk_run_id`
+- **Agent Runner 现在会保留并切换当前任务的全部执行历史**：
+  - 修复了同一任务多次触发 Agent Runner 后，右侧面板只保留最近一次执行、看起来像“覆盖掉上一次”的问题
+  - 现在 Agent Runner 面板会保留当前任务下全部 SDK run 历史列表，并默认按最近一次优先展示；点击历史项即可回放对应 run 的持久化事件流
+  - Agent Chat 中 `invoke_sdk_runner` 的工具执行卡片也会直接带上“打开 Agent Runner”入口，点击后会自动展开右侧面板并定位到这次工具调用对应的 `sdk_run_id`
   - 已补充 `sdkRunnerStore` 与 `TaskChat` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
 
-- **同一任务现在允许同时启动多个 SDK Runner 执行**：
+- **同一任务现在允许同时启动多个 Agent Runner 执行**：
   - 移除了服务端原先“一个任务同一时间只能有一个 active SDK run”的限制
-  - 现在同一任务可以连续或并发启动多条 SDK Runner 执行，每条 run 都会独立写入 `task_sdk_runs` 与 `task_sdk_events`
+  - 现在同一任务可以连续或并发启动多条 Agent Runner 执行，每条 run 都会独立写入 `task_sdk_runs` 与 `task_sdk_events`
   - 取消、历史回放和工具卡片跳转仍然按 `sdk_run_id` 精确作用到对应 run，不会互相覆盖
   - 已补充服务端回归测试，并完成 `pnpm --filter server test`
 
-- **SDK Runner 面板现在会自动接回当前任务对应的 SDK run**：
-  - 修复了 Agent 通过 `invoke_sdk_runner` 成功触发 SDK 执行后，右侧 SDK Runner 面板没有自动展示对应 run 的问题
-  - 现在只要工具结果里返回了 `sdk_run_id`，前端就会立刻展开 SDK Runner 面板并订阅这条 run 的 SSE 事件流
+- **Agent Runner 面板现在会自动接回当前任务对应的 SDK run**：
+  - 修复了 Agent 通过 `invoke_sdk_runner` 成功触发 SDK 执行后，右侧 Agent Runner 面板没有自动展示对应 run 的问题
+  - 现在只要工具结果里返回了 `sdk_run_id`，前端就会立刻展开 Agent Runner 面板并订阅这条 run 的 SSE 事件流
   - 重新进入任务页时，前端也会从结构化 Agent thread 中恢复最近一次 `invoke_sdk_runner` 产生的 `sdk_run_id`，自动回放已持久化的 SDK 事件，不再出现“数据库里有 run，但页面是空的”
   - 已补充 `taskStore` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
 
-- **SDK Runner 现在默认在当前任务 workspace 中启动**：
-  - 修复了 Agent 未显式传入 `cwd` 时，SDK Runner 默认跑在用户主目录而不是任务 workspace 的问题
+- **Agent Runner 现在默认在当前任务 workspace 中启动**：
+  - 修复了 Agent 未显式传入 `cwd` 时，Agent Runner 默认跑在用户主目录而不是任务 workspace 的问题
   - 现在 `invoke_sdk_runner` 默认会把工作目录设置为 `~/.wudao/workspace/<taskId>/`，更符合任务隔离预期，也避免测试文件误写到任务目录之外
   - 同时，SDK run 创建时会把发起它的 Agent run id 一并写入 `task_sdk_runs.agent_run_id`，为后续 run 恢复、关联展示和诊断留出稳定关联键
   - 已补充服务端回归测试，并完成 `pnpm --filter server test`
 
-- **SDK Runner 面板一期已落地**：
-  - 任务工作台右侧新增 SDK Runner 面板，与终端并列显示——终端是用户手动操作的，SDK Runner 是 Agent 自动驱动的
+- **Agent Runner 面板一期已落地**：
+  - 任务工作台右侧新增 Agent Runner 面板，与终端并列显示——终端是用户手动操作的，Agent Runner 是 Agent 自动驱动的
   - 在左侧 Agent Chat 中与 Agent 对话时，Agent 可通过 `invoke_sdk_runner` 工具调度 Claude Code SDK 执行编码任务
   - SDK 执行过程在面板中实时可视化：文件读写、Bash 命令、测试结果、思考过程等以结构化时间线卡片展示
   - 权限审批：文件操作自动通过，Bash 命令等通过面板内联审批卡片让用户允许/拒绝，10 分钟无响应自动拒绝

@@ -30,12 +30,14 @@ import {
   type TermSession,
 } from "../stores/terminalStore";
 import TerminalTile from "./TerminalTile";
+import { TaskWorkspaceDrawerShell } from "./TaskWorkspaceDrawerShell";
 import { useWs } from "../contexts/WsContext";
 import { cn } from "../utils/cn";
 
 interface Props {
   taskId: string;
   onNewTerminal: () => void;
+  onClosePanel: () => void;
   wsReady: boolean;
   hasProviders: boolean;
   linkedSessionIds: string[];
@@ -48,6 +50,7 @@ interface Props {
 export default function TiledTerminalPanel({
   taskId,
   onNewTerminal,
+  onClosePanel,
   wsReady,
   hasProviders,
   linkedSessionIds,
@@ -112,47 +115,49 @@ export default function TiledTerminalPanel({
   const gridCols = sessions.length === 1 ? 1 : sessions.length <= 4 ? 2 : 3;
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-white/30 dark:bg-black/10">
-      <div className="shrink-0 border-b border-black/5 dark:border-white/10 bg-white/50 dark:bg-black/40 backdrop-blur-md">
-        <div className="px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-apple-lg bg-apple-blue/10 flex items-center justify-center text-apple-blue shrink-0 shadow-apple-sm">
-              <TerminalIcon size={16} />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-system-gray-500 dark:text-system-gray-400 leading-none mb-1">{t("terminal_panel.title")}</span>
-              <span className="text-[10px] font-bold text-system-gray-400 dark:text-system-gray-300 truncate uppercase tracking-tight">
-                {sessions.length > 0
-                  ? t("terminal_panel.sessions_summary", { count: sessions.length })
-                  : t("terminal_panel.not_started")}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {linkedSessionIds.length > 0 && (
-              <button
-                onClick={onRestoreAll}
-                disabled={!canLaunch || restorableCount === 0}
-                className="apple-btn-secondary h-8 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-30"
-              >
-                <RotateCcw size={14} className="text-system-gray-400 dark:text-system-gray-300" />
-                {t("terminal_panel.restore_all")}
-              </button>
-            )}
-
+    <TaskWorkspaceDrawerShell
+      title={t("terminal_panel.title")}
+      icon={TerminalIcon}
+      onClose={onClosePanel}
+      headerActions={(
+        <>
+          {linkedSessionIds.length > 0 && (
             <button
-              onClick={onNewTerminal}
-              disabled={!canLaunch}
-              className="apple-btn-primary h-8 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-apple-sm"
+              onClick={onRestoreAll}
+              disabled={!canLaunch || restorableCount === 0}
+              className="apple-btn-secondary h-8 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-30"
             >
-              <Plus size={16} />
-              {t("terminal_panel.new_terminal")}
+              <RotateCcw size={14} className="text-system-gray-400 dark:text-system-gray-300" />
+              {t("terminal_panel.restore_all")}
             </button>
-          </div>
-        </div>
+          )}
 
-        <div className="px-4 pb-3">
+          <button
+            onClick={onNewTerminal}
+            disabled={!canLaunch}
+            className="apple-btn-primary h-8 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-apple-sm"
+          >
+            <Plus size={16} />
+            {t("terminal_panel.new_terminal")}
+          </button>
+        </>
+      )}
+    >
+      <div className="shrink-0 border-b border-black/5 bg-white/35 dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="px-4 py-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 dark:text-system-gray-300 truncate">
+              {sessions.length > 0
+                ? t("terminal_panel.sessions_summary", { count: sessions.length })
+                : t("terminal_panel.not_started")}
+            </span>
+            {linkedSessionIds.length > 0 && (
+              <span className="shrink-0 rounded-full bg-black/5 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-system-gray-500 dark:bg-white/5 dark:text-system-gray-300">
+                {t("terminal_panel.linked")}
+              </span>
+            )}
+          </div>
+
           {linkedSessionIds.length === 0 ? (
             <div className="flex items-center gap-2 px-3 py-2 rounded-apple-lg bg-black/5 dark:bg-white/5 border border-dashed border-black/10 dark:border-white/10">
               <History size={12} className="text-system-gray-400 dark:text-system-gray-300" />
@@ -226,7 +231,7 @@ export default function TiledTerminalPanel({
           </DragOverlay>
         </DndContext>
       )}
-    </div>
+    </TaskWorkspaceDrawerShell>
   );
 }
 

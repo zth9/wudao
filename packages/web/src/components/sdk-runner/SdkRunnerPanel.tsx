@@ -1,9 +1,11 @@
 import React from "react";
+import { Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSdkRunnerStore, type SdkTimelineItem } from "../../stores/sdkRunnerStore";
 import { cn } from "../../utils/cn";
 import { shortSdkRunId } from "../../utils/sdk-runner";
 import MarkdownContent from "../MarkdownContent";
+import { TaskWorkspaceDrawerShell } from "../TaskWorkspaceDrawerShell";
 
 function formatRunTimestamp(value: string): string {
   if (!value) {
@@ -35,7 +37,7 @@ function resolveRunStatusLabel(status: string, t: (key: string) => string): stri
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function SdkStatusBar({ taskId }: { taskId: string }) {
+function SdkHeaderActions({ taskId }: { taskId: string }) {
   const { t } = useTranslation();
   const { activeSdkRunId, sdkRuns, sdkRunning, sdkTimeline, cancelSdkRun } = useSdkRunnerStore();
   const activeRun = sdkRuns.find((run) => run.id === activeSdkRunId) ?? null;
@@ -45,40 +47,32 @@ function SdkStatusBar({ taskId }: { taskId: string }) {
     | undefined;
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 text-xs">
-      <div className="min-w-0 flex items-center gap-2">
-        <span className="font-medium">{t("sdkRunner.title")}</span>
-        {activeSdkRunId && (
-          <span className="rounded-full border border-black/5 bg-black/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-system-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-system-gray-300">
-            {shortSdkRunId(activeSdkRunId)}
-          </span>
-        )}
-        {sdkRunning && (
-          <span className="flex items-center gap-1 text-green-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            {t("sdkRunner.running")}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-3">
-        {lastCost && (
-          <>
-            <span className="opacity-60">${lastCost.totalCostUsd.toFixed(3)}</span>
-            {lastCost.durationMs != null && (
-              <span className="opacity-60">{(lastCost.durationMs / 1000).toFixed(1)}s</span>
-            )}
-          </>
-        )}
-        {activeRun && (activeRun.status === "pending" || activeRun.status === "running") && (
-          <button
-            onClick={() => cancelSdkRun(taskId, activeRun.id)}
-            className="px-2 py-0.5 rounded text-red-400 hover:bg-red-400/10 transition-colors"
-          >
-            {t("sdkRunner.cancel")}
-          </button>
-        )}
-      </div>
-    </div>
+    <>
+      {activeSdkRunId && (
+        <span className="rounded-full border border-black/5 bg-black/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-system-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-system-gray-300">
+          {shortSdkRunId(activeSdkRunId)}
+        </span>
+      )}
+      {sdkRunning && (
+        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-green-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          {t("sdkRunner.running")}
+        </span>
+      )}
+      {lastCost && (
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-system-gray-400 dark:text-system-gray-300">
+          ${lastCost.totalCostUsd.toFixed(3)}
+        </span>
+      )}
+      {activeRun && (activeRun.status === "pending" || activeRun.status === "running") && (
+        <button
+          onClick={() => cancelSdkRun(taskId, activeRun.id)}
+          className="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-400 transition-colors hover:bg-red-400/15"
+        >
+          {t("sdkRunner.cancel")}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -332,16 +326,27 @@ function SdkHistoryPlaceholder() {
 // Main panel
 // ---------------------------------------------------------------------------
 
-export function SdkRunnerPanel({ taskId }: { taskId: string }) {
+export function SdkRunnerPanel({
+  taskId,
+  onClose,
+}: {
+  taskId: string;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
   const { sdkRuns, activeSdkRunId, sdkTimeline } = useSdkRunnerStore();
   const hasRuns = sdkRuns.length > 0;
   const hasContent = Boolean(activeSdkRunId) && sdkTimeline.length > 0;
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-bg-primary)]">
-      <SdkStatusBar taskId={taskId} />
+    <TaskWorkspaceDrawerShell
+      title={t("sdkRunner.title")}
+      icon={Zap}
+      onClose={onClose}
+      headerActions={<SdkHeaderActions taskId={taskId} />}
+    >
       <SdkRunHistory taskId={taskId} />
       {hasContent ? <SdkTimeline taskId={taskId} /> : hasRuns ? <SdkHistoryPlaceholder /> : <SdkEmptyState />}
-    </div>
+    </TaskWorkspaceDrawerShell>
   );
 }

@@ -4,7 +4,7 @@ import { sdkRunner as api, type SdkRun, type SdkEvent, type SdkEventType } from 
 const BASE = "/api";
 
 // ---------------------------------------------------------------------------
-// Timeline item types rendered in the SDK Runner panel
+// Timeline item types rendered in the Agent Runner panel
 // ---------------------------------------------------------------------------
 
 export type SdkTimelineItem =
@@ -27,7 +27,6 @@ interface SdkRunnerState {
   activeSdkRunId: string | null;
   sdkTimeline: SdkTimelineItem[];
   sdkRunning: boolean;
-  sdkPanelOpen: boolean;
 
   fetchSdkRuns: (taskId: string) => Promise<void>;
   subscribeSdkEvents: (taskId: string, runId: string) => void;
@@ -89,7 +88,6 @@ export const useSdkRunnerStore = create<SdkRunnerState>((set, get) => ({
   activeSdkRunId: null,
   sdkTimeline: [],
   sdkRunning: false,
-  sdkPanelOpen: false,
 
   fetchSdkRuns: async (taskId: string) => {
     try {
@@ -121,7 +119,6 @@ export const useSdkRunnerStore = create<SdkRunnerState>((set, get) => ({
       activeSdkRunId: runId,
       sdkTimeline: [],
       sdkRunning: resolveSdkRunning(selectedRun?.status),
-      sdkPanelOpen: true,
       sdkRuns: state.sdkRuns,
     }));
 
@@ -172,7 +169,6 @@ export const useSdkRunnerStore = create<SdkRunnerState>((set, get) => ({
   selectSdkRun: (taskId: string, runId: string) => {
     const state = get();
     if (state.activeSdkRunId === runId && state.sdkTimeline.length > 0) {
-      set({ sdkPanelOpen: true });
       return;
     }
     get().subscribeSdkEvents(taskId, runId);
@@ -212,14 +208,13 @@ export const useSdkRunnerStore = create<SdkRunnerState>((set, get) => ({
     const state = get();
     const selectedRunId = runId ?? state.activeSdkRunId ?? state.sdkRuns[0]?.id ?? null;
     if (!selectedRunId) {
-      set({ sdkPanelOpen: true });
       return;
     }
     get().selectSdkRun(taskId, selectedRunId);
   },
 
   closeSdkPanel: () => {
-    set({ sdkPanelOpen: false });
+    get().unsubscribeSdkEvents();
   },
 
   clearSdkRunner: () => {
@@ -231,7 +226,6 @@ export const useSdkRunnerStore = create<SdkRunnerState>((set, get) => ({
       activeSdkRunId: null,
       sdkTimeline: [],
       sdkRunning: false,
-      sdkPanelOpen: false,
     });
   },
 }));

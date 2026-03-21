@@ -86,7 +86,7 @@
     "tool_output_label": "输出",
     "expand_tool": "展开详情",
     "collapse_tool": "收起详情",
-    "open_sdk_runner": "打开 SDK Runner",
+    "open_sdk_runner": "打开 Agent Runner",
     "approval_label": "待审批",
     "artifact_updated_label": "产物更新",
     "error_label": "运行错误",
@@ -371,9 +371,9 @@
     }
   },
   "sdkRunner": {
-    "title": "SDK Runner",
-    "empty": "Agent 尚未启动 SDK 执行",
-    "emptyHint": "在左侧聊天中向 Agent 提出编码需求，Agent 会自动调度 Claude Code SDK",
+    "title": "Agent Runner",
+    "empty": "Agent 尚未启动 Agent Runner 执行",
+    "emptyHint": "在左侧聊天中向 Agent 提出编码需求，Agent 会自动调度 Claude Code 在 Agent Runner 中执行",
     "running": "执行中",
     "completed": "已完成",
     "failed": "失败",
@@ -396,8 +396,8 @@
     "error": "错误",
     "progress": "进度",
     "history": "执行历史",
-    "historyReady": "请选择一条 SDK 执行记录",
-    "historyHint": "上方会保留当前任务的全部 SDK 执行历史，点击即可切换查看详情。",
+    "historyReady": "请选择一条 Agent Runner 执行记录",
+    "historyHint": "上方会保留当前任务的全部 Agent Runner 执行历史，点击即可切换查看详情。",
     "noPrompt": "未记录启动指令"
   }
 }
