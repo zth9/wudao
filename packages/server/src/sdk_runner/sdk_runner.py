@@ -159,18 +159,20 @@ def start_sdk_run(
     cwd: str,
     emitter: Emitter,
     agent_run_id: str | None = None,
+    runner_type: str = "claude_code",
     system_prompt: str | None = None,
 ) -> dict[str, Any]:
     """Create an SDK run record and start the background asyncio task.
 
     Returns the created sdk_run dict.
-    Raises RuntimeError if the task already has an active SDK run.
     """
-    existing = registry.has_active_run_for_task(task_id)
-    if existing:
-        raise RuntimeError(f"Task {task_id} already has an active SDK run: {existing}")
-
-    run = create_sdk_run(task_id, prompt=prompt, cwd=cwd, agent_run_id=agent_run_id)
+    run = create_sdk_run(
+        task_id,
+        prompt=prompt,
+        cwd=cwd,
+        agent_run_id=agent_run_id,
+        runner_type=runner_type,
+    )
     run_id = run["id"]
 
     async_task = asyncio.get_event_loop().create_task(

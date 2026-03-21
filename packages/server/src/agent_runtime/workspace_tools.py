@@ -398,11 +398,23 @@ def read_task_context(
     }
 
 
-async def workspace_list_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def workspace_list_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
+    del agent_run_id
     return list_workspace_entries(task_id, input_data.get("path"))
 
 
-async def workspace_read_file_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def workspace_read_file_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
+    del agent_run_id
     return read_workspace_file(
         task_id,
         input_data.get("path"),
@@ -411,11 +423,23 @@ async def workspace_read_file_tool(task_id: str, input_data: dict[str, Any]) -> 
     )
 
 
-async def workspace_search_text_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def workspace_search_text_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
+    del agent_run_id
     return search_workspace_text(task_id, str(input_data.get("query") or ""), input_data.get("path"))
 
 
-async def workspace_write_file_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def workspace_write_file_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
+    del agent_run_id
     return write_workspace_file(
         task_id,
         input_data.get("path"),
@@ -424,12 +448,24 @@ async def workspace_write_file_tool(task_id: str, input_data: dict[str, Any]) ->
     )
 
 
-async def workspace_apply_patch_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def workspace_apply_patch_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
+    del agent_run_id
     return apply_workspace_patch(task_id, input_data.get("patch"))
 
 
-async def task_read_context_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def task_read_context_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
     del task_id
+    del agent_run_id
     return read_task_context(
         input_data.get("taskId"),
         start_line=int(input_data["startLine"]) if input_data.get("startLine") is not None else None,

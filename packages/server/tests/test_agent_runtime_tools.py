@@ -144,3 +144,89 @@ def test_task_read_context_registered_and_executable(tmp_path, monkeypatch):
 
     assert result["taskId"] == target_task_id
     assert result["content"] == "# 目标任务\n约束一"
+
+
+def test_sdk_runner_tool_registry_exposes_runner_specific_tool_name(tmp_path, monkeypatch):
+    app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    current_task_id = create_task(client, "SDK Runner 工具名")
+
+    del app_module
+    del current_task_id
+
+    tool_names = [item["name"] for item in tool_registry.serialize_tool_schemas()]
+    assert "invoke_claude_code_runner" in tool_names
+    assert "invoke_sdk_runner" not in tool_names
+
+
+def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_run(tmp_path, monkeypatch):
+    app_module, _, _, tool_registry, _, home_dir = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "SDK Runner 默认目录")
+    workspace_dir = home_dir / "workspace" / task_id
+
+    sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
+    captured: dict[str, object] = {}
+
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None):
+        captured["task_id"] = task_id
+        captured["prompt"] = prompt
+        captured["cwd"] = cwd
+        captured["agent_run_id"] = agent_run_id
+        captured["runner_type"] = runner_type
+        captured["system_prompt"] = system_prompt
+        return {"id": "sdk-run-1"}
+
+    monkeypatch.setattr(sdk_runner, "start_sdk_run", fake_start_sdk_run)
+
+    result = asyncio.run(
+        tool_registry.execute_agent_tool(
+            task_id,
+            "invoke_claude_code_runner",
+            {"prompt": "请在当前任务 workspace 内执行最小测试"},
+            agent_run_id="agent-run-123",
+        )
+    )
+
+    assert result["ok"] is True
+    assert result["sdk_run_id"] == "sdk-run-1"
+    assert captured == {
+        "task_id": task_id,
+        "prompt": "请在当前任务 workspace 内执行最小测试",
+        "cwd": str(workspace_dir),
+        "agent_run_id": "agent-run-123",
+        "runner_type": "claude_code",
+        "system_prompt": None,
+    }
+    assert workspace_dir.is_dir()
+
+
+def test_legacy_invoke_sdk_runner_alias_still_executes_claude_code_runner(tmp_path, monkeypatch):
+    app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "SDK Runner 兼容别名")
+
+    sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
+    captured: dict[str, object] = {}
+
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None):
+        captured["task_id"] = task_id
+        captured["prompt"] = prompt
+        captured["runner_type"] = runner_type
+        return {"id": "sdk-run-legacy"}
+
+    monkeypatch.setattr(sdk_runner, "start_sdk_run", fake_start_sdk_run)
+
+    result = asyncio.run(
+        tool_registry.execute_agent_tool(
+            task_id,
+            "invoke_sdk_runner",
+            {"prompt": "兼容旧工具名"},
+        )
+    )
+
+    assert result["ok"] is True
+    assert result["sdk_run_id"] == "sdk-run-legacy"
+    assert result["tool_name"] == "invoke_claude_code_runner"
+    assert result["runner_type"] == "claude_code"
+    assert captured["runner_type"] == "claude_code"

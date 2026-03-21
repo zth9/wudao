@@ -151,7 +151,7 @@ async def _execute_single_tool(
     )
 
     try:
-        output = await execute_agent_tool(task_id, tool_name, tool_input)
+        output = await execute_agent_tool(task_id, tool_name, tool_input, agent_run_id=run_id)
     except Exception as exc:
         err = error_message(exc)
         if _is_recoverable_tool_error(exc):

@@ -4,6 +4,41 @@
 
 ## 2026-03-21
 
+- **SDK Runner 调用工具已切到具名 runner 名称**：
+  - Agent Runtime 当前对模型暴露的 SDK 工具名已从通用的 `invoke_sdk_runner` 收敛为 `invoke_claude_code_runner`
+  - 服务端会把每次 SDK run 的 `runner_type` 一并写入 `task_sdk_runs`，当前已显式记录为 `claude_code`，为后续接入 `invoke_codex_runner` 等 runner-specific 工具预留了稳定扩展位
+  - 旧的 `invoke_sdk_runner` 仍保留为兼容别名，已落库的旧消息、旧线程回放和旧模型输出不会直接失效
+  - 已更新 Agentic Chat 工具设计文档，并完成 `pnpm --filter server test`、`pnpm --filter web test` 与 `pnpm --filter web build`
+
+- **SDK Runner 结果现在按 Markdown 渲染**：
+  - 右侧 SDK Runner 面板中的最终文本结果和工具结果，现已从纯文本/`pre` 改为 Markdown 渲染
+  - SDK 返回的标题、列表、代码块、表格和链接现在会按结构化样式展示，阅读长结果时更接近左侧 Agent Chat 的体验
+  - 已补充 `SdkRunnerPanel` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
+
+- **SDK Runner 现在会保留并切换当前任务的全部执行历史**：
+  - 修复了同一任务多次触发 SDK Runner 后，右侧面板只保留最近一次执行、看起来像“覆盖掉上一次”的问题
+  - 现在 SDK Runner 面板会保留当前任务下全部 SDK run 历史列表，并默认按最近一次优先展示；点击历史项即可回放对应 run 的持久化事件流
+  - Agent Chat 中 `invoke_sdk_runner` 的工具执行卡片也会直接带上“打开 SDK Runner”入口，点击后会自动展开右侧面板并定位到这次工具调用对应的 `sdk_run_id`
+  - 已补充 `sdkRunnerStore` 与 `TaskChat` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
+
+- **同一任务现在允许同时启动多个 SDK Runner 执行**：
+  - 移除了服务端原先“一个任务同一时间只能有一个 active SDK run”的限制
+  - 现在同一任务可以连续或并发启动多条 SDK Runner 执行，每条 run 都会独立写入 `task_sdk_runs` 与 `task_sdk_events`
+  - 取消、历史回放和工具卡片跳转仍然按 `sdk_run_id` 精确作用到对应 run，不会互相覆盖
+  - 已补充服务端回归测试，并完成 `pnpm --filter server test`
+
+- **SDK Runner 面板现在会自动接回当前任务对应的 SDK run**：
+  - 修复了 Agent 通过 `invoke_sdk_runner` 成功触发 SDK 执行后，右侧 SDK Runner 面板没有自动展示对应 run 的问题
+  - 现在只要工具结果里返回了 `sdk_run_id`，前端就会立刻展开 SDK Runner 面板并订阅这条 run 的 SSE 事件流
+  - 重新进入任务页时，前端也会从结构化 Agent thread 中恢复最近一次 `invoke_sdk_runner` 产生的 `sdk_run_id`，自动回放已持久化的 SDK 事件，不再出现“数据库里有 run，但页面是空的”
+  - 已补充 `taskStore` 回归测试，并完成 `pnpm --filter web test` 与 `pnpm --filter web build`
+
+- **SDK Runner 现在默认在当前任务 workspace 中启动**：
+  - 修复了 Agent 未显式传入 `cwd` 时，SDK Runner 默认跑在用户主目录而不是任务 workspace 的问题
+  - 现在 `invoke_sdk_runner` 默认会把工作目录设置为 `~/.wudao/workspace/<taskId>/`，更符合任务隔离预期，也避免测试文件误写到任务目录之外
+  - 同时，SDK run 创建时会把发起它的 Agent run id 一并写入 `task_sdk_runs.agent_run_id`，为后续 run 恢复、关联展示和诊断留出稳定关联键
+  - 已补充服务端回归测试，并完成 `pnpm --filter server test`
+
 - **SDK Runner 面板一期已落地**：
   - 任务工作台右侧新增 SDK Runner 面板，与终端并列显示——终端是用户手动操作的，SDK Runner 是 Agent 自动驱动的
   - 在左侧 Agent Chat 中与 Agent 对话时，Agent 可通过 `invoke_sdk_runner` 工具调度 Claude Code SDK 执行编码任务

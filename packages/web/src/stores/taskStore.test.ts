@@ -16,6 +16,8 @@ const {
   mockAbortController,
   mockAgentAbortController,
   mockRemoveByTaskId,
+  mockFetchSdkRuns,
+  mockSubscribeSdkEvents,
   capturedCallbacks,
   capturedAgentCallbacks,
 } = vi.hoisted(() => {
@@ -54,6 +56,8 @@ const {
     mockAbortController: ctrl,
     mockAgentAbortController: agentCtrl,
     mockRemoveByTaskId: vi.fn(),
+    mockFetchSdkRuns: vi.fn(),
+    mockSubscribeSdkEvents: vi.fn(),
     capturedCallbacks: callbacks,
     capturedAgentCallbacks: agentCallbacks,
   };
@@ -79,6 +83,15 @@ vi.mock("../services/api", () => ({
 vi.mock("./terminalStore", () => ({
   useTerminalStore: {
     getState: () => ({ removeByTaskId: mockRemoveByTaskId }),
+  },
+}));
+
+vi.mock("./sdkRunnerStore", () => ({
+  useSdkRunnerStore: {
+    getState: () => ({
+      fetchSdkRuns: mockFetchSdkRuns,
+      subscribeSdkEvents: mockSubscribeSdkEvents,
+    }),
   },
 }));
 
@@ -149,6 +162,8 @@ beforeEach(() => {
   capturedAgentCallbacks.onError = null;
   mockAbortController.abort.mockReset();
   mockAgentAbortController.abort.mockReset();
+  mockFetchSdkRuns.mockReset();
+  mockSubscribeSdkEvents.mockReset();
   mockGetAgentChatThread.mockResolvedValue({ task_id: "2026-02-26-1", runs: [], messages: [] });
 });
 
@@ -322,6 +337,36 @@ describe("fetchOne", () => {
         status: "completed",
       },
     ]);
+  });
+
+  it("reconnects the latest sdk run referenced by the agent thread when entering a task", async () => {
+    mockGet.mockResolvedValue(makeTask());
+    mockGetAgentChatThread.mockResolvedValue({
+      task_id: "2026-02-26-1",
+      runs: [],
+      messages: [
+        {
+          id: "msg-sdk",
+          task_id: "2026-02-26-1",
+          run_id: "run-1",
+          seq: 1,
+          role: "tool",
+          kind: "tool_result",
+          status: "completed",
+          content_json: {
+            toolName: "invoke_claude_code_runner",
+            output: { ok: true, sdk_run_id: "sdk-run-1" },
+          },
+          created_at: "2026-02-26T00:00:00Z",
+          updated_at: "2026-02-26T00:00:00Z",
+        },
+      ],
+    });
+
+    await useTaskStore.getState().fetchOne("2026-02-26-1");
+
+    expect(mockFetchSdkRuns).toHaveBeenCalledWith("2026-02-26-1");
+    expect(mockSubscribeSdkEvents).toHaveBeenCalledWith("2026-02-26-1", "sdk-run-1");
   });
 });
 
@@ -581,6 +626,42 @@ describe("agent chat timeline", () => {
       content: "已列出 workspace 文件",
       status: "streaming",
       streaming: true,
+    });
+  });
+
+  it("auto-subscribes sdk runner events after invoke_claude_code_runner returns sdk_run_id", () => {
+    useTaskStore.getState().sendAgentChatMessage("t1", "直接测试", "claude");
+
+    capturedAgentCallbacks.onEvent!({
+      type: "message.completed",
+      item: {
+        id: "sdk-result-1",
+        task_id: "t1",
+        run_id: "run-1",
+        seq: 2,
+        role: "tool",
+        kind: "tool_result",
+        status: "completed",
+        content_json: {
+          toolName: "invoke_claude_code_runner",
+          output: {
+            ok: true,
+            sdk_run_id: "sdk-run-42",
+          },
+        },
+        created_at: "2026-02-26T00:00:00Z",
+        updated_at: "2026-02-26T00:00:00Z",
+      },
+    });
+
+    expect(mockFetchSdkRuns).toHaveBeenCalledWith("t1");
+    expect(mockSubscribeSdkEvents).toHaveBeenCalledWith("t1", "sdk-run-42");
+    expect(useTaskStore.getState().agentTimeline.at(-1)).toEqual({
+      id: "sdk-result-1",
+      kind: "tool_result",
+      toolName: "invoke_claude_code_runner",
+      output: { ok: true, sdk_run_id: "sdk-run-42" },
+      status: "completed",
     });
   });
 

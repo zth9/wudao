@@ -22,6 +22,7 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import MarkdownContent from "../MarkdownContent";
 import { cn } from "../../utils/cn";
 import { shouldSubmitOnEnter } from "../../utils/ime";
+import { extractSdkRunIdFromToolOutput, shortSdkRunId } from "../../utils/sdk-runner";
 import {
   isTaskChatScrolledNearBottom,
   shouldShowTaskChatScrollButton,
@@ -218,6 +219,7 @@ interface Props {
   onSend: (message: string, providerId?: string) => void;
   onProviderChange: (providerId: string) => void;
   onAbort: () => void;
+  onOpenSdkRun?: (sdkRunId: string) => void;
 }
 
 type ToolExchangeRenderItem = {
@@ -328,6 +330,13 @@ function buildRenderItems(items: AgentTimelineItem[]): TaskChatRenderItem[] {
   return renderItems;
 }
 
+function resolveBoundSdkRunId(item: TaskChatRenderItem): string | null {
+  if (item.kind === "tool_exchange" || item.kind === "tool_result") {
+    return extractSdkRunIdFromToolOutput(item.toolName, item.output);
+  }
+  return null;
+}
+
 export function TaskChat({
   taskId,
   taskProviderId,
@@ -339,6 +348,7 @@ export function TaskChat({
   onSend,
   onProviderChange,
   onAbort,
+  onOpenSdkRun,
 }: Props) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -486,6 +496,12 @@ export function TaskChat({
     }, SCROLL_TO_BOTTOM_SHATTER_DURATION_MS);
   };
 
+  const handleOpenSdkRun = (event: MouseEvent<HTMLButtonElement>, sdkRunId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenSdkRun?.(sdkRunId);
+  };
+
   return (
     <div className="relative flex-1 h-full min-h-0 overflow-hidden bg-[#EDEDED] dark:bg-[#191919]">
       {/* Sub-header: Absolute Top */}
@@ -528,6 +544,7 @@ export function TaskChat({
           {renderItems.map((item) => {
             const isUser = item.kind === "user_text";
             const ToolIcon = "toolName" in item ? resolveToolIcon(item.toolName) : null;
+            const sdkRunId = resolveBoundSdkRunId(item);
             const isCollapsibleToolItem =
               item.kind === "tool_call" ||
               item.kind === "tool_result" ||
@@ -653,6 +670,19 @@ export function TaskChat({
                           <div className="flex items-center gap-3 px-4 py-3">
                             <ChevronRight size={14} className="shrink-0 text-system-gray-400 transition-transform group-open:rotate-90" />
                             <div className="min-w-0 flex-1">{cardHeader}</div>
+                            {sdkRunId && onOpenSdkRun && (
+                              <button
+                                type="button"
+                                onClick={(event) => handleOpenSdkRun(event, sdkRunId)}
+                                data-sdk-run-link={sdkRunId}
+                                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-apple-blue/20 bg-apple-blue/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue hover:bg-apple-blue/15"
+                              >
+                                <span>{t("tasks.open_sdk_runner")}</span>
+                                <span className="text-[9px] tracking-[0.08em] text-system-gray-500 dark:text-system-gray-300">
+                                  {shortSdkRunId(sdkRunId)}
+                                </span>
+                              </button>
+                            )}
                             <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 group-open:hidden">{t("tasks.expand_tool")}</span>
                             <span className="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 group-open:inline">{t("tasks.collapse_tool")}</span>
                           </div>

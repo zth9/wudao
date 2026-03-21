@@ -38,8 +38,16 @@ def test_create_and_get_sdk_run(tmp_path, monkeypatch):
     app_module, store = load_store(tmp_path, monkeypatch)
     task_id = create_task(app_module, tmp_path, monkeypatch)
 
-    run = store.create_sdk_run(task_id, prompt="Fix the bug", cwd="/tmp")
+    run = store.create_sdk_run(
+        task_id,
+        prompt="Fix the bug",
+        cwd="/tmp",
+        agent_run_id="agent-run-1",
+        runner_type="claude_code",
+    )
     assert run["task_id"] == task_id
+    assert run["agent_run_id"] == "agent-run-1"
+    assert run["runner_type"] == "claude_code"
     assert run["status"] == "pending"
     assert run["prompt"] == "Fix the bug"
     assert run["cwd"] == "/tmp"
@@ -49,6 +57,8 @@ def test_create_and_get_sdk_run(tmp_path, monkeypatch):
     fetched = store.get_sdk_run(run["id"])
     assert fetched is not None
     assert fetched["id"] == run["id"]
+    assert fetched["agent_run_id"] == "agent-run-1"
+    assert fetched["runner_type"] == "claude_code"
 
 
 def test_list_task_sdk_runs(tmp_path, monkeypatch):

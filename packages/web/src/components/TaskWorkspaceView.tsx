@@ -572,7 +572,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onToggleTerminal={() => setTerminalCollapsed(!terminalCollapsed)}
         sdkRunnerOpen={sdkPanelOpen}
         onToggleSdkRunner={() => {
-          if (sdkPanelOpen) closeSdkPanel(); else openSdkPanel();
+          if (sdkPanelOpen) closeSdkPanel(); else openSdkPanel(taskId);
         }}
         onOpenTaskList={handleOpenTaskList}
       />
@@ -606,6 +606,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
             onSend={(message, providerId) => sendAgentChatMessage(taskId, message, providerId)}
             onProviderChange={handleProviderChange}
             onAbort={abortAgentChat}
+            onOpenSdkRun={(sdkRunId) => openSdkPanel(taskId, sdkRunId)}
           />
         </motion.div>
 

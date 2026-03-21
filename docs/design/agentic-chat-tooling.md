@@ -11,7 +11,7 @@
 - [x] 后端新增 `POST /api/tasks/{task_id}/agent-chat/runs`
 - [x] SQLite 新增 `task_agent_runs` 与 `task_agent_messages`
 - [x] 前端 `taskStore` 与 `TaskChat` 已切到结构化 timeline
-- [x] 已支持 7 个工具：
+- [x] 已支持 8 个工具：
   - `workspace_list`
   - `workspace_read_file`
   - `workspace_search_text`
@@ -19,6 +19,7 @@
   - `workspace_apply_patch`
   - `task_read_context`
   - `terminal_snapshot`
+  - `invoke_claude_code_runner`
 - [x] 写工具命中 `AGENTS.md` 时会同步 `tasks.agent_doc`，并发出 `artifact.updated`
 - [x] 结构化失败时可降级为普通 assistant 文本，不中断整轮 run
 - [x] 新 run 会继续把纯文本结果投影回 `tasks.chat_messages`，兼容旧链路
@@ -163,6 +164,7 @@ flowchart LR
 | `workspace_apply_patch` | 对 workspace 文件应用 unified diff patch | auto |
 | `task_read_context` | 按任务 ID 直接读取目标任务 workspace 下的 `AGENTS.md` 上下文 | auto |
 | `terminal_snapshot` | 读取当前任务关联终端的最近输出 | auto |
+| `invoke_claude_code_runner` | 调度 Claude Code Runner 在当前任务 workspace 或指定目录执行编码任务 | auto |
 
 ### 6.2 安全边界
 
@@ -186,6 +188,7 @@ flowchart LR
 - `terminal_start_session`
 - `context_read_memory`
 - `mcp_proxy_*`
+- `invoke_codex_runner`
 
 ## 7. 当前单轮执行时序
 

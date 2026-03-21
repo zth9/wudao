@@ -2,27 +2,23 @@ import { create } from "zustand";
 import {
   tasks as api,
   type AgentChatEvent,
+  type AgentMessage,
   type AgentRun,
+  type AgentThread,
   type Task,
   type TaskType,
   type TaskStatus,
 } from "../services/api";
 import { useTerminalStore } from "./terminalStore";
+import { useSdkRunnerStore } from "./sdkRunnerStore";
 import { useSettingsStore } from "./settingsStore";
 import type { SortOption } from "../components/task-panel/constants";
 import {
   type ChatMessage,
   type AgentTimelineItem,
-  parseChatMessages,
-  upsertAssistantMessage,
-  createOptimisticUserItem,
-  buildAgentTimeline,
-  upsertAgentRun,
-  updateAgentRunStatus,
-  upsertAgentTimelineItem,
-  applyAgentDelta,
-  mapAgentMessageToTimelineItem,
+  type AgentTimelineStatus,
 } from "../utils/agent-timeline";
+import { extractSdkRunIdFromToolContent } from "../utils/sdk-runner";
 
 // Re-export for external use
 export type { ChatMessage, AgentTimelineItem } from "../utils/agent-timeline";
@@ -82,6 +78,37 @@ function upsertAssistantMessage(messages: ChatMessage[], content: string): ChatM
 
 function parseAgentStatus(value: unknown): AgentTimelineStatus {
   return value === "streaming" || value === "failed" || value === "waiting_approval" ? value : "completed";
+}
+
+function connectSdkRun(taskId: string, sdkRunId: string): void {
+  const normalizedSdkRunId = sdkRunId.trim();
+  if (!normalizedSdkRunId) {
+    return;
+  }
+
+  const { fetchSdkRuns, subscribeSdkEvents } = useSdkRunnerStore.getState();
+  void fetchSdkRuns(taskId);
+  subscribeSdkEvents(taskId, normalizedSdkRunId);
+}
+
+function maybeRevealSdkRun(taskId: string, content: unknown): void {
+  const sdkRunId = extractSdkRunIdFromToolContent(content);
+  if (!sdkRunId) {
+    return;
+  }
+
+  connectSdkRun(taskId, sdkRunId);
+}
+
+function findLatestSdkRunIdInThread(thread: AgentThread | null): string | null {
+  const messages = thread?.messages || [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const sdkRunId = extractSdkRunIdFromToolContent(messages[index]?.content_json);
+    if (sdkRunId) {
+      return sdkRunId;
+    }
+  }
+  return null;
 }
 
 function createOptimisticUserItem(content: string): AgentTimelineItem {
@@ -406,6 +433,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
         set((current) => ({
           agentTimeline: upsertAgentTimelineItem(current.agentTimeline, nextItem),
         }));
+        maybeRevealSdkRun(taskId, event.item.content_json);
         return;
       }
       if (event.type === "run.completed") {
@@ -545,6 +573,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
     fetchOne: async (id) => {
       const requestId = ++detailRequestId;
       const state = get();
+      const shouldReconnectSdkRunner = state.currentTask?.id !== id;
       if (state.chatStreaming && state.chatTaskId && state.chatTaskId !== id) {
         chatAbort?.abort();
         chatAbort = null;
@@ -561,6 +590,7 @@ export const useTaskStore = create<TaskState>((set, get) => {
         api.getAgentChatThread(id).catch(() => null),
       ]);
       if (requestId !== detailRequestId) return;
+      const latestSdkRunId = shouldReconnectSdkRunner ? findLatestSdkRunIdInThread(thread) : null;
       set((current) => {
         const reuseInMemoryChat = current.chatStreaming && current.chatTaskId === id && current.chatMessages.length > 0;
         const reuseInMemoryAgent = current.agentChatStreaming && current.agentChatTaskId === id && current.agentTimeline.length > 0;
@@ -575,6 +605,9 @@ export const useTaskStore = create<TaskState>((set, get) => {
           agentChatStreaming: reuseInMemoryAgent ? current.agentChatStreaming : false,
         };
       });
+      if (latestSdkRunId) {
+        connectSdkRun(id, latestSdkRunId);
+      }
     },
 
     create: async (data) => {

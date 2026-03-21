@@ -204,6 +204,7 @@ class DatabaseManager:
               id TEXT PRIMARY KEY,
               task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
               agent_run_id TEXT,
+              runner_type TEXT NOT NULL DEFAULT 'claude_code',
               status TEXT NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending','running','completed','failed','cancelled')),
               prompt TEXT NOT NULL DEFAULT '',
@@ -230,6 +231,15 @@ class DatabaseManager:
             CREATE INDEX IF NOT EXISTS idx_task_sdk_events_run_seq
               ON task_sdk_events(sdk_run_id ASC, seq ASC, id ASC);
             """
+        )
+
+    def _migrate_sdk_runner_tables(self) -> None:
+        if not self._table_exists("task_sdk_runs"):
+            return
+
+        self._ensure_column("task_sdk_runs", "runner_type", "TEXT NOT NULL DEFAULT 'claude_code'")
+        self.execute(
+            "UPDATE task_sdk_runs SET runner_type = 'claude_code' WHERE runner_type IS NULL OR runner_type = ''"
         )
 
     def _migrate_tasks_table(self) -> None:
@@ -412,6 +422,7 @@ class DatabaseManager:
         self._migrate_tasks_table()
         self._create_task_agent_runtime_tables()
         self._create_sdk_runner_tables()
+        self._migrate_sdk_runner_tables()
 
         self.execute("UPDATE tasks SET status = 'execution' WHERE status IS NULL OR status != 'done'")
         self.execute("UPDATE tasks SET priority = 2 WHERE priority IS NULL")

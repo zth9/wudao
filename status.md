@@ -33,6 +33,12 @@
 - **工具调用 JSON 包络重复输出已兼容**：当模型异常输出多个连续的 `{"assistant_text": "...", "tool_calls": [...]}` JSON 包络，甚至重复输出完全相同的包络时，后端现会按包逐个提取 `assistant_text` 与嵌套 `tool_calls`，并对完全重复的工具调用做去重；这类回复不再原样泄漏到聊天区，而会正常进入工具执行链路
 - **Agentic Chat 首轮策略与工具容错已补强**：运行时 system prompt 现已明确要求首轮默认先通过对话补齐目标、范围、环境和复现信息，而不是为了“先了解情况”就读取当前 workspace；同时，`task_read_context` 这类工具的常见误用（例如把 `current` 当成 `taskId`、目标上下文不存在）现会回流为失败的 `tool_result` 继续提供给模型决策，不再立刻把整轮 run 标成 failed
 - **SDK Runner 面板一期已落地**：后端新增 `sdk_runner/` 模块（sdk_store / sdk_adapter / sdk_runner / sdk_approval / sdk_tools），封装 Claude Agent SDK 的 `query()` 调用，提供 SSE 实时事件流、权限审批（10 分钟超时自动拒绝）、进程注册表管理；前端新增 `SdkRunnerPanel` 面板与终端并列展示，Agent 在对话中通过 `invoke_sdk_runner` 工具触发 SDK 执行，执行过程（文件读写、Bash 命令、测试结果）在面板中实时可视化；SDK Runner 面板通过头部 ⚡ 按钮开关，Agent 启动 SDK run 时自动展开
+- **SDK Runner 面板现已补齐自动接线与任务重进恢复**：前端 `taskStore` 现会在 Agent Chat 收到 `invoke_sdk_runner` 的 `tool_result` 且返回 `sdk_run_id` 时，立即刷新 SDK runs 并订阅对应 SSE 事件流，自动展开 SDK Runner 面板；重新进入任务页时，也会从结构化 Agent thread 中恢复最近一次 SDK run 并回放持久化事件，修复“`task_sdk_runs` / `task_sdk_events` 里已有记录，但页面没有对应 SDK Runner 展示”的问题，并已补充前端回归测试
+- **SDK Runner 默认目录与 Agent run 关联已修正**：后端当前会在 `invoke_sdk_runner` 未显式传入 `cwd` 时，默认把 Claude Agent SDK 启动在当前任务的 workspace（`~/.wudao/workspace/<taskId>/`）而不是用户主目录；同时，Agent Runtime 在执行该工具时会把当前 `task_agent_runs.id` 透传到 `task_sdk_runs.agent_run_id`，便于后续按 Agent run 追踪对应 SDK run，并已补充服务端回归测试
+- **SDK Runner 面板现已支持多 run 历史与工具卡片反向打开**：前端 `sdkRunnerStore` 当前会保留任务下全部 SDK runs 列表，并允许在面板中切换查看任意一条历史 run 的持久化事件流，不再只保留最近一次 timeline；`TaskChat` 中的 `invoke_sdk_runner` 工具结果卡片也会显示“打开 SDK Runner”入口，可直接跳到该次工具执行关联的 `sdk_run_id`，并已补充前端回归测试
+- **同一任务的 SDK Runner 并发限制已移除**：服务端当前不再阻止同一任务同时存在多条 active SDK runs；`start_sdk_run()` 会为每次调用独立创建 `task_sdk_runs` 记录和后台 asyncio 任务，取消、历史回放与事件订阅继续按 `sdk_run_id` 精确命中对应 run，并已补充服务端回归测试
+- **SDK Runner 结果渲染已切到 Markdown**：前端 `SdkRunnerPanel` 当前会把 SDK 的最终文本结果和工具结果交给 `MarkdownContent` 渲染，不再一律按纯文本 `pre` 展示；标题、列表、代码块、表格与链接都能在面板内按 Markdown 样式显示，并已补充前端回归测试
+- **SDK Runner 工具名已切到具名 runner，并补齐 runner_type 落库**：Agent Runtime 当前对模型暴露的 SDK 调用工具已从通用 `invoke_sdk_runner` 收敛为 `invoke_claude_code_runner`，同时 `task_sdk_runs` 新增并回填了 `runner_type` 字段，当前显式记录为 `claude_code`；旧 `invoke_sdk_runner` 继续作为兼容别名保留，避免历史线程和旧模型输出直接失效，并已补充前后端回归测试
 
 - 已具备自然语言建任务、规划对话、`AGENTS.md` 产物生成、任务级 workspace、多终端执行与会话恢复
 - 创建任务并进入详情页后，现已恢复自动发起首轮规划对话；首轮请求会自动组装任务标题、类型与初步意图作为任务信息发送给大模型

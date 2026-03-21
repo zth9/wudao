@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 
-ToolExecutor = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
+ToolExecutor = Callable[..., Awaitable[dict[str, Any]]]
 
 
 @dataclass(frozen=True, slots=True)

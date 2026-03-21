@@ -134,6 +134,31 @@ describe("TaskChat", () => {
     expect(html).toContain("AGENTS.md");
   });
 
+  it("为 invoke_claude_code_runner 工具结果提供打开对应 SDK Runner 的入口", () => {
+    const html = renderToStaticMarkup(
+      createElement(TaskChat, {
+        taskId: "2026-03-21-1",
+        taskProviderId: "provider-1",
+        items: [
+          { id: "tool-call", kind: "tool_call", toolName: "invoke_claude_code_runner", input: { prompt: "执行一次测试" }, status: "completed" },
+          { id: "tool-result", kind: "tool_result", toolName: "invoke_claude_code_runner", output: { ok: true, sdk_run_id: "sdk-run-12345678" }, status: "completed" },
+        ],
+        streaming: false,
+        agentDoc: null,
+        generatingDocs: false,
+        onGenerateDocs: () => undefined,
+        onSend: () => undefined,
+        onProviderChange: () => undefined,
+        onAbort: () => undefined,
+        onOpenSdkRun: () => undefined,
+      })
+    );
+
+    expect(html).toContain("tasks.open_sdk_runner");
+    expect(html).toContain('data-sdk-run-link="sdk-run-12345678"');
+    expect(html).toContain("sdk-run-");
+  });
+
   it("在模型首条回复到达前显示输入中提示", () => {
     const html = renderToStaticMarkup(
       createElement(TaskChat, {

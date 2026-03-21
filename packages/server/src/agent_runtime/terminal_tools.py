@@ -38,7 +38,13 @@ def get_terminal_snapshot(
     return {"taskId": normalized_task_id, "sessions": normalized_sessions}
 
 
-async def terminal_snapshot_tool(task_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def terminal_snapshot_tool(
+    task_id: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
+    del agent_run_id
     linked_session_id = input_data.get("sessionId")
     if linked_session_id is not None and not isinstance(linked_session_id, str):
         raise ValueError("sessionId must be a string")

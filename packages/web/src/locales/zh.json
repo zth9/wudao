@@ -86,6 +86,7 @@
     "tool_output_label": "输出",
     "expand_tool": "展开详情",
     "collapse_tool": "收起详情",
+    "open_sdk_runner": "打开 SDK Runner",
     "approval_label": "待审批",
     "artifact_updated_label": "产物更新",
     "error_label": "运行错误",
@@ -393,6 +394,10 @@
     "toolUse": "调用工具",
     "toolResult": "工具结果",
     "error": "错误",
-    "progress": "进度"
+    "progress": "进度",
+    "history": "执行历史",
+    "historyReady": "请选择一条 SDK 执行记录",
+    "historyHint": "上方会保留当前任务的全部 SDK 执行历史，点击即可切换查看详情。",
+    "noPrompt": "未记录启动指令"
   }
 }

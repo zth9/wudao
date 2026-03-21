@@ -13,7 +13,11 @@ from .workspace_tools import (
     workspace_write_file_tool,
     workspace_tools_prompt_schema,
 )
-from ..sdk_runner.sdk_tools import invoke_sdk_runner_tool, sdk_tools_prompt_schema
+from ..sdk_runner.sdk_tools import (
+    invoke_sdk_runner_tool,
+    normalize_sdk_runner_tool_name,
+    sdk_tools_prompt_schema,
+)
 
 
 def list_agent_tools() -> list[AgentTool]:
@@ -68,18 +72,37 @@ def list_agent_tools() -> list[AgentTool]:
 
 def _sdk_runner_tools() -> list[AgentTool]:
     sdk_schemas = {item["name"]: item for item in sdk_tools_prompt_schema()}
-    return [
-        AgentTool(
-            name="invoke_sdk_runner",
-            description=sdk_schemas["invoke_sdk_runner"]["description"],
-            input_schema=sdk_schemas["invoke_sdk_runner"]["inputSchema"],
-            execute=invoke_sdk_runner_tool,
-        ),
-    ]
+    tools: list[AgentTool] = []
+
+    for tool_name, schema in sdk_schemas.items():
+        async def _execute(
+            task_id: str,
+            input_data: dict[str, Any],
+            *,
+            agent_run_id: str | None = None,
+            _tool_name: str = tool_name,
+        ) -> dict[str, Any]:
+            return await invoke_sdk_runner_tool(
+                task_id,
+                input_data,
+                agent_run_id=agent_run_id,
+                tool_name=_tool_name,
+            )
+
+        tools.append(
+            AgentTool(
+                name=tool_name,
+                description=schema["description"],
+                input_schema=schema["inputSchema"],
+                execute=_execute,
+            )
+        )
+
+    return tools
 
 
 def get_agent_tool(tool_name: str) -> AgentTool | None:
-    normalized = tool_name.strip()
+    normalized = normalize_sdk_runner_tool_name(tool_name.strip())
     for tool in list_agent_tools():
         if tool.name == normalized:
             return tool
@@ -94,8 +117,14 @@ def get_task_agent_tools() -> list[dict[str, Any]]:
     return serialize_tool_schemas()
 
 
-async def execute_agent_tool(task_id: str, tool_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+async def execute_agent_tool(
+    task_id: str,
+    tool_name: str,
+    input_data: dict[str, Any],
+    *,
+    agent_run_id: str | None = None,
+) -> dict[str, Any]:
     tool = get_agent_tool(tool_name)
     if tool is None:
         raise RuntimeError(f"unknown tool: {tool_name}")
-    return await tool.execute(task_id, input_data)
+    return await tool.execute(task_id, input_data, agent_run_id=agent_run_id)

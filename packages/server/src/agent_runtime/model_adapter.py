@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..llm import chat_complete
+from ..sdk_runner.sdk_tools import sdk_runner_known_tool_names
 from .tool_types import AgentTool
 
 JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.DOTALL)
@@ -24,7 +25,7 @@ KNOWN_TOOL_NAMES = {
     "workspace_apply_patch",
     "task_read_context",
     "terminal_snapshot",
-    "invoke_sdk_runner",
+    *sdk_runner_known_tool_names(),
 }
 TOOL_META_KEYS = {
     "assistant_text",

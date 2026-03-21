@@ -7,6 +7,8 @@ import importlib
 import sys
 from typing import Any
 
+from fastapi.testclient import TestClient
+
 
 def load_modules(tmp_path, monkeypatch):
     monkeypatch.setenv("WUDAO_HOME", str(tmp_path / "home"))
@@ -27,6 +29,14 @@ def _run(coro):
         return loop.run_until_complete(coro)
     finally:
         loop.close()
+
+
+def create_task_id() -> str:
+    app_module = importlib.import_module("src.app")
+    client = TestClient(app_module.app)
+    response = client.post("/api/tasks", json={"title": "SDK Runner Test", "type": "feature"})
+    assert response.status_code == 201
+    return response.json()["id"]
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +128,42 @@ def test_registry_has_active_run_for_task(tmp_path, monkeypatch):
             await task
         except asyncio.CancelledError:
             pass
+
+    _run(go())
+
+
+def test_start_sdk_run_allows_multiple_active_runs_for_same_task(tmp_path, monkeypatch):
+    runner_mod, _ = load_modules(tmp_path, monkeypatch)
+    task_id = create_task_id()
+    test_registry = runner_mod.ProcessRegistry()
+    monkeypatch.setattr(runner_mod, "registry", test_registry)
+
+    async def fake_run_sdk_query(**kwargs):
+        await asyncio.sleep(100)
+
+    monkeypatch.setattr(runner_mod, "run_sdk_query", fake_run_sdk_query)
+
+    async def go():
+        async def noop_emitter(_event: dict[str, Any]) -> None:
+            return None
+
+        first = runner_mod.start_sdk_run(
+            task_id=task_id,
+            prompt="first run",
+            cwd="/tmp",
+            emitter=noop_emitter,
+        )
+        second = runner_mod.start_sdk_run(
+            task_id=task_id,
+            prompt="second run",
+            cwd="/tmp",
+            emitter=noop_emitter,
+        )
+
+        assert first["id"] != second["id"]
+        assert len(test_registry.active_run_ids) == 2
+
+        await test_registry.shutdown()
 
     _run(go())
 

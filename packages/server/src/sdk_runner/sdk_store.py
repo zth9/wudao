@@ -10,6 +10,7 @@ from ..db import db
 from ..time_utils import normalize_stored_utc_datetime
 
 SDK_RUN_STATUSES = {"pending", "running", "completed", "failed", "cancelled"}
+SDK_RUNNER_TYPES = {"claude_code", "codex"}
 _UNSET = object()
 
 
@@ -23,6 +24,13 @@ def _require(value: str, field: str) -> str:
 def _validate_status(value: str, *, field: str) -> str:
     v = _require(value, field)
     if v not in SDK_RUN_STATUSES:
+        raise ValueError(f"invalid {field}: {v}")
+    return v
+
+
+def _validate_runner_type(value: str, *, field: str = "runner_type") -> str:
+    v = _require(value, field)
+    if v not in SDK_RUNNER_TYPES:
         raise ValueError(f"invalid {field}: {v}")
     return v
 
@@ -52,6 +60,7 @@ def _serialize_run(row: dict[str, Any]) -> dict[str, Any]:
         "id": row["id"],
         "task_id": row["task_id"],
         "agent_run_id": row.get("agent_run_id"),
+        "runner_type": row.get("runner_type") or "claude_code",
         "status": row["status"],
         "prompt": row.get("prompt", ""),
         "cwd": row.get("cwd"),
@@ -101,11 +110,13 @@ def create_sdk_run(
     prompt: str = "",
     cwd: str | None = None,
     agent_run_id: str | None = None,
+    runner_type: str = "claude_code",
     status: str = "pending",
     run_id: str | None = None,
 ) -> dict[str, Any]:
     tid = _require(task_id, "task_id")
     st = _validate_status(status, field="run status")
+    rt = _validate_runner_type(runner_type)
     rid = _require(run_id, "run_id") if run_id else str(uuid.uuid4())
 
     if not _task_exists(tid):
@@ -113,10 +124,10 @@ def create_sdk_run(
 
     db.execute(
         """
-        INSERT INTO task_sdk_runs (id, task_id, agent_run_id, status, prompt, cwd)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO task_sdk_runs (id, task_id, agent_run_id, runner_type, status, prompt, cwd)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (rid, tid, agent_run_id, st, prompt, cwd),
+        (rid, tid, agent_run_id, rt, st, prompt, cwd),
     )
     created = get_sdk_run(rid)
     if created is None:

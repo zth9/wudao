@@ -373,6 +373,7 @@ export interface SdkRun {
   id: string;
   task_id: string;
   agent_run_id: string | null;
+  runner_type: "claude_code" | "codex";
   status: SdkRunStatus;
   prompt: string;
   cwd: string | null;

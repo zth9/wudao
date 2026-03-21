@@ -86,6 +86,7 @@
     "tool_output_label": "Output",
     "expand_tool": "Expand Details",
     "collapse_tool": "Collapse Details",
+    "open_sdk_runner": "Open SDK Runner",
     "approval_label": "Approval",
     "artifact_updated_label": "Artifact Updated",
     "error_label": "Run Error",
@@ -393,6 +394,10 @@
     "toolUse": "Tool Call",
     "toolResult": "Tool Result",
     "error": "Error",
-    "progress": "Progress"
+    "progress": "Progress",
+    "history": "Run History",
+    "historyReady": "Select an SDK run to inspect",
+    "historyHint": "All SDK runs for the current task are kept above. Click one to replay its details.",
+    "noPrompt": "No startup prompt recorded"
   }
 }
