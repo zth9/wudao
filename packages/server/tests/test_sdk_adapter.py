@@ -51,7 +51,10 @@ class AssistantMessage:
 
 @dataclass
 class UserMessage:
-    content: str = ""
+    content: str | list = ""
+    uuid: str | None = None
+    parent_tool_use_id: str | None = None
+    tool_use_result: dict[str, Any] | None = None
 
 @dataclass
 class SystemMessage:
@@ -159,10 +162,55 @@ def test_convert_assistant_with_usage(tmp_path, monkeypatch):
     assert events[1]["payload"]["usage"]["input_tokens"] == 100
 
 
-def test_convert_user_message_returns_empty(tmp_path, monkeypatch):
+def test_convert_plain_user_message_returns_empty(tmp_path, monkeypatch):
     adapter = load_adapter(tmp_path, monkeypatch)
     events = adapter.convert_sdk_message(UserMessage(content="echo"))
     assert events == []
+
+
+def test_convert_user_message_tool_use_result_metadata(tmp_path, monkeypatch):
+    adapter = load_adapter(tmp_path, monkeypatch)
+    msg = UserMessage(
+        content="command finished",
+        parent_tool_use_id="toolu_123",
+        tool_use_result={
+            "content": {
+                "stdout": "done",
+                "exit_code": 0,
+            },
+            "is_error": False,
+        },
+    )
+    events = adapter.convert_sdk_message(msg)
+    assert len(events) == 1
+    assert events[0]["event_type"] == "sdk.tool_result"
+    assert events[0]["payload"] == {
+        "tool_use_id": "toolu_123",
+        "content": {
+            "stdout": "done",
+            "exit_code": 0,
+        },
+        "is_error": False,
+    }
+
+
+def test_convert_user_message_tool_result_block(tmp_path, monkeypatch):
+    adapter = load_adapter(tmp_path, monkeypatch)
+    msg = UserMessage(content=[
+        ToolResultBlock(
+            tool_use_id="toolu_456",
+            content=[{"type": "text", "text": "line 1"}, {"type": "text", "text": "line 2"}],
+            is_error=False,
+        ),
+    ])
+    events = adapter.convert_sdk_message(msg)
+    assert len(events) == 1
+    assert events[0]["event_type"] == "sdk.tool_result"
+    assert events[0]["payload"] == {
+        "tool_use_id": "toolu_456",
+        "content": "line 1\nline 2",
+        "is_error": False,
+    }
 
 
 def test_convert_task_started(tmp_path, monkeypatch):

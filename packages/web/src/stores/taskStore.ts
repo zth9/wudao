@@ -19,7 +19,7 @@ import {
   type AgentTimelineItem,
   type AgentTimelineStatus,
 } from "../utils/agent-timeline";
-import { extractSdkRunIdFromToolContent } from "../utils/sdk-runner";
+import { extractSdkRunId, extractSdkRunIdFromToolContent } from "../utils/sdk-runner";
 
 // Re-export for external use
 export type { ChatMessage, AgentTimelineItem } from "../utils/agent-timeline";
@@ -91,8 +91,11 @@ function connectSdkRun(taskId: string, sdkRunId: string, options?: { reveal?: bo
     useTaskWorkspaceStore.getState().setTaskLayout(taskId, { sdkRunnerOpen: true });
   }
 
-  const { fetchSdkRuns, subscribeSdkEvents } = useSdkRunnerStore.getState();
+  const { fetchSdkRuns, subscribeSdkEvents, activeSdkRunId } = useSdkRunnerStore.getState();
   void fetchSdkRuns(taskId);
+  if (activeSdkRunId === normalizedSdkRunId) {
+    return;
+  }
   subscribeSdkEvents(taskId, normalizedSdkRunId);
 }
 
@@ -142,11 +145,13 @@ function mapAgentMessageToTimelineItem(message: AgentMessage): AgentTimelineItem
     };
   }
   if (message.kind === "tool_call") {
+    const sdkRunId = extractSdkRunId(content) ?? undefined;
     return {
       id: message.id,
       kind: "tool_call",
       toolName: String(content.toolName || "tool"),
       input: content.input ?? {},
+      sdkRunId,
       status,
     };
   }
@@ -435,6 +440,9 @@ export const useTaskStore = create<TaskState>((set, get) => {
       if (event.type === "message.completed") {
         const nextItem = mapAgentMessageToTimelineItem(event.item);
         if (!nextItem) return;
+        if (nextItem.kind === "tool_call") {
+          console.log("[TaskStore] tool_call update:", nextItem.id, nextItem.status, nextItem.toolName);
+        }
         set((current) => ({
           agentTimeline: upsertAgentTimelineItem(current.agentTimeline, nextItem),
         }));
@@ -480,6 +488,11 @@ export const useTaskStore = create<TaskState>((set, get) => {
       handleEvent,
       (error) => {
         if (get().agentChatTaskId !== taskId) return;
+        if (error === "stream closed before run completion") {
+          stopAgentChatStreaming();
+          void get().fetchOne(taskId);
+          return;
+        }
         set((current) => ({
           agentTimeline: upsertAgentTimelineItem(
             current.agentTimeline,

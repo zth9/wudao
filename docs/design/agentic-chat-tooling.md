@@ -44,6 +44,7 @@
 3. 聊天时间线能展示工具调用与工具结果，而不是只显示纯文本
 4. 运行记录可以持久化，后续能承接审批、恢复和更细的事件流
 5. 首轮默认以对话补齐任务信息，只有在用户明确要求或确有必要时才读取 workspace / 跨任务上下文
+6. 长耗时工具执行期间，即使前端 SSE 订阅暂时中断，后台 run 也应继续推进并持久化最终结果，而不是把整轮回复绑死在单个 HTTP 请求生命周期上
 
 ## 3. 当前架构
 
@@ -51,6 +52,7 @@
 flowchart LR
     UI[TaskChat / taskStore] -->|HTTP + typed SSE| Route[task_agent_chat.py]
     Route --> Runner[agent_runtime/runner.py]
+    Route --> Broker[run_broker.py]
     Runner --> Model[model_adapter.py]
     Runner --> Store[thread_store.py]
     Runner --> Tools[tool_registry.py]
@@ -96,6 +98,8 @@ flowchart LR
 
 - `runner.py` 还会发出 `tool.started` / `tool.completed`，但当前前端没有显式消费它们
 - 当前 UI 主要依赖 `message.completed` 来渲染工具卡片
+- 工具调用不应在“刚开始执行”时就被视为完成。对于耗时工具，尤其是 `invoke_claude_code_runner` 这类异步执行工具，`tool_call` 应先以进行中状态展示，直到真实执行完成或失败后才生成最终 `tool_result`
+- `POST /agent-chat/runs` 当前会启动后台 run，并通过内存 broker 把事件推送给本次 SSE 订阅；如果订阅中途断开，后台 run 仍会继续执行并把消息写入结构化线程
 
 ### 4.3 与 legacy chat 的关系
 
@@ -149,7 +153,7 @@ flowchart LR
 - `artifact` -> 产物卡片
 - `error` -> 错误卡片
 
-同时，相邻的 `tool_call + tool_result` 会在 `TaskChat.tsx` 中合并成一个可折叠工具消息框。
+同时，相邻的 `tool_call + tool_result` 会在 `TaskChat.tsx` 中合并成一个可折叠工具消息框；如果当前只有 `tool_call` 且状态仍为进行中，前端应将其展示为 loading，而不是假定工具已经完成。
 
 ## 6. 当前工具集合与边界
 
@@ -164,7 +168,7 @@ flowchart LR
 | `workspace_apply_patch` | 对 workspace 文件应用 unified diff patch | auto |
 | `task_read_context` | 按任务 ID 直接读取目标任务 workspace 下的 `AGENTS.md` 上下文 | auto |
 | `terminal_snapshot` | 读取当前任务关联终端的最近输出 | auto |
-| `invoke_claude_code_runner` | 调度 Claude Code Runner 在当前任务 workspace 或指定目录执行编码任务 | auto |
+| `invoke_claude_code_runner` | 调度 Claude Code Runner 在当前任务 workspace 或指定目录执行编码任务；该工具调用自身会等待 Runner 完成，并返回最终执行摘要，不应再通过 `terminal_snapshot` 读取它的结果 | auto |
 
 ### 6.2 安全边界
 

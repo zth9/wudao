@@ -677,6 +677,42 @@ describe("agent chat timeline", () => {
     });
   });
 
+  it("auto-subscribes sdk runner events as soon as invoke_claude_code_runner enters running state", () => {
+    useTaskStore.getState().sendAgentChatMessage("t1", "直接测试", "claude");
+
+    capturedAgentCallbacks.onEvent!({
+      type: "message.completed",
+      item: {
+        id: "sdk-call-1",
+        task_id: "t1",
+        run_id: "run-1",
+        seq: 2,
+        role: "assistant",
+        kind: "tool_call",
+        status: "streaming",
+        content_json: {
+          toolName: "invoke_claude_code_runner",
+          input: { prompt: "执行一次测试" },
+          sdk_run_id: "sdk-run-77",
+        },
+        created_at: "2026-02-26T00:00:00Z",
+        updated_at: "2026-02-26T00:00:00Z",
+      },
+    });
+
+    expect(mockFetchSdkRuns).toHaveBeenCalledWith("t1");
+    expect(mockSubscribeSdkEvents).toHaveBeenCalledWith("t1", "sdk-run-77");
+    expect(mockSetTaskLayout).toHaveBeenCalledWith("t1", { sdkRunnerOpen: true });
+    expect(useTaskStore.getState().agentTimeline.at(-1)).toEqual({
+      id: "sdk-call-1",
+      kind: "tool_call",
+      toolName: "invoke_claude_code_runner",
+      input: { prompt: "执行一次测试" },
+      sdkRunId: "sdk-run-77",
+      status: "streaming",
+    });
+  });
+
   it("can abort active agent chat stream", () => {
     useTaskStore.getState().sendAgentChatMessage("t1", "继续", "claude");
 

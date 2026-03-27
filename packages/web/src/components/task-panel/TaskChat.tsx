@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Send,
@@ -332,10 +332,122 @@ function buildRenderItems(items: AgentTimelineItem[]): TaskChatRenderItem[] {
 }
 
 function resolveBoundSdkRunId(item: TaskChatRenderItem): string | null {
+  if (item.kind === "tool_call" && item.sdkRunId) {
+    return item.sdkRunId;
+  }
   if (item.kind === "tool_exchange" || item.kind === "tool_result") {
     return extractSdkRunIdFromToolOutput(item.toolName, item.output);
   }
   return null;
+}
+
+interface CollapsibleToolMessageCardProps {
+  item: Extract<TaskChatRenderItem, { kind: "tool_call" | "tool_result" | "tool_exchange" | "approval" }>;
+  cardHeader: ReactNode;
+  cardBody: ReactNode;
+  sdkRunId: string | null;
+  onOpenSdkRun?: (sdkRunId: string) => void;
+  expandLabel: string;
+  collapseLabel: string;
+  openSdkRunnerLabel: string;
+}
+
+function CollapsibleToolMessageCard({
+  item,
+  cardHeader,
+  cardBody,
+  sdkRunId,
+  onOpenSdkRun,
+  expandLabel,
+  collapseLabel,
+  openSdkRunnerLabel,
+}: CollapsibleToolMessageCardProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const handleToggle = () => {
+    setExpanded((current) => !current);
+  };
+
+  const handleOpenSdkRun = (event: MouseEvent<HTMLButtonElement>, targetSdkRunId: string) => {
+    event.stopPropagation();
+    onOpenSdkRun?.(targetSdkRunId);
+  };
+
+  return (
+    <div
+      className="group"
+      data-tool-collapsible="true"
+      data-tool-kind={item.kind}
+      data-tool-id={item.id}
+      data-tool-default-collapsed="true"
+      data-tool-expanded={expanded ? "true" : "false"}
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          type="button"
+          onClick={handleToggle}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <ChevronRight
+            size={14}
+            className={cn(
+              "shrink-0 text-system-gray-400 transition-transform duration-200 ease-out",
+              expanded && "rotate-90"
+            )}
+          />
+          <div className="min-w-0 flex-1">{cardHeader}</div>
+          <span
+            className={cn(
+              "shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 transition-opacity duration-200",
+              expanded && "hidden"
+            )}
+          >
+            {expandLabel}
+          </span>
+          <span
+            className={cn(
+              "hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 transition-opacity duration-200",
+              expanded && "inline"
+            )}
+          >
+            {collapseLabel}
+          </span>
+        </button>
+        {sdkRunId && onOpenSdkRun && (
+          <button
+            type="button"
+            onClick={(event) => handleOpenSdkRun(event, sdkRunId)}
+            data-sdk-run-link={sdkRunId}
+            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-apple-blue/20 bg-apple-blue/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue hover:bg-apple-blue/15"
+          >
+            <span>{openSdkRunnerLabel}</span>
+            <span className="text-[9px] tracking-[0.08em] text-system-gray-500 dark:text-system-gray-300">
+              {shortSdkRunId(sdkRunId)}
+            </span>
+          </button>
+        )}
+      </div>
+      <div
+        data-tool-animated-panel="true"
+        className={cn(
+          "grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={cn(
+              "border-t border-black/5 transition-[opacity,transform] duration-200 ease-out dark:border-white/10",
+              expanded ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
+            )}
+          >
+            {cardBody}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function TaskChat({
@@ -377,7 +489,8 @@ export function TaskChat({
   const hasStreamingAssistant = renderItems.some(
     (item) => item.kind === "assistant_text" && item.status === "streaming"
   );
-  const showReplyingIndicator = streaming && !hasStreamingAssistant && lastRenderItem?.kind !== "error";
+  const hasPendingToolExecution = lastRenderItem?.kind === "tool_call" && lastRenderItem.status === "streaming";
+  const showReplyingIndicator = streaming && !hasStreamingAssistant && !hasPendingToolExecution && lastRenderItem?.kind !== "error";
 
   const setAutoScrollMode = (enabled: boolean) => {
     shouldStickToBottomRef.current = enabled;
@@ -497,12 +610,6 @@ export function TaskChat({
     }, SCROLL_TO_BOTTOM_SHATTER_DURATION_MS);
   };
 
-  const handleOpenSdkRun = (event: MouseEvent<HTMLButtonElement>, sdkRunId: string) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onOpenSdkRun?.(sdkRunId);
-  };
-
   return (
     <div className="relative flex-1 h-full min-h-0 overflow-hidden bg-[#EDEDED] dark:bg-[#191919]">
       {/* Sub-header: Absolute Top */}
@@ -549,6 +656,7 @@ export function TaskChat({
               item.kind === "tool_result" ||
               item.kind === "approval" ||
               item.kind === "tool_exchange";
+            const isRunningToolCall = item.kind === "tool_call" && item.status === "streaming";
 
             const cardHeader = (
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]">
@@ -569,6 +677,12 @@ export function TaskChat({
                 </span>
                 {"toolName" in item && (
                   <span className="text-system-gray-400 normal-case tracking-normal">{item.toolName}</span>
+                )}
+                {isRunningToolCall && (
+                  <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue">
+                    <Loader2 size={11} className="animate-spin" />
+                    <span>{t("tasks.tool_running")}</span>
+                  </span>
                 )}
               </div>
             );
@@ -591,6 +705,12 @@ export function TaskChat({
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 mb-2">{t("tasks.tool_input_label")}</div>
                     <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.input)}</pre>
+                    {isRunningToolCall && (
+                      <div className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-apple-blue">
+                        <Loader2 size={12} className="animate-spin" />
+                        <span>{t("tasks.tool_running_detail")}</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {item.kind === "tool_result" && (
@@ -658,36 +778,16 @@ export function TaskChat({
                       : "border-black/5 bg-white/80 text-black dark:border-white/10 dark:bg-[#2A2A2A]/80 dark:text-white"
                   )}>
                     {isCollapsibleToolItem ? (
-                      <details
-                        className="group"
-                        data-tool-collapsible="true"
-                        data-tool-kind={item.kind}
-                        data-tool-id={item.id}
-                        data-tool-default-collapsed="true"
-                      >
-                        <summary className="list-none cursor-pointer">
-                          <div className="flex items-center gap-3 px-4 py-3">
-                            <ChevronRight size={14} className="shrink-0 text-system-gray-400 transition-transform group-open:rotate-90" />
-                            <div className="min-w-0 flex-1">{cardHeader}</div>
-                            {sdkRunId && onOpenSdkRun && (
-                              <button
-                                type="button"
-                                onClick={(event) => handleOpenSdkRun(event, sdkRunId)}
-                                data-sdk-run-link={sdkRunId}
-                                className="shrink-0 inline-flex items-center gap-1 rounded-full border border-apple-blue/20 bg-apple-blue/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue hover:bg-apple-blue/15"
-                              >
-                                <span>{t("tasks.open_sdk_runner")}</span>
-                                <span className="text-[9px] tracking-[0.08em] text-system-gray-500 dark:text-system-gray-300">
-                                  {shortSdkRunId(sdkRunId)}
-                                </span>
-                              </button>
-                            )}
-                            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 group-open:hidden">{t("tasks.expand_tool")}</span>
-                            <span className="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 group-open:inline">{t("tasks.collapse_tool")}</span>
-                          </div>
-                        </summary>
-                        <div className="border-t border-black/5 dark:border-white/10">{cardBody}</div>
-                      </details>
+                      <CollapsibleToolMessageCard
+                        item={item}
+                        cardHeader={cardHeader}
+                        cardBody={cardBody}
+                        sdkRunId={sdkRunId}
+                        onOpenSdkRun={onOpenSdkRun}
+                        expandLabel={t("tasks.expand_tool")}
+                        collapseLabel={t("tasks.collapse_tool")}
+                        openSdkRunnerLabel={t("tasks.open_sdk_runner")}
+                      />
                     ) : (
                       <>
                         <div className="px-4 py-3 border-b border-black/5 dark:border-white/10">

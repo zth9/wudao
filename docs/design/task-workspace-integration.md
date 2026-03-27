@@ -88,6 +88,8 @@ flowchart LR
 2. `TaskChat`
    - 渲染结构化 Agent timeline，而不是只渲染纯文本聊天
    - 支持普通用户消息、assistant 文本、工具调用/结果、artifact、错误等消息形态
+   - 工具调用 / 工具结果卡片默认收起；展开与收起需使用平滑高度动画，避免内容瞬时跳变或文字缩放
+   - 工具执行中的状态要真实反映运行时：耗时工具先展示 loading，只有拿到最终结果或失败后才结束该次工具调用
    - 支持 Provider 切换
    - 支持中断当前 Agent run
    - 支持生成/重新生成 `AGENTS.md`

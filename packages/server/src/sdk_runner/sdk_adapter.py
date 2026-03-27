@@ -19,6 +19,39 @@ def _evt(event_type: str, **payload: Any) -> dict[str, Any]:
     return {"event_type": event_type, "payload": payload}
 
 
+def _normalize_tool_result_content(content: Any) -> Any:
+    if isinstance(content, list):
+        text_parts = [
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text"
+        ]
+        joined = "\n".join(part for part in text_parts if part)
+        if joined:
+            return joined
+        return content
+    if isinstance(content, (str, int, float, bool, dict)) or content is None:
+        return content
+    return str(content)
+
+
+def _tool_result_event(
+    *,
+    tool_use_id: str | None,
+    content: Any,
+    is_error: bool | None = None,
+) -> dict[str, Any] | None:
+    normalized_tool_use_id = str(tool_use_id or "").strip()
+    if not normalized_tool_use_id:
+        return None
+    return _evt(
+        "sdk.tool_result",
+        tool_use_id=normalized_tool_use_id,
+        content=_normalize_tool_result_content(content),
+        is_error=bool(is_error),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Message → Event converters
 # ---------------------------------------------------------------------------
@@ -51,18 +84,13 @@ def convert_assistant_message(msg: Any) -> list[dict[str, Any]]:
             ))
 
         elif cls_name == "ToolResultBlock":
-            content = block.content
-            if isinstance(content, list):
-                text_parts = [
-                    part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") == "text"
-                ]
-                content = "\n".join(text_parts) if text_parts else str(content)
-            events.append(_evt(
-                "sdk.tool_result",
+            event = _tool_result_event(
                 tool_use_id=block.tool_use_id,
-                content=content,
-                is_error=bool(block.is_error),
-            ))
+                content=block.content,
+                is_error=block.is_error,
+            )
+            if event is not None:
+                events.append(event)
 
     if hasattr(msg, "usage") and msg.usage:
         events.append(_evt("sdk.cost_update", usage=msg.usage))
@@ -138,7 +166,43 @@ def convert_rate_limit_event(msg: Any) -> list[dict[str, Any]]:
 
 
 def convert_user_message(_msg: Any) -> list[dict[str, Any]]:
-    """UserMessages in the SDK stream are echoes of tool results — skip."""
+    """Convert UserMessage echoes into sdk.tool_result when possible."""
+    msg = _msg
+    events: list[dict[str, Any]] = []
+    raw_content = getattr(msg, "content", None)
+    if isinstance(raw_content, list):
+        for block in raw_content:
+            if type(block).__name__ != "ToolResultBlock":
+                continue
+            event = _tool_result_event(
+                tool_use_id=getattr(block, "tool_use_id", None) or getattr(msg, "parent_tool_use_id", None),
+                content=getattr(block, "content", None),
+                is_error=getattr(block, "is_error", None),
+            )
+            if event is not None:
+                events.append(event)
+
+    if events:
+        return events
+
+    parent_tool_use_id = getattr(msg, "parent_tool_use_id", None)
+    tool_use_result = getattr(msg, "tool_use_result", None)
+    if isinstance(tool_use_result, dict):
+        event = _tool_result_event(
+            tool_use_id=parent_tool_use_id,
+            content=tool_use_result.get("content", raw_content),
+            is_error=tool_use_result.get("is_error"),
+        )
+        return [event] if event is not None else []
+
+    if parent_tool_use_id and not isinstance(raw_content, list):
+        event = _tool_result_event(
+            tool_use_id=parent_tool_use_id,
+            content=raw_content,
+            is_error=False,
+        )
+        return [event] if event is not None else []
+
     return []
 
 

@@ -146,4 +146,35 @@ describe("sdkRunnerStore", () => {
     expect(useSdkRunnerStore.getState().sdkTimeline.some((item) => item.kind === "text" && item.content.includes("第二次结果"))).toBe(true);
     expect(useSdkRunnerStore.getState().sdkRuns.map((run) => run.id)).toEqual(["sdk-run-2", "sdk-run-1"]);
   });
+
+  it("formats structured sdk.tool_result payloads instead of rendering [object Object]", async () => {
+    mockListRuns.mockResolvedValue({
+      runs: [makeRun({ id: "sdk-run-structured" })],
+    });
+
+    mockFetch.mockResolvedValueOnce(makeFetchResponse([
+      { type: "sdk_run.started", run_id: "sdk-run-structured" },
+      {
+        type: "sdk.tool_result",
+        run_id: "sdk-run-structured",
+        tool_use_id: "toolu_1",
+        content: { stdout: "done", exit_code: 0 },
+        is_error: false,
+      },
+      { type: "sdk_run.completed", run_id: "sdk-run-structured" },
+    ]));
+
+    await useSdkRunnerStore.getState().fetchSdkRuns("task-1");
+    useSdkRunnerStore.getState().openSdkPanel("task-1", "sdk-run-structured");
+    await flushAsyncWork();
+
+    const toolResult = useSdkRunnerStore.getState().sdkTimeline.find((item) => item.kind === "tool_result");
+    expect(toolResult).toMatchObject({
+      kind: "tool_result",
+      toolUseId: "toolu_1",
+      isError: false,
+    });
+    expect(toolResult && "content" in toolResult ? toolResult.content : "").toContain('"stdout": "done"');
+    expect(toolResult && "content" in toolResult ? toolResult.content : "").toContain('"exit_code": 0');
+  });
 });

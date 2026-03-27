@@ -181,6 +181,12 @@ def list_task_agent_messages(task_id: str, *, limit: int | None = None) -> list[
     return [_serialize_message(row) for row in db.query_all(sql, tuple(params))]
 
 
+def get_agent_message(message_id: str) -> dict[str, Any] | None:
+    normalized_message_id = _require_non_empty_string(message_id, "message_id")
+    row = db.query_one("SELECT * FROM task_agent_messages WHERE id = ?", (normalized_message_id,))
+    return _serialize_message(row) if row else None
+
+
 def append_agent_message(
     task_id: str,
     run_id: str,
@@ -240,6 +246,37 @@ def append_agent_message(
     if row is None:
         raise RuntimeError("Failed to create agent message")
     return _serialize_message(row)
+
+
+def update_agent_message(
+    message_id: str,
+    *,
+    status: str | object = _UNSET,
+    content_json: Any = _UNSET,
+) -> dict[str, Any] | None:
+    normalized_message_id = _require_non_empty_string(message_id, "message_id")
+    assignments: list[str] = []
+    params: list[Any] = []
+
+    if status is not _UNSET:
+        assignments.append("status = ?")
+        params.append(_validate_status(str(status), field="message status", allowed=MESSAGE_STATUSES))
+    if content_json is not _UNSET:
+        assignments.append("content_json = ?")
+        params.append(_dump_json(content_json if content_json is not None else {}, field="content_json"))
+
+    if not assignments:
+        return get_agent_message(normalized_message_id)
+
+    assignments.append("updated_at = datetime('now')")
+    params.append(normalized_message_id)
+    cursor = db.execute(
+        f"UPDATE task_agent_messages SET {', '.join(assignments)} WHERE id = ?",
+        tuple(params),
+    )
+    if cursor.rowcount == 0:
+        return None
+    return get_agent_message(normalized_message_id)
 
 
 def get_task_agent_thread(task_id: str) -> dict[str, Any]:

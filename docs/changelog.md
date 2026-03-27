@@ -2,6 +2,52 @@
 
 > 用户视角的变更记录。每完成一个可感知的功能后，由 Claude Code 更新。
 
+## 2026-03-22
+
+- **Agent Chat 工具调用卡片状态现已实时更新**：
+  - 修复了 Agent 调用 Claude Code 工具后，左侧聊天框中的工具调用卡片一直显示 loading 状态的问题
+  - 根本原因：工具执行时间较长时，Agent Chat 的 SSE 连接会超时断开，错过了工具完成事件
+  - 解决方案：当 SDK run 完成/失败/取消时，`sdkRunnerStore` 会主动调用 `fetchAgentThread` 刷新 Agent thread 状态
+  - 现在即使 SSE 断开，工具完成后也会立即更新卡片状态，Agent 能继续基于结果生成回答
+  - 已完成 `pnpm --filter web test` 全部 121 个测试通过
+
+- **Claude Code 完成后，Agent Chat 现在会继续拿结果回答**：
+  - 之前 `invoke_claude_code_runner` 回填给 Agent Chat 的最终摘要主要依赖 `sdk.text_completed`
+  - 如果 Claude Code 的有效结果主要落在 `sdk.tool_result`，例如通过 Bash 执行 `date` 拿当前时间，聊天里的工具结果就可能“显示完成了，但没有把真正结果喂回大模型”
+  - 现在后端会在缺少 `sdk.text_completed` 总结时，自动回退提取最近一次非错误 `sdk.tool_result` 作为 `final_text`
+  - 这意味着任务详情里的 Agent Chat 在 Claude Code 跑完后，会先补齐工具结果，再继续让大模型基于这个结果生成自己的最终回答
+  - 已完成 `pnpm --filter server test -- tests/test_agent_runtime_tools.py tests/test_task_agent_chat.py` 与 `pnpm --filter server test -- tests/test_sdk_adapter.py`
+
+- **Claude Code 已完成但聊天还在转圈的问题已加兜底修复**：
+  - 之前左侧 Agent Chat 等 `invoke_claude_code_runner` 收尾时，主要依赖一次内存里的 completion callback
+  - 真实运行里如果右侧 Agent Runner 已经显示 `completed`，但这条 callback 没被上层正常等到，左侧工具卡片就会一直停在执行中
+  - 现在后端会在等待 callback 的同时，轮询 `task_sdk_runs.status` 的终态作为兜底信号；只要 SDK run 已经落库为完成、失败或取消，Agent Chat 就会继续补齐 `tool_result` 并推进最终回答
+  - 本地查看的 Claude Agent SDK 代码也确认了它支持 `PreToolUse / PostToolUse / PostToolUseFailure` hooks，但这次卡住点发生在 Runner 已完成之后，优先修外层等待链路更直接
+  - 已完成 `pnpm --filter server test -- tests/test_agent_runtime_tools.py tests/test_task_agent_chat.py tests/test_sdk_adapter.py`
+
+- **Agent Runner 里的工具结果现在会实时显示，不再假卡住**：
+  - Claude Code Runner 过程中产生的工具结果，之前有一部分会经由 `claude_agent_sdk` 的 `UserMessage.parent_tool_use_id / tool_use_result` 回传，但我们旧适配层把这类消息直接丢掉了
+  - 现在服务端已经按 SDK 的真实消息结构兼容这条链路，Runner 面板在工具执行中就能实时看到对应的 `tool_result`
+  - 前端同时补上了结构化 `sdk.tool_result` 的安全格式化，避免对象型结果被直接渲染成 `[object Object]`
+  - 这次修复不会改变“`invoke_claude_code_runner` 工具本身要等 Runner 真正完成后才回填最终摘要”的语义；修的是面板实时观测链路
+  - 已完成 `pnpm --filter server test -- tests/test_sdk_adapter.py`、`pnpm --filter web test -- packages/web/src/stores/sdkRunnerStore.test.ts` 与 `pnpm --filter web build`
+
+- **Claude Code Runner 工具调用现已真正等待完成再返回结果**：
+  - 任务聊天里调用 `invoke_claude_code_runner` 时，不再在“刚拿到 `sdk_run_id`”时就直接产出成功的工具结果
+  - 当前会先把工具卡片显示为执行中，并在 Runner 真正完成或失败后，再把最终执行摘要回填为 `tool_result`
+  - Runner 生命周期内部现已补上显式的完成回调；工具调用会直接等这个 completion hook，而不是靠外部轮询或额外猜测状态
+  - 这意味着模型后续可以直接读取 Runner 的真实结果，不需要再错误地调用 `terminal_snapshot` 去猜测 Claude Code Runner 的输出
+  - 当 Runner 一启动，右侧 Agent Runner 面板仍会立即自动展开并接上对应 run；聊天区工具卡片也会同步显示 loading 状态
+  - 同时，后端在读取 Agent Chat thread 时也会自动修复历史遗留的孤儿 Runner 工具调用：如果 `sdk_run` 已完成，但对应 `tool_call` 还停在 `streaming`，现在会自动补齐最终 `tool_result` 并收尾这轮 `agent_run`
+  - 任务聊天的 Agent run 当前也已改成后台持续执行，不再完全绑在单次 SSE 请求上；如果前端订阅中途断开，后台仍会继续等待 Runner 完成并推进后续回复，前端重连或重新拉 thread 后能看到补齐后的结果
+  - 已完成 `pnpm --filter server test`、`pnpm --filter web test -- TaskChat.test.ts taskStore.test.ts` 与 `pnpm --filter web build`
+
+- **工具执行卡片展开时现在会平滑展开**：
+  - 任务聊天里的工具调用 / 工具结果卡片，默认仍然收起，但点开详情时不再是瞬时跳开
+  - 详情区现在会用平滑的高度过渡展开，并配合轻微淡入位移，让长输出展开时更连贯
+  - 动画实现保持为 CSS 高度过渡，不会引入文字或图标的缩放形变
+  - 已完成 `pnpm --filter web test -- TaskChat.test.ts` 与 `pnpm --filter web build`
+
 ## 2026-03-21
 
 - **右侧抽屉现已统一成和 Agentic 聊天一致的 header 壳层**：

@@ -1,4 +1,5 @@
 import type { AgentMessage, AgentRun, AgentThread } from "../services/api";
+import { extractSdkRunId } from "./sdk-runner";
 
 export type AgentTimelineStatus = "streaming" | "completed" | "failed" | "waiting_approval";
 
@@ -11,7 +12,7 @@ interface AgentTimelineBase {
 export type AgentTimelineItem =
   | (AgentTimelineBase & { kind: "user_text"; content: string })
   | (AgentTimelineBase & { kind: "assistant_text"; content: string; streaming: boolean })
-  | (AgentTimelineBase & { kind: "tool_call"; toolName: string; input: unknown })
+  | (AgentTimelineBase & { kind: "tool_call"; toolName: string; input: unknown; sdkRunId?: string | null; message?: string })
   | (AgentTimelineBase & { kind: "tool_result"; toolName: string; output: unknown })
   | (AgentTimelineBase & { kind: "approval"; toolName: string; input: unknown })
   | (AgentTimelineBase & { kind: "artifact"; path: string; summary: string })
@@ -70,11 +71,15 @@ function mapAgentMessageToTimelineItem(message: AgentMessage): AgentTimelineItem
     };
   }
   if (message.kind === "tool_call") {
+    const sdkRunId = extractSdkRunId(content) ?? undefined;
+    const messageText = typeof content.message === "string" ? content.message : undefined;
     return {
       id: message.id,
       kind: "tool_call",
       toolName: String(content.toolName || "tool"),
       input: content.input ?? {},
+      sdkRunId,
+      message: messageText,
       status,
     };
   }

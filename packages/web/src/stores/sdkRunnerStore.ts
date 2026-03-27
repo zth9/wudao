@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sdkRunner as api, type SdkRun, type SdkEvent, type SdkEventType } from "../services/api";
+import { useTaskStore } from "./taskStore";
 
 const BASE = "/api";
 
@@ -81,6 +82,20 @@ function extractTotalTokens(event: SdkEvent): number | undefined {
   }
   const totalTokens = (usage as Record<string, unknown>).total_tokens;
   return typeof totalTokens === "number" ? totalTokens : undefined;
+}
+
+function formatSdkEventContent(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value == null) {
+    return "";
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 export const useSdkRunnerStore = create<SdkRunnerState>((set, get) => ({
@@ -252,11 +267,19 @@ function handleSdkEvent(
       break;
 
     case "sdk_run.completed":
+      console.log("[SdkRunner] sdk_run.completed, will fetch agent thread");
       set((state) => ({
         sdkTimeline: [...state.sdkTimeline, { id: nextId(), kind: "status_change", status: "completed" }],
         sdkRunning: false,
         sdkRuns: patchSdkRuns(state.sdkRuns, runId, { status: "completed" }),
       }));
+      setTimeout(() => {
+        const run = get().sdkRuns.find((r) => r.id === runId);
+        if (run?.task_id) {
+          console.log("[SdkRunner] tool completed, refreshing task:", run.task_id);
+          void useTaskStore.getState().fetchOne(run.task_id);
+        }
+      }, 500);
       break;
 
     case "sdk_run.failed":
@@ -272,6 +295,10 @@ function handleSdkEvent(
           last_error: String(event.error || "SDK run failed"),
         }),
       }));
+      setTimeout(() => {
+        const run = get().sdkRuns.find((r) => r.id === runId);
+        if (run?.task_id) void useTaskStore.getState().fetchOne(run.task_id);
+      }, 500);
       break;
 
     case "sdk_run.cancelled":
@@ -280,6 +307,10 @@ function handleSdkEvent(
         sdkRunning: false,
         sdkRuns: patchSdkRuns(state.sdkRuns, runId, { status: "cancelled" }),
       }));
+      setTimeout(() => {
+        const run = get().sdkRuns.find((r) => r.id === runId);
+        if (run?.task_id) void useTaskStore.getState().fetchOne(run.task_id);
+      }, 500);
       break;
 
     case "sdk.text_delta": {
@@ -338,7 +369,7 @@ function handleSdkEvent(
           id: nextId(),
           kind: "tool_result",
           toolUseId: String(event.tool_use_id || ""),
-          content: String(event.content || ""),
+          content: formatSdkEventContent(event.content),
           isError: Boolean(event.is_error),
         }],
       }));

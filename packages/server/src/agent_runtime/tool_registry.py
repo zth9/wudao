@@ -14,6 +14,7 @@ from .workspace_tools import (
     workspace_tools_prompt_schema,
 )
 from ..sdk_runner.sdk_tools import (
+    is_sdk_runner_tool_name,
     invoke_sdk_runner_tool,
     normalize_sdk_runner_tool_name,
     sdk_tools_prompt_schema,
@@ -80,6 +81,7 @@ def _sdk_runner_tools() -> list[AgentTool]:
             input_data: dict[str, Any],
             *,
             agent_run_id: str | None = None,
+            on_started=None,
             _tool_name: str = tool_name,
         ) -> dict[str, Any]:
             return await invoke_sdk_runner_tool(
@@ -87,6 +89,7 @@ def _sdk_runner_tools() -> list[AgentTool]:
                 input_data,
                 agent_run_id=agent_run_id,
                 tool_name=_tool_name,
+                on_started=on_started,
             )
 
         tools.append(
@@ -123,8 +126,12 @@ async def execute_agent_tool(
     input_data: dict[str, Any],
     *,
     agent_run_id: str | None = None,
+    on_started=None,
 ) -> dict[str, Any]:
     tool = get_agent_tool(tool_name)
     if tool is None:
         raise RuntimeError(f"unknown tool: {tool_name}")
-    return await tool.execute(task_id, input_data, agent_run_id=agent_run_id)
+    kwargs: dict[str, Any] = {"agent_run_id": agent_run_id}
+    if on_started is not None and is_sdk_runner_tool_name(tool_name):
+        kwargs["on_started"] = on_started
+    return await tool.execute(task_id, input_data, **kwargs)

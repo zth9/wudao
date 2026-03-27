@@ -70,12 +70,18 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
         "message.completed",
         "tool.started",
         "message.completed",
+        "message.completed",
         "tool.completed",
         "message.delta",
         "message.delta",
         "message.completed",
         "run.completed",
     ]
+    assert events[0]["item"]["kind"] == "tool_call"
+    assert events[0]["item"]["status"] == "streaming"
+    assert events[2]["item"]["kind"] == "tool_call"
+    assert events[2]["item"]["status"] == "completed"
+    assert events[3]["item"]["kind"] == "tool_result"
 
     thread = thread_store.get_task_agent_thread(task_id)
     assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "text"]
@@ -227,6 +233,7 @@ def test_runner_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path
         "message.completed",
         "tool.started",
         "message.completed",
+        "message.completed",
         "tool.completed",
         "message.completed",
         "artifact.updated",
@@ -235,8 +242,9 @@ def test_runner_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path
         "message.completed",
         "run.completed",
     ]
-    assert events[4]["item"]["kind"] == "artifact"
-    assert events[5] == {
+    assert events[3]["item"]["kind"] == "tool_result"
+    assert events[5]["item"]["kind"] == "artifact"
+    assert events[6] == {
         "type": "artifact.updated",
         "path": "AGENTS.md",
         "summary": "已同步 AGENTS.md 主产物",
@@ -583,9 +591,11 @@ def test_runner_executes_multiple_tool_calls_from_single_model_step(tmp_path, mo
         "message.completed",
         "tool.started",
         "message.completed",
+        "message.completed",
         "tool.completed",
         "message.completed",
         "tool.started",
+        "message.completed",
         "message.completed",
         "tool.completed",
         "message.delta",

@@ -257,6 +257,54 @@ export const tasks = {
   ): AbortController {
     const controller = new AbortController();
 
+    const subscribeToRunEvents = async (runId: string) => {
+      const res = await fetch(`${BASE}/tasks/${taskId}/agent-chat/runs/${runId}/events`, {
+        method: "GET",
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        onError(`HTTP ${res.status}`);
+        return;
+      }
+      const reader = res.body?.getReader();
+      if (!reader) {
+        onError("empty response body");
+        return;
+      }
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let sawTerminalEvent = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          if (!sawTerminalEvent) {
+            onError("stream closed before run completion");
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          try {
+            const event = JSON.parse(payload) as AgentChatEvent;
+            if (event.type === "run.completed" || event.type === "run.failed") {
+              sawTerminalEvent = true;
+            }
+            onEvent(event);
+          } catch {
+            // skip malformed event
+          }
+        }
+      }
+    };
+
     fetch(`${BASE}/tasks/${taskId}/agent-chat/runs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -268,33 +316,13 @@ export const tasks = {
           onError(`HTTP ${res.status}`);
           return;
         }
-        const reader = res.body?.getReader();
-        if (!reader) {
+        const payload = await res.json().catch(() => null) as { runId?: string } | null;
+        const runId = typeof payload?.runId === "string" ? payload.runId : "";
+        if (!runId) {
           onError("empty response body");
           return;
         }
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const payload = trimmed.slice(5).trim();
-            try {
-              onEvent(JSON.parse(payload) as AgentChatEvent);
-            } catch {
-              // skip malformed event
-            }
-          }
-        }
+        await subscribeToRunEvents(runId);
       })
       .catch((err) => {
         if (err.name !== "AbortError") onError(err.message);

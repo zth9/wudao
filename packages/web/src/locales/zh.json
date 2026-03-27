@@ -86,6 +86,8 @@
     "tool_output_label": "输出",
     "expand_tool": "展开详情",
     "collapse_tool": "收起详情",
+    "tool_running": "执行中",
+    "tool_running_detail": "正在等待工具执行完成...",
     "open_sdk_runner": "打开 Agent Runner",
     "approval_label": "待审批",
     "artifact_updated_label": "产物更新",

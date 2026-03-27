@@ -128,6 +128,10 @@ describe("TaskChat", () => {
     expect(html).toContain('data-tool-collapsible="true"');
     expect(html).toContain('data-tool-kind="tool_exchange"');
     expect(html).toContain('data-tool-default-collapsed="true"');
+    expect(html).toContain('data-tool-expanded="false"');
+    expect(html).toContain('data-tool-animated-panel="true"');
+    expect(html).toContain("transition-[grid-template-rows]");
+    expect(html).toContain("grid-rows-[0fr]");
     expect(html).toContain("tasks.expand_tool");
     expect(html).toContain("tasks.collapse_tool");
     expect(html).toContain("workspace_list");
@@ -157,6 +161,38 @@ describe("TaskChat", () => {
     expect(html).toContain("tasks.open_sdk_runner");
     expect(html).toContain('data-sdk-run-link="sdk-run-12345678"');
     expect(html).toContain("sdk-run-");
+  });
+
+  it("在工具执行中展示 loading 状态，并允许从 tool_call 直接打开对应 Agent Runner", () => {
+    const html = renderToStaticMarkup(
+      createElement(TaskChat, {
+        taskId: "2026-03-21-1",
+        taskProviderId: "provider-1",
+        items: [
+          {
+            id: "tool-call",
+            kind: "tool_call",
+            toolName: "invoke_claude_code_runner",
+            input: { prompt: "执行一次测试" },
+            sdkRunId: "sdk-run-87654321",
+            status: "streaming",
+          },
+        ],
+        streaming: true,
+        agentDoc: null,
+        generatingDocs: false,
+        onGenerateDocs: () => undefined,
+        onSend: () => undefined,
+        onProviderChange: () => undefined,
+        onAbort: () => undefined,
+        onOpenSdkRun: () => undefined,
+      })
+    );
+
+    expect(html).toContain("tasks.tool_running");
+    expect(html).toContain("tasks.tool_running_detail");
+    expect(html).toContain('data-sdk-run-link="sdk-run-87654321"');
+    expect(html).not.toContain('data-replying-indicator="true"');
   });
 
   it("在模型首条回复到达前显示输入中提示", () => {

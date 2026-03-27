@@ -32,6 +32,15 @@ export function extractSdkRunIdFromToolContent(content: unknown): string | null 
   }
 
   const toolName = typeof record.toolName === "string" ? record.toolName : "";
+  if (!SDK_RUNNER_TOOL_NAMES.has(toolName)) {
+    return null;
+  }
+
+  const topLevelSdkRunId = extractSdkRunId(record);
+  if (topLevelSdkRunId) {
+    return topLevelSdkRunId;
+  }
+
   return extractSdkRunIdFromToolOutput(toolName, record.output);
 }
 

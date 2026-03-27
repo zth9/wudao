@@ -15,6 +15,7 @@ from .sdk_store import create_sdk_run, update_sdk_run, append_sdk_event
 from .sdk_adapter import convert_sdk_message
 
 Emitter = Callable[[dict[str, Any]], Awaitable[None]]
+RunFinishedCallback = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class ProcessRegistry:
@@ -46,6 +47,19 @@ class ProcessRegistry:
 
     def register(self, run_id: str, task: asyncio.Task[None]) -> None:
         self._tasks[run_id] = task
+
+    async def wait(self, run_id: str, *, timeout: float | None = None) -> bool:
+        task = self._tasks.get(run_id)
+        if task is None:
+            return False
+        try:
+            if timeout is None:
+                await asyncio.shield(task)
+            else:
+                await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
+        except asyncio.TimeoutError:
+            return False
+        return True
 
     def cancel(self, run_id: str) -> bool:
         task = self._tasks.get(run_id)
@@ -83,6 +97,7 @@ async def run_sdk_query(
     cwd: str,
     emitter: Emitter,
     system_prompt: str | None = None,
+    on_finished: RunFinishedCallback | None = None,
 ) -> None:
     """Execute a Claude Agent SDK query and stream events.
 
@@ -101,6 +116,8 @@ async def run_sdk_query(
             update_sdk_run(run_id, status="failed", last_error=error_msg)
             append_sdk_event(run_id, event_type="sdk.error", payload_json={"message": error_msg})
             await emitter({"type": "sdk_run.failed", "run_id": run_id, "error": error_msg})
+            if on_finished is not None:
+                await on_finished({"run_id": run_id, "status": "failed", "error": error_msg})
             return
 
         options = ClaudeAgentOptions(
@@ -132,6 +149,8 @@ async def run_sdk_query(
         update_sdk_run(run_id, status="completed")
         append_sdk_event(run_id, event_type="sdk_run.completed")
         await emitter({"type": "sdk_run.completed", "run_id": run_id})
+        if on_finished is not None:
+            await on_finished({"run_id": run_id, "status": "completed"})
 
     except asyncio.CancelledError:
         update_sdk_run(run_id, status="cancelled")
@@ -140,6 +159,8 @@ async def run_sdk_query(
             await emitter({"type": "sdk_run.cancelled", "run_id": run_id})
         except Exception:
             pass
+        if on_finished is not None:
+            await on_finished({"run_id": run_id, "status": "cancelled"})
 
     except Exception as exc:
         error_msg = str(exc)
@@ -150,6 +171,8 @@ async def run_sdk_query(
             await emitter({"type": "sdk_run.failed", "run_id": run_id, "error": error_msg})
         except Exception:
             pass
+        if on_finished is not None:
+            await on_finished({"run_id": run_id, "status": "failed", "error": error_msg})
 
 
 def start_sdk_run(
@@ -161,6 +184,7 @@ def start_sdk_run(
     agent_run_id: str | None = None,
     runner_type: str = "claude_code",
     system_prompt: str | None = None,
+    on_finished: RunFinishedCallback | None = None,
 ) -> dict[str, Any]:
     """Create an SDK run record and start the background asyncio task.
 
@@ -183,6 +207,7 @@ def start_sdk_run(
             cwd=cwd,
             emitter=emitter,
             system_prompt=system_prompt,
+            on_finished=on_finished,
         )
     )
     registry.register(run_id, async_task)
