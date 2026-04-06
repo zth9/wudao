@@ -242,6 +242,318 @@ class DatabaseManager:
             "UPDATE task_sdk_runs SET runner_type = 'claude_code' WHERE runner_type IS NULL OR runner_type = ''"
         )
 
+    def _foreign_key_targets(self, table: str) -> set[str]:
+        if not self._table_exists(table):
+            return set()
+        rows = self.query_all(f"PRAGMA foreign_key_list({table})")
+        targets: set[str] = set()
+        for row in rows:
+            target = row.get("table")
+            if isinstance(target, str) and target.strip():
+                targets.add(target.strip())
+        return targets
+
+    def _table_columns_from_connection(self, conn: sqlite3.Connection, table: str) -> set[str]:
+        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+        return {str(row["name"]) for row in rows}
+
+    def _rebuild_table_with_sql(
+        self,
+        conn: sqlite3.Connection,
+        table_name: str,
+        *,
+        create_sql: str,
+        insert_sql: str | None = None,
+    ) -> None:
+        legacy_table = f"{table_name}__legacy_fk_fix"
+        conn.execute(f"DROP TABLE IF EXISTS {legacy_table}")
+        conn.execute(f"ALTER TABLE {table_name} RENAME TO {legacy_table}")
+        conn.executescript(create_sql)
+        if insert_sql:
+            conn.execute(insert_sql.replace("{source_table}", legacy_table))
+        conn.execute(f"DROP TABLE {legacy_table}")
+
+    def _repair_legacy_task_runtime_foreign_keys(self) -> None:
+        rebuild_agent_runs = "tasks_legacy_migration" in self._foreign_key_targets("task_agent_runs")
+        rebuild_agent_messages = "tasks_legacy_migration" in self._foreign_key_targets("task_agent_messages")
+        rebuild_sdk_runs = "tasks_legacy_migration" in self._foreign_key_targets("task_sdk_runs")
+        rebuild_task_items = "tasks_legacy_migration" in self._foreign_key_targets("task_items")
+
+        if not any((rebuild_agent_runs, rebuild_agent_messages, rebuild_sdk_runs, rebuild_task_items)):
+            return
+
+        logger.warning(
+            "Repairing legacy task runtime foreign keys: agent_runs=%s agent_messages=%s sdk_runs=%s task_items=%s",
+            rebuild_agent_runs,
+            rebuild_agent_messages,
+            rebuild_sdk_runs,
+            rebuild_task_items,
+        )
+
+        with self._lock:
+            conn = self._conn
+            conn.commit()
+            conn.execute("PRAGMA foreign_keys = OFF")
+            try:
+                if rebuild_agent_runs and self._table_exists("task_agent_runs"):
+                    source_columns = self._table_columns_from_connection(conn, "task_agent_runs")
+                    provider_id_expr = "provider_id" if "provider_id" in source_columns else "'claude'"
+                    status_expr = "status" if "status" in source_columns else "'running'"
+                    checkpoint_expr = "checkpoint_json" if "checkpoint_json" in source_columns else "NULL"
+                    last_error_expr = "last_error" if "last_error" in source_columns else "NULL"
+                    created_at_expr = "created_at" if "created_at" in source_columns else "datetime('now')"
+                    updated_at_expr = "updated_at" if "updated_at" in source_columns else "datetime('now')"
+                    self._rebuild_table_with_sql(
+                        conn,
+                        "task_agent_runs",
+                        create_sql="""
+                        CREATE TABLE task_agent_runs (
+                          id TEXT PRIMARY KEY,
+                          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                          provider_id TEXT NOT NULL,
+                          status TEXT NOT NULL DEFAULT 'running'
+                            CHECK (status IN ('running','waiting_approval','completed','failed','cancelled')),
+                          checkpoint_json TEXT,
+                          last_error TEXT,
+                          created_at TEXT DEFAULT (datetime('now')),
+                          updated_at TEXT DEFAULT (datetime('now'))
+                        );
+
+                        CREATE INDEX IF NOT EXISTS idx_task_agent_runs_task_created
+                          ON task_agent_runs(task_id ASC, created_at ASC, id ASC);
+                        """,
+                        insert_sql=f"""
+                        INSERT INTO task_agent_runs (
+                          id, task_id, provider_id, status, checkpoint_json, last_error, created_at, updated_at
+                        )
+                        SELECT
+                          id,
+                          task_id,
+                          {provider_id_expr},
+                          {status_expr},
+                          {checkpoint_expr},
+                          {last_error_expr},
+                          {created_at_expr},
+                          {updated_at_expr}
+                        FROM {{source_table}}
+                        WHERE EXISTS (
+                          SELECT 1 FROM tasks WHERE tasks.id = {{source_table}}.task_id
+                        )
+                        """,
+                    )
+
+                if rebuild_agent_messages and self._table_exists("task_agent_messages"):
+                    source_columns = self._table_columns_from_connection(conn, "task_agent_messages")
+                    seq_expr = "seq" if "seq" in source_columns else "rowid"
+                    role_expr = "role" if "role" in source_columns else "'assistant'"
+                    kind_expr = "kind" if "kind" in source_columns else "'text'"
+                    status_expr = "status" if "status" in source_columns else "'completed'"
+                    content_json_expr = "COALESCE(content_json, '{}')" if "content_json" in source_columns else "'{}'"
+                    created_at_expr = "created_at" if "created_at" in source_columns else "datetime('now')"
+                    updated_at_expr = "updated_at" if "updated_at" in source_columns else "datetime('now')"
+                    self._rebuild_table_with_sql(
+                        conn,
+                        "task_agent_messages",
+                        create_sql="""
+                        CREATE TABLE task_agent_messages (
+                          id TEXT PRIMARY KEY,
+                          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                          run_id TEXT NOT NULL REFERENCES task_agent_runs(id) ON DELETE CASCADE,
+                          seq INTEGER NOT NULL,
+                          role TEXT NOT NULL CHECK (role IN ('system','user','assistant','tool')),
+                          kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','artifact','error','trace')),
+                          status TEXT NOT NULL DEFAULT 'completed'
+                            CHECK (status IN ('streaming','completed','failed','waiting_approval')),
+                          content_json TEXT NOT NULL DEFAULT '{}',
+                          created_at TEXT DEFAULT (datetime('now')),
+                          updated_at TEXT DEFAULT (datetime('now')),
+                          UNIQUE (task_id, seq)
+                        );
+
+                        CREATE INDEX IF NOT EXISTS idx_task_agent_messages_task_seq
+                          ON task_agent_messages(task_id ASC, seq ASC, id ASC);
+                        CREATE INDEX IF NOT EXISTS idx_task_agent_messages_run_seq
+                          ON task_agent_messages(run_id ASC, seq ASC, id ASC);
+                        """,
+                        insert_sql=f"""
+                        INSERT INTO task_agent_messages (
+                          id, task_id, run_id, seq, role, kind, status, content_json, created_at, updated_at
+                        )
+                        SELECT
+                          id,
+                          task_id,
+                          run_id,
+                          {seq_expr},
+                          {role_expr},
+                          {kind_expr},
+                          {status_expr},
+                          {content_json_expr},
+                          {created_at_expr},
+                          {updated_at_expr}
+                        FROM {{source_table}}
+                        WHERE EXISTS (
+                          SELECT 1 FROM tasks WHERE tasks.id = {{source_table}}.task_id
+                        )
+                          AND EXISTS (
+                            SELECT 1 FROM task_agent_runs WHERE task_agent_runs.id = {{source_table}}.run_id
+                          )
+                        ORDER BY seq ASC, id ASC
+                        """,
+                    )
+
+                if rebuild_sdk_runs and self._table_exists("task_sdk_runs"):
+                    source_columns = self._table_columns_from_connection(conn, "task_sdk_runs")
+                    agent_run_id_expr = "agent_run_id" if "agent_run_id" in source_columns else "NULL"
+                    runner_type_expr = "runner_type" if "runner_type" in source_columns else "'claude_code'"
+                    status_expr = "status" if "status" in source_columns else "'pending'"
+                    prompt_expr = "prompt" if "prompt" in source_columns else "''"
+                    cwd_expr = "cwd" if "cwd" in source_columns else "NULL"
+                    total_cost_expr = "total_cost_usd" if "total_cost_usd" in source_columns else "0"
+                    total_tokens_expr = "total_tokens" if "total_tokens" in source_columns else "0"
+                    last_error_expr = "last_error" if "last_error" in source_columns else "NULL"
+                    created_at_expr = "created_at" if "created_at" in source_columns else "datetime('now')"
+                    updated_at_expr = "updated_at" if "updated_at" in source_columns else "datetime('now')"
+                    self._rebuild_table_with_sql(
+                        conn,
+                        "task_sdk_runs",
+                        create_sql="""
+                        CREATE TABLE task_sdk_runs (
+                          id TEXT PRIMARY KEY,
+                          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                          agent_run_id TEXT,
+                          runner_type TEXT NOT NULL DEFAULT 'claude_code',
+                          status TEXT NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending','running','completed','failed','cancelled')),
+                          prompt TEXT NOT NULL DEFAULT '',
+                          cwd TEXT,
+                          total_cost_usd REAL NOT NULL DEFAULT 0,
+                          total_tokens INTEGER NOT NULL DEFAULT 0,
+                          last_error TEXT,
+                          created_at TEXT DEFAULT (datetime('now')),
+                          updated_at TEXT DEFAULT (datetime('now'))
+                        );
+
+                        CREATE INDEX IF NOT EXISTS idx_task_sdk_runs_task_created
+                          ON task_sdk_runs(task_id ASC, created_at ASC, id ASC);
+                        """,
+                        insert_sql=f"""
+                        INSERT INTO task_sdk_runs (
+                          id, task_id, agent_run_id, runner_type, status, prompt, cwd,
+                          total_cost_usd, total_tokens, last_error, created_at, updated_at
+                        )
+                        SELECT
+                          id,
+                          task_id,
+                          {agent_run_id_expr},
+                          {runner_type_expr},
+                          {status_expr},
+                          {prompt_expr},
+                          {cwd_expr},
+                          {total_cost_expr},
+                          {total_tokens_expr},
+                          {last_error_expr},
+                          {created_at_expr},
+                          {updated_at_expr}
+                        FROM {{source_table}}
+                        WHERE EXISTS (
+                          SELECT 1 FROM tasks WHERE tasks.id = {{source_table}}.task_id
+                        )
+                        """,
+                    )
+
+                    if self._table_exists("task_sdk_events"):
+                        source_columns = self._table_columns_from_connection(conn, "task_sdk_events")
+                        seq_expr = "seq" if "seq" in source_columns else "rowid"
+                        event_type_expr = "event_type" if "event_type" in source_columns else "'event'"
+                        payload_json_expr = "COALESCE(payload_json, '{}')" if "payload_json" in source_columns else "'{}'"
+                        created_at_expr = "created_at" if "created_at" in source_columns else "datetime('now')"
+                        self._rebuild_table_with_sql(
+                            conn,
+                            "task_sdk_events",
+                            create_sql="""
+                            CREATE TABLE task_sdk_events (
+                              id TEXT PRIMARY KEY,
+                              sdk_run_id TEXT NOT NULL REFERENCES task_sdk_runs(id) ON DELETE CASCADE,
+                              seq INTEGER NOT NULL,
+                              event_type TEXT NOT NULL,
+                              payload_json TEXT NOT NULL DEFAULT '{}',
+                              created_at TEXT DEFAULT (datetime('now')),
+                              UNIQUE (sdk_run_id, seq)
+                            );
+
+                            CREATE INDEX IF NOT EXISTS idx_task_sdk_events_run_seq
+                              ON task_sdk_events(sdk_run_id ASC, seq ASC, id ASC);
+                            """,
+                            insert_sql=f"""
+                            INSERT INTO task_sdk_events (
+                              id, sdk_run_id, seq, event_type, payload_json, created_at
+                            )
+                            SELECT
+                              id,
+                              sdk_run_id,
+                              {seq_expr},
+                              {event_type_expr},
+                              {payload_json_expr},
+                              {created_at_expr}
+                            FROM {{source_table}}
+                            WHERE EXISTS (
+                              SELECT 1 FROM task_sdk_runs WHERE task_sdk_runs.id = {{source_table}}.sdk_run_id
+                            )
+                            ORDER BY seq ASC, id ASC
+                            """,
+                        )
+
+                if rebuild_task_items and self._table_exists("task_items"):
+                    source_columns = self._table_columns_from_connection(conn, "task_items")
+                    title_expr = "title" if "title" in source_columns else "''"
+                    done_expr = "done" if "done" in source_columns else "0"
+                    sort_order_expr = "sort_order" if "sort_order" in source_columns else "0"
+                    created_at_expr = "created_at" if "created_at" in source_columns else "datetime('now')"
+                    self._rebuild_table_with_sql(
+                        conn,
+                        "task_items",
+                        create_sql="""
+                        CREATE TABLE task_items (
+                          id TEXT PRIMARY KEY,
+                          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                          title TEXT NOT NULL,
+                          done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+                          sort_order INTEGER NOT NULL,
+                          created_at TEXT DEFAULT (datetime('now'))
+                        );
+
+                        CREATE INDEX IF NOT EXISTS idx_task_items_task_sort
+                          ON task_items(task_id ASC, sort_order ASC, id ASC);
+                        """,
+                        insert_sql=f"""
+                        INSERT INTO task_items (
+                          id, task_id, title, done, sort_order, created_at
+                        )
+                        SELECT
+                          id,
+                          task_id,
+                          {title_expr},
+                          {done_expr},
+                          {sort_order_expr},
+                          {created_at_expr}
+                        FROM {{source_table}}
+                        WHERE EXISTS (
+                          SELECT 1 FROM tasks WHERE tasks.id = {{source_table}}.task_id
+                        )
+                        """,
+                    )
+
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.execute("PRAGMA foreign_keys = ON")
+
+            violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if violations:
+                raise RuntimeError(f"foreign key repair failed: {violations[0]}")
+
     def _migrate_tasks_table(self) -> None:
         if not self._table_exists("tasks"):
             self._create_tasks_table()
@@ -423,6 +735,7 @@ class DatabaseManager:
         self._create_task_agent_runtime_tables()
         self._create_sdk_runner_tables()
         self._migrate_sdk_runner_tables()
+        self._repair_legacy_task_runtime_foreign_keys()
 
         self.execute("UPDATE tasks SET status = 'execution' WHERE status IS NULL OR status != 'done'")
         self.execute("UPDATE tasks SET priority = 2 WHERE priority IS NULL")

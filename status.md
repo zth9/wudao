@@ -8,6 +8,7 @@
 
 当前能力基线：
 
+- **Agent Chat 运行时表外键现已支持启动期自修复**：针对历史数据库里 `task_agent_runs`、`task_agent_messages`、`task_sdk_runs`、`task_items` 仍引用已删除的 `tasks_legacy_migration` 表、导致任务聊天发送消息直接返回 `HTTP 500` 的问题，后端现在会在启动时自动重建这些运行时表到正确的 `tasks` 外键上，并保留已有 run/message/sdk/event 数据；本地开发服务已验证 `POST /api/tasks/{task_id}/agent-chat/runs` 恢复返回 `200`
 - **`pnpm install` 现可自动 bootstrap 项目本地 `uv`**：根目录安装链路不再要求用户先手动安装系统级 `uv`；当本机缺少 `uv` 时，仓库会自动把官方 `uv` 安装到 `workspace/tools/uv`，随后继续执行 `uv sync --project packages/server --locked --all-groups`，把后端 `.venv` 与 `httpx[socks]` 等 Python 依赖一并准备好
 - **服务端现已内置 `httpx` 的 SOCKS 代理支持**：`packages/server` 的 Python 依赖已从 `httpx` 切到 `httpx[socks]`，首次安装或后续 `pnpm install` 时会把 `socksio` 一并装进 `.venv`；当本机设置了 `ALL_PROXY` / `HTTPS_PROXY` 等 SOCKS 代理环境变量时，任务解析与聊天请求不再因为缺少 `socksio` 而直接 500
 - **开发代理已固定指向 `127.0.0.1:3000`**：前端 `vite` 开发代理原先写的是 `localhost:3000`，而后端 `uvicorn --reload` 实际只绑定 `127.0.0.1:3000`；在部分机器上这会把 `/api`、`/ws` 请求错误转发到其他本地 3000 端口服务，表现为设置页请求返回 `Cannot POST /api/settings`。现在代理已改为显式命中 `127.0.0.1:3000`
@@ -113,7 +114,7 @@
 
 - 工程质量：服务端现已补齐 Python 版 `FastAPI` 入口、SQLite 初始化、任务路由、记忆路由、用量聚合、头像上传、本地路径守卫与 `/ws/terminal` 会话管理；后端自动化测试已迁到 `pytest + TestClient`，前端 `taskStore` 继续保留请求竞态保护与统一任务状态合并逻辑
 - 性能：主导航下的 Dashboard / TaskList / Memories / TaskWorkspace / Settings 已切到按视图懒加载；任务工作台内部进一步拆为 `TaskWorkspaceView` / `TiledTerminalPanel` / `TerminalView` / 抽屉 / 弹窗等独立 chunk，当前主入口约 `453 kB`、记忆页 chunk 约 `10 kB`、工作台主 chunk 约 `225 kB`、终端视图 chunk 约 `367 kB`，生产构建已无大包告警
-- 稳定性：当前根级测试基线已通过，其中服务端 Python `pytest` 当前为 62 个关键链路 / 协议用例；前端 vitest 现为 95 个用例。本轮已执行 `pnpm --filter server test` 全绿；任务列表切换为全量任务后前端筛选，同时 Dashboard 已改为调用后端 `GET /api/tasks/stats` 摘要接口，并新增 30 秒静默自动刷新、窗口重新聚焦自动同步与手动刷新合并行为，已修复“进行中 / 已完成”数量在切换 tab、跨页面查看或任务超过一页时失真的问题
+- 稳定性：当前根级测试基线已通过，其中服务端 Python `pytest` 当前为 115 个关键链路 / 协议用例；前端 vitest 现为 95 个用例。本轮已执行 `pnpm --filter server test` 全绿；任务列表切换为全量任务后前端筛选，同时 Dashboard 已改为调用后端 `GET /api/tasks/stats` 摘要接口，并新增 30 秒静默自动刷新、窗口重新聚焦自动同步与手动刷新合并行为，已修复“进行中 / 已完成”数量在切换 tab、跨页面查看或任务超过一页时失真的问题
 - 时间基线：统一采用 `Asia/Shanghai` 时区处理，修复了 UTC 误判及列表显示问题
 
 > 历史已完成事项不再在本文件逐条维护；如需查看演进记录，请参考 `README.md` 与 `docs/changelog.md`。

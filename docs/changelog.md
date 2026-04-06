@@ -2,6 +2,14 @@
 
 > 用户视角的变更记录。每完成一个可感知的功能后，由 Claude Code 更新。
 
+## 2026-04-06
+
+- **任务聊天发送消息返回 `HTTP 500` 的问题已修复**：
+  - 修复了部分历史数据库在任务表迁移后，`task_agent_runs`、`task_agent_messages`、`task_sdk_runs`、`task_items` 仍引用旧表 `tasks_legacy_migration`，导致任务详情里发送新消息时直接报 `模型请求失败：HTTP 500` 的问题
+  - 后端现在会在启动时自动检测并修复这类悬空外键，把运行时表重建到正确的 `tasks` 外键上，同时保留已有 Agent run、结构化消息、SDK run 与事件数据
+  - 本地开发服务已验证同一任务的 `POST /api/tasks/{task_id}/agent-chat/runs` 恢复返回 `200`，thread 也能重新写入结构化用户消息
+  - 已补充数据库坏库回归测试，并完成 `pnpm --filter server test`
+
 ## 2026-03-22
 
 - **Agent Chat 工具调用卡片状态现已实时更新**：

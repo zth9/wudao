@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -120,6 +121,181 @@ def test_app_uses_wudao_home_for_default_database_path(tmp_path, monkeypatch):
     health = client.get("/api/health")
     assert health.status_code == 200
     assert db_path.exists()
+
+
+def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp_path, monkeypatch):
+    db_path = tmp_path / "broken-runtime.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE tasks (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          type TEXT NOT NULL CHECK (type IN ('feature','bugfix','investigation','exploration','refactor','learning')),
+          status TEXT NOT NULL DEFAULT 'execution' CHECK (status IN ('execution','done')),
+          context TEXT,
+          agent_doc TEXT,
+          chat_messages TEXT NOT NULL DEFAULT '[]',
+          status_log TEXT NOT NULL DEFAULT '[]',
+          session_ids TEXT NOT NULL DEFAULT '[]',
+          session_names TEXT NOT NULL DEFAULT '{}',
+          session_providers TEXT NOT NULL DEFAULT '{}',
+          priority INTEGER NOT NULL DEFAULT 2 CHECK (priority BETWEEN 0 AND 4),
+          due_at TEXT,
+          provider_id TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+
+        INSERT INTO tasks (
+          id, title, type, status, context, agent_doc, chat_messages, status_log,
+          session_ids, session_names, session_providers, priority, due_at,
+          provider_id, created_at, updated_at
+        )
+        VALUES (
+          '2026-04-02-1', '修复坏外键', 'feature', 'execution', 'ctx', NULL, '[]', '[]',
+          '[]', '{}', '{}', 2, NULL, 'claude', '2026-04-02 00:00:00', '2026-04-02 00:00:00'
+        );
+
+        CREATE TABLE task_agent_runs (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES "tasks_legacy_migration"(id) ON DELETE CASCADE,
+          provider_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'running'
+            CHECK (status IN ('running','waiting_approval','completed','failed','cancelled')),
+          checkpoint_json TEXT,
+          last_error TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE task_agent_messages (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES "tasks_legacy_migration"(id) ON DELETE CASCADE,
+          run_id TEXT NOT NULL REFERENCES task_agent_runs(id) ON DELETE CASCADE,
+          seq INTEGER NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('system','user','assistant','tool')),
+          kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','artifact','error')),
+          status TEXT NOT NULL DEFAULT 'completed'
+            CHECK (status IN ('streaming','completed','failed','waiting_approval')),
+          content_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          UNIQUE (task_id, seq)
+        );
+
+        CREATE TABLE task_sdk_runs (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES "tasks_legacy_migration"(id) ON DELETE CASCADE,
+          agent_run_id TEXT,
+          runner_type TEXT NOT NULL DEFAULT 'claude_code',
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending','running','completed','failed','cancelled')),
+          prompt TEXT NOT NULL DEFAULT '',
+          cwd TEXT,
+          total_cost_usd REAL NOT NULL DEFAULT 0,
+          total_tokens INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE task_sdk_events (
+          id TEXT PRIMARY KEY,
+          sdk_run_id TEXT NOT NULL REFERENCES task_sdk_runs(id) ON DELETE CASCADE,
+          seq INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          payload_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT DEFAULT (datetime('now')),
+          UNIQUE (sdk_run_id, seq)
+        );
+
+        CREATE TABLE task_items (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
+          sort_order INTEGER NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (task_id) REFERENCES "tasks_legacy_migration"(id) ON DELETE CASCADE
+        );
+
+        INSERT INTO task_agent_runs (
+          id, task_id, provider_id, status, checkpoint_json, last_error, created_at, updated_at
+        )
+        VALUES (
+          'legacy-run-1', '2026-04-02-1', 'claude', 'completed', NULL, NULL,
+          '2026-04-02 00:00:00', '2026-04-02 00:00:00'
+        );
+
+        INSERT INTO task_agent_messages (
+          id, task_id, run_id, seq, role, kind, status, content_json, created_at, updated_at
+        )
+        VALUES (
+          'legacy-msg-1', '2026-04-02-1', 'legacy-run-1', 1, 'assistant', 'text', 'completed',
+          '{"content":"旧消息"}', '2026-04-02 00:00:00', '2026-04-02 00:00:00'
+        );
+
+        INSERT INTO task_sdk_runs (
+          id, task_id, agent_run_id, runner_type, status, prompt, cwd,
+          total_cost_usd, total_tokens, last_error, created_at, updated_at
+        )
+        VALUES (
+          'legacy-sdk-1', '2026-04-02-1', 'legacy-run-1', 'claude_code', 'completed', '旧 runner', '/tmp/demo',
+          0.1, 12, NULL, '2026-04-02 00:00:00', '2026-04-02 00:00:00'
+        );
+
+        INSERT INTO task_sdk_events (
+          id, sdk_run_id, seq, event_type, payload_json, created_at
+        )
+        VALUES (
+          'legacy-sdk-event-1', 'legacy-sdk-1', 1, 'sdk.text_completed', '{"text":"旧事件"}',
+          '2026-04-02 00:00:00'
+        );
+
+        INSERT INTO task_items (id, task_id, title, done, sort_order, created_at)
+        VALUES ('legacy-item-1', '2026-04-02-1', '旧待办', 0, 1, '2026-04-02 00:00:00');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    module = load_app(tmp_path, monkeypatch, db_path=db_path)
+    client = TestClient(module.app)
+    db_module = importlib.import_module("src.db")
+    thread_store = importlib.import_module("src.agent_runtime.thread_store")
+    sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
+    runner = importlib.import_module("src.agent_runtime.runner")
+
+    assert {row["table"] for row in db_module.db.query_all("PRAGMA foreign_key_list(task_agent_runs)")} == {"tasks"}
+    assert {row["table"] for row in db_module.db.query_all("PRAGMA foreign_key_list(task_agent_messages)")} == {
+        "task_agent_runs",
+        "tasks",
+    }
+    assert {row["table"] for row in db_module.db.query_all("PRAGMA foreign_key_list(task_sdk_runs)")} == {"tasks"}
+    assert {row["table"] for row in db_module.db.query_all("PRAGMA foreign_key_list(task_items)")} == {"tasks"}
+
+    assert thread_store.get_agent_run("legacy-run-1")["task_id"] == "2026-04-02-1"
+    thread = thread_store.get_task_agent_thread("2026-04-02-1")
+    assert [item["id"] for item in thread["messages"]] == ["legacy-msg-1"]
+    assert sdk_store.get_sdk_run("legacy-sdk-1")["task_id"] == "2026-04-02-1"
+    assert [item["id"] for item in sdk_store.list_sdk_events("legacy-sdk-1")] == ["legacy-sdk-event-1"]
+
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        return {"type": "assistant_text", "content": "修复后可以继续对话。"}
+
+    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+
+    run_response = client.post(
+        "/api/tasks/2026-04-02-1/agent-chat/runs",
+        json={"message": "继续", "providerId": "claude"},
+    )
+    assert run_response.status_code == 200
+    run_id = run_response.json()["runId"]
+
+    event_response = client.get(f"/api/tasks/2026-04-02-1/agent-chat/runs/{run_id}/events")
+    assert event_response.status_code == 200
+    assert '"type": "run.completed"' in event_response.text
 
 
 def test_task_crud_stats_and_session_linking(tmp_path, monkeypatch):
