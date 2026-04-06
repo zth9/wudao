@@ -14,14 +14,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from .db import db
 from .logger import logger
 from .memories import (
-    OpenVikingBridgeError,
     get_global_memory_system_messages,
     read_wudao_agent_memory,
     read_wudao_user_memory,
     save_wudao_agent_memory,
     save_wudao_user_memory,
 )
-from .openviking_bridge import close_openviking_bridge, get_openviking_status, list_openviking_memories
 from .path_guard import resolve_allowed_open_path
 from .paths import PROFILE_DIR, WORKSPACE_DIR, ensure_runtime_dirs
 from .task_claude_md import write_task_claude_md
@@ -151,14 +149,6 @@ def _next_provider_sort_order() -> int:
     return int(row["v"] if row else 1)
 
 
-async def _warm_openviking_on_startup() -> None:
-    status = await get_openviking_status(timeout_seconds=5)
-    if status.get("available"):
-        logger.info("OpenViking embedded worker ready: %s", status.get("workspacePath"))
-        return
-    logger.warning("OpenViking embedded worker unavailable during startup: %s", status.get("message") or "unknown error")
-
-
 def create_app() -> FastAPI:
     ensure_runtime_dirs()
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
@@ -166,14 +156,12 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         try:
-            await _warm_openviking_on_startup()
             yield
         finally:
             from .sdk_runner.sdk_runner import registry as sdk_registry
             from .sdk_runner.sdk_approval import approval_manager
             await sdk_registry.shutdown()
             approval_manager.clear()
-            await close_openviking_bridge()
             await terminal_manager.close_all_sessions()
 
     app = FastAPI(lifespan=lifespan)
@@ -317,19 +305,6 @@ def create_app() -> FastAPI:
         content = await file.read()
         path.write_bytes(content)
         return {"ok": True, "url": f"/api/profile/avatar?t={int(Path(path).stat().st_mtime_ns)}"}
-
-    @app.get("/api/contexts/status")
-    async def contexts_status() -> dict[str, Any]:
-        return await get_openviking_status()
-
-    @app.get("/api/contexts/memories")
-    async def contexts_memories() -> JSONResponse:
-        try:
-            return JSONResponse(await list_openviking_memories())
-        except OpenVikingBridgeError as exc:
-            return JSONResponse({"error": exc.message, "code": exc.code, "details": exc.details}, status_code=503)
-        except Exception:
-            return JSONResponse({"error": "Failed to load OpenViking memories"}, status_code=500)
 
     @app.get("/api/contexts/user-memory")
     async def get_user_memory() -> dict[str, Any]:

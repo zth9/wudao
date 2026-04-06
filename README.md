@@ -16,7 +16,7 @@
 - **任务工作台**：任务详情页为统一工作台，左侧是 Agentic Chat，右侧是多终端与产物抽屉
 - **产物单一事实源**：`AGENTS.md` 是主产物，workspace 内同时维护 `CLAUDE.md`、`GEMINI.md` 两个兼容软链
 - **多 Provider 统一接入**：统一管理 Claude、Kimi、GLM、MiniMax、Qwen、OpenAI、Gemini 等模型配置
-- **记忆系统**：支持用户记忆、Wudao Agent 全局记忆与 OpenViking Embedded 记忆查看
+- **记忆系统**：支持用户记忆与 Wudao Agent 全局记忆的本地维护、编辑与任务注入
 - **运行态可观测**：Dashboard 聚合任务统计与 Provider 用量，任务聊天已支持结构化 Agent timeline
 
 ## 系统架构
@@ -27,9 +27,7 @@ flowchart TD
     B --> C[SQLite\n~/.wudao/wudao.db]
     B --> D[Task Workspace\n~/.wudao/workspace/<taskId>]
     B --> E[Python PTY Terminal Runtime]
-    B --> F[OpenViking Bridge]
     E --> G[Claude / Codex / Gemini / 其他 CLI]
-    F --> H[~/.wudao/contexts]
 ```
 
 ## 技术栈
@@ -87,7 +85,7 @@ wudao/
 - [任务工作台方案](docs/design/task-workspace-integration.md)
 - [任务上下文注入](docs/design/task-context-injection.md)
 - [Agentic Chat 工具化](docs/design/agentic-chat-tooling.md)
-- [OpenViking 记忆管理](docs/design/openviking-context-integration.md)
+- [记忆系统管理](docs/design/memory-system-integration.md)
 - [后端 Python 重构](docs/design/server-python-refactor.md)
 - [前端开发规范](docs/design/frontend-guidelines.md)
 - [当前开发进度](status.md)

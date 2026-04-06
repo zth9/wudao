@@ -58,60 +58,21 @@ export const usage = {
   fetch: () => request<ProviderUsage[]>("/usage"),
 };
 
-// OpenViking Contexts
-export interface OpenVikingStatus {
-  available: boolean;
-  mode: "embedded";
-  workspacePath: string;
-  configPath: string | null;
-  pythonBin: string;
-  message: string | null;
-}
-
-export interface OpenVikingMemoryItem {
-  uri: string;
-  title: string;
-  scope: "user" | "agent";
-  category: string;
-  preview: string;
-  content: string;
-  updatedAt: string | null;
-  size: number | null;
-}
-
-export interface OpenVikingMemoryList {
-  workspacePath: string;
-  items: OpenVikingMemoryItem[];
-  total: number;
-}
-
 export interface WudaoUserMemory {
   content: string;
   path: string;
 }
 
-export interface WudaoUserMemorySaveResult extends WudaoUserMemory {
-  mirrored: boolean;
-  mirroredUri: string | null;
-  mirrorError: string | null;
-}
+export type WudaoUserMemorySaveResult = WudaoUserMemory;
 
 export interface WudaoAgentMemory {
   content: string;
   path: string;
 }
 
-export interface WudaoAgentMemorySaveResult extends WudaoAgentMemory {
-  mirrored: boolean;
-  mirroredUri: string | null;
-  mirrorError: string | null;
-}
-
-
+export type WudaoAgentMemorySaveResult = WudaoAgentMemory;
 
 export const contexts = {
-  status: () => request<OpenVikingStatus>("/contexts/status"),
-  listMemories: () => request<OpenVikingMemoryList>("/contexts/memories"),
   getUserMemory: () => request<WudaoUserMemory>("/contexts/user-memory"),
   updateUserMemory: (content: string) =>
     request<WudaoUserMemorySaveResult>("/contexts/user-memory", {

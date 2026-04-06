@@ -2,11 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .openviking_bridge import (
-    OpenVikingBridgeError,
-    sync_openviking_agent_memory,
-    sync_openviking_user_memory,
-)
 from .paths import WUDAO_AGENT_MEMORY_FILE, WUDAO_USER_MEMORY_FILE
 
 
@@ -36,62 +31,26 @@ def get_wudao_agent_memory_for_task_context() -> str | None:
     return content or None
 
 
-async def save_wudao_user_memory(content: str) -> dict[str, str | bool | None]:
+def _write_memory_file(path: Path, content: str) -> dict[str, str]:
     normalized = content.replace("\r\n", "\n").strip()
-    WUDAO_USER_MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     if normalized:
-        WUDAO_USER_MEMORY_FILE.write_text(normalized + "\n", encoding="utf-8")
+        path.write_text(normalized + "\n", encoding="utf-8")
     else:
-        WUDAO_USER_MEMORY_FILE.unlink(missing_ok=True)
-
-    mirrored = False
-    mirrored_uri: str | None = None
-    mirror_error: str | None = None
-    try:
-        result = await sync_openviking_user_memory(normalized)
-        mirrored = bool(result.get("mirrored"))
-        mirrored_uri = result.get("uri")
-    except OpenVikingBridgeError as exc:
-        mirror_error = exc.message
-    except Exception as exc:  # pragma: no cover - runtime guard
-        mirror_error = str(exc)
+        path.unlink(missing_ok=True)
 
     return {
         "content": normalized,
-        "path": str(WUDAO_USER_MEMORY_FILE),
-        "mirrored": mirrored,
-        "mirroredUri": mirrored_uri,
-        "mirrorError": mirror_error,
+        "path": str(path),
     }
 
 
-async def save_wudao_agent_memory(content: str) -> dict[str, str | bool | None]:
-    normalized = content.replace("\r\n", "\n").strip()
-    WUDAO_AGENT_MEMORY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if normalized:
-        WUDAO_AGENT_MEMORY_FILE.write_text(normalized + "\n", encoding="utf-8")
-    else:
-        WUDAO_AGENT_MEMORY_FILE.unlink(missing_ok=True)
+async def save_wudao_user_memory(content: str) -> dict[str, str]:
+    return _write_memory_file(WUDAO_USER_MEMORY_FILE, content)
 
-    mirrored = False
-    mirrored_uri: str | None = None
-    mirror_error: str | None = None
-    try:
-        result = await sync_openviking_agent_memory(normalized)
-        mirrored = bool(result.get("mirrored"))
-        mirrored_uri = result.get("uri")
-    except OpenVikingBridgeError as exc:
-        mirror_error = exc.message
-    except Exception as exc:  # pragma: no cover - runtime guard
-        mirror_error = str(exc)
 
-    return {
-        "content": normalized,
-        "path": str(WUDAO_AGENT_MEMORY_FILE),
-        "mirrored": mirrored,
-        "mirroredUri": mirrored_uri,
-        "mirrorError": mirror_error,
-    }
+async def save_wudao_agent_memory(content: str) -> dict[str, str]:
+    return _write_memory_file(WUDAO_AGENT_MEMORY_FILE, content)
 
 
 def get_global_memory_system_messages() -> list[dict[str, str]]:

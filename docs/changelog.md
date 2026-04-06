@@ -4,6 +4,12 @@
 
 ## 2026-04-06
 
+- **记忆系统已移除 OpenViking 依赖**：
+  - Wudao 不再依赖 OpenViking bridge、worker 或外部 memory workspace；服务启动与关闭也不再预热或清理额外记忆进程
+  - 记忆页现已收口为 `用户记忆 / Agent 记忆` 两个本地编辑模块，不再展示状态卡片、外部记忆列表、搜索筛选和镜像告警
+  - 用户记忆与 Agent 记忆继续保存在 `~/.wudao/profile/user-memory.md` 和 `~/.wudao/profile/wudao-agent-memory.md`，并持续注入到任务解析、`AGENTS.md` 生成、普通聊天与 Agent Chat
+  - 已完成 `pnpm test`、`pnpm --filter web build`
+
 - **任务聊天发送消息返回 `HTTP 500` 的问题已修复**：
   - 修复了部分历史数据库在任务表迁移后，`task_agent_runs`、`task_agent_messages`、`task_sdk_runs`、`task_items` 仍引用旧表 `tasks_legacy_migration`，导致任务详情里发送新消息时直接报 `模型请求失败：HTTP 500` 的问题
   - 后端现在会在启动时自动检测并修复这类悬空外键，把运行时表重建到正确的 `tasks` 外键上，同时保留已有 Agent run、结构化消息、SDK run 与事件数据

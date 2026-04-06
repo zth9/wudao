@@ -27,7 +27,7 @@
 | Server 单测/集成 | `pytest` | 通过 `uv run --project . pytest` 执行 |
 | Server Route / WS | `FastAPI TestClient` | 直接测试 HTTP 与 WebSocket 协议 |
 | Web 单测 | `vitest` | 覆盖 store、utils、关键组件 |
-| Mock 策略 | monkeypatch / 模块级 mock | 隔离 LLM、OpenViking、终端等外部依赖 |
+| Mock 策略 | monkeypatch / 模块级 mock | 隔离 LLM、文件系统、终端等外部依赖 |
 
 ## 3. 当前覆盖重点
 
@@ -49,7 +49,7 @@
 - 任务 CRUD、分页、排序、状态流转
 - 任务解析、legacy chat、文档生成
 - Agent Chat thread / run / 工具调用
-- OpenViking bridge 与记忆接口
+- 本地记忆接口
 - 终端协议的 create / list / attach / close / resize 关键路径
 
 ### Web

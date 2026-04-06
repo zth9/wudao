@@ -9,7 +9,7 @@
 
 - [x] `packages/server` 运行时已切换为 Python
 - [x] 前端继续沿用原有 `/api`、SSE 与 `/ws/terminal` 协议
-- [x] SQLite、任务 workspace、终端会话恢复、OpenViking bridge、用量聚合与本地路径打开能力均已迁移
+- [x] SQLite、任务 workspace、终端会话恢复、记忆系统、用量聚合与本地路径打开能力均已迁移
 - [x] 后端自动化测试已切换到 `pytest + FastAPI TestClient`
 - [x] 原 TypeScript 服务端不再是默认实现路径
 
@@ -65,7 +65,6 @@ flowchart TD
 |------|------|
 | `~/.wudao/workspace/<taskId>/` | 任务 workspace |
 | `~/.wudao/profile/` | 头像、用户记忆、Agent 记忆 |
-| `~/.wudao/contexts/` | OpenViking Embedded workspace |
 
 ## 4. 协议兼容结果
 
@@ -98,7 +97,7 @@ flowchart TD
 - Task CRUD、排序、分页、状态流转
 - 任务解析、legacy chat、文档生成
 - Agent Chat thread / run / 工具链
-- OpenViking bridge 与记忆接口
+- 本地记忆接口
 - 终端 list / create / attach / close / resize 关键协议
 
 ## 6. 剩余已知风险

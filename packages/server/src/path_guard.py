@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .paths import CONTEXTS_DIR, PROFILE_DIR, WORKSPACE_DIR
+from .paths import PROFILE_DIR, WORKSPACE_DIR
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REPO_WORKSPACE_DIR = REPO_ROOT / "workspace"
@@ -35,7 +35,6 @@ def get_allowed_open_roots() -> list[Path]:
         REPO_WORKSPACE_DIR.resolve(),
         WORKSPACE_DIR.resolve(),
         PROFILE_DIR.resolve(),
-        CONTEXTS_DIR.resolve(),
     ]
     unique: list[Path] = []
     for root in roots:

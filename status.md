@@ -17,8 +17,9 @@
 - **`pnpm install` 已自动同步服务端 Python 环境**：根目录安装链路现会自动执行 `uv sync --project packages/server --locked --all-groups`；同时把 `uv` 缓存固定到仓库 `workspace/uv-cache`，减少首次启动遗漏 Python 依赖的问题
 - **默认 provider seed 已收缩为最小元数据**：后端 `db.py` 新初始化数据库时仍会预置 provider 行，但仓库内不再硬编码 `api_key`、`endpoint` 或 `model`；这些配置统一留在 `providers` 表里由用户自行填写，现有数据库中的 provider 配置也不会在启动时被自动改写，并已补充服务端回归测试
 - **记忆页编辑框已改为整窗高度**：记忆页中的用户记忆与 Agent 记忆编辑模块现会直接占满视图剩余空间，编辑框本身吃满整张卡片，不再停留在约 80% 高度并把页面撑出额外滚动条；由于高度已固定，右下角的 textarea 拖拽手柄也已移除
+- **记忆系统已彻底移除 OpenViking 依赖**：后端已删除 OpenViking bridge / worker、启动期 warmup 与 `/api/contexts/status`、`/api/contexts/memories` 接口；前端记忆页现只保留 `用户记忆 / Agent 记忆` 两个本地编辑模块；用户记忆与 Agent 记忆继续从 `~/.wudao/profile/*.md` 注入到任务解析、`AGENTS.md` 生成、legacy chat 与 Agent Chat
 - **默认模型供应商持久化已修复**：设置页把某个供应商设为默认后，服务重启不再被数据库初始化强行改回 Claude；后端当前只会在“默认值缺失”或“出现多个默认值”时做一次兜底归一化，并已补上 `tests/test_app.py` 的重启回归测试
-- **全体文档已按当前代码设计重新对齐**：`README.md`、任务工作台、Agentic Chat、OpenViking、后端 Python 重构、TDD 与前端规范文档已统一到当前 `FastAPI + React` 实现、结构化 Agent timeline、`AGENTS.md` 主产物模型与 `LoadingIndicator` 加载基线，减少继续参考旧 Hono / Skeleton / `app.request()` 口径的风险
+- **全体文档已按当前代码设计重新对齐**：`README.md`、任务工作台、Agentic Chat、记忆系统、后端 Python 重构、TDD 与前端规范文档已统一到当前 `FastAPI + React` 实现、结构化 Agent timeline、`AGENTS.md` 主产物模型与 `LoadingIndicator` 加载基线，减少继续参考旧 Hono / Skeleton / `app.request()` 口径的风险
 - **后端运行时已切换到 Python**：`packages/server` 已由 FastAPI + sqlite3 + Python PTY 接管，默认开发/测试脚本改为 `uv` 驱动；原 TypeScript 服务端源码已移除，前端继续复用既有 `/api`、SSE 与 `/ws/terminal` 协议
 - **文档主线已按当前实现收口**：根文档、任务工作台、上下文注入与 Agentic Chat 设计已统一到 `packages/server/src/*.py`、`packages/server/tests/` 与 `P0-P4` 优先级模型，避免继续沿用 Hono / TS 路径与“紧急度”旧口径
 - **Agentic Chat 持久化底座已起步**：后端已新增 `task_agent_runs`、`task_agent_messages` 两张表及 `agent_runtime/thread_store.py` 基础查询服务，先为后续 typed SSE、结构化时间线和审批流提供可恢复的 run/message 存储层
@@ -103,10 +104,7 @@
   - **优先级排序修复**：修复任务列表按优先级排序时方向颠倒的问题，`P0` 现会排在更前，且分页排序语义与数据库索引保持一致
   - **任务抽屉优先级展示修复**：修复任务详情页左侧任务列表抽屉未显示优先级标签的问题；抽屉中的任务项现已完整展示 `P0-P4` 五级优先级，并与主列表保持一致的颜色语义
 - **稳定性与适配优化**：修复了 Kimi 用量获取 401 错误，优化了身份验证 token 的提取优先级逻辑，增加了对 JWT 备选字段名的解析支持并模拟了浏览器 User-Agent，提升了与 Kimi 最新 API 的兼容性
-- **记忆系统起步接入**：新增 OpenViking Embedded 集成，`wudao server` 通过本地 Python bridge 读取外挂 context 数据，固定使用 `~/.wudao/contexts` 作为 OpenViking workspace；前端顶部导航新增“记忆”页，可查看当前 OpenViking 状态、配置路径、数据目录以及全部用户/Agent 记忆列表
-- **OpenViking 启动链路已常驻化**：后端现会在 FastAPI 启动时自动拉起常驻 OpenViking bridge worker，并复用同一 Embedded 单例处理 `status / list / sync` 请求；同时补上 Python 解释器自动回退，避免 `uv` 虚拟环境里未安装 `openviking` 时 bridge 直接失效
-- **Wudao Agent 全局记忆**：新增可手动编辑的全局 Agent 记忆文件 `~/.wudao/profile/wudao-agent-memory.md`；保存后会尽力镜像到 OpenViking Agent memory，并在每个任务的首次规划对话开始时自动注入为长期上下文
-- **记忆分模块管理**：记忆页现已拆为 `用户记忆 / Agent 记忆 / OpenViking 记忆` 三个模块；用户记忆使用 `~/.wudao/profile/user-memory.md` 存储；用户记忆与 Agent 记忆会在每次任务对话请求里作为 `system prompt` 注入，并参与任务意图识别
+- **本地全局记忆已收口**：顶部导航“记忆”页现只保留 `用户记忆 / Agent 记忆` 两个模块；用户记忆位于 `~/.wudao/profile/user-memory.md`，Agent 记忆位于 `~/.wudao/profile/wudao-agent-memory.md`；两者都会在每次任务对话请求里作为 `system prompt` 注入，并参与任务意图识别
 - **手动生成 `AGENTS.md` 现已接入全局记忆**：任务面板中手动点击“生成 / 更新 `AGENTS.md`”时，后端现也会把用户记忆与 `Wudao Agent` 全局记忆作为 `system prompt` 一并注入，不再只有任务解析、普通聊天与 Agent Chat 会看到这部分长期上下文；同时已补上 `tests/test_task_service.py` 回归测试，防止后续回退
 - **OpenAI Responses 兼容性修复**：修复了新建任务时选择 OpenAI 供应商会因未正确消费 Responses API 流式 `response.output_text.delta` 事件而导致 `/api/tasks/parse` 返回 500 的问题；同时修复了带 assistant 历史消息的任务对话错误地使用 `input_text` 编码、触发 400 的问题，并保留结构化 `input` 失败时对旧兼容端点的单 `user prompt` 回退；此外，针对启用了 CRS `approved clients` 限制的 OpenAI 兼容网关，后端现会在识别到 `Client not allowed` 403 且允许 `codex_cli` 时，自动切换到 Codex CLI 兼容请求头与 `instructions` 重试，任务意图解析与任务聊天现已能稳定读取并发送 OpenAI Responses 文本消息
 

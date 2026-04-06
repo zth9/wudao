@@ -442,21 +442,22 @@ def test_task_parse_supports_openai_responses_delta_stream(tmp_path, monkeypatch
 def test_user_memory_and_open_path(tmp_path, monkeypatch):
     module = load_app(tmp_path, monkeypatch)
     client = TestClient(module.app)
+    expected_path = Path(tmp_path) / "home" / "profile" / "user-memory.md"
 
     async def fake_save_user_memory(content):
         return {
             "content": content,
-            "path": str(Path(tmp_path) / "home" / "profile" / "user-memory.md"),
-            "mirrored": True,
-            "mirroredUri": "viking://user/profile.md",
-            "mirrorError": None,
+            "path": str(expected_path),
         }
 
     monkeypatch.setattr(module, "save_wudao_user_memory", fake_save_user_memory)
 
     updated = client.put("/api/contexts/user-memory", json={"content": "长期偏好"})
     assert updated.status_code == 200
-    assert updated.json()["mirrored"] is True
+    assert updated.json() == {
+        "content": "长期偏好",
+        "path": str(expected_path),
+    }
 
     opened: list[list[str]] = []
 
@@ -472,6 +473,14 @@ def test_user_memory_and_open_path(tmp_path, monkeypatch):
     assert open_resp.status_code == 200
     assert open_resp.json() == {"ok": True}
     assert opened and opened[0][0] == "open"
+
+
+def test_removed_external_memory_endpoints_return_404(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    assert client.get("/api/contexts/status").status_code == 404
+    assert client.get("/api/contexts/memories").status_code == 404
 
 
 def test_terminal_websocket_list(tmp_path, monkeypatch):
@@ -623,36 +632,9 @@ def test_app_shutdown_closes_terminal_sessions(tmp_path, monkeypatch):
     async def fake_close_all_sessions():
         called.append("terminal")
 
-    async def fake_close_openviking_bridge():
-        called.append("openviking")
-
     monkeypatch.setattr(module.terminal_manager, "close_all_sessions", fake_close_all_sessions)
-    monkeypatch.setattr(module, "close_openviking_bridge", fake_close_openviking_bridge)
 
     with TestClient(module.app):
         pass
 
-    assert called == ["openviking", "terminal"]
-
-
-def test_app_startup_warms_openviking_bridge(tmp_path, monkeypatch):
-    module = load_app(tmp_path, monkeypatch)
-    called: list[bool] = []
-
-    async def fake_get_openviking_status(*args, **kwargs):
-        called.append(True)
-        return {
-            "available": True,
-            "mode": "embedded",
-            "workspacePath": str(Path(tmp_path) / "home" / "contexts"),
-            "configPath": None,
-            "pythonBin": "python3",
-            "message": None,
-        }
-
-    monkeypatch.setattr(module, "get_openviking_status", fake_get_openviking_status)
-
-    with TestClient(module.app):
-        pass
-
-    assert called == [True]
+    assert called == ["terminal"]
