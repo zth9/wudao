@@ -4,6 +4,11 @@
 
 ## 2026-04-28
 
+- **协作文档与 README 已按当前代码对齐**：
+  - 更新根 `AGENTS.md` 与 `README.md`，补齐当前任务中心、Agentic Chat、Claude Code Runner、三抽屉任务工作台、任务 workspace、本地记忆和 `uv` bootstrap 口径
+  - 更新 `packages/web/AGENTS.md`、`packages/server/AGENTS.md` 与 `scripts/AGENTS.md`，分别对齐真实前端 store/组件结构、后端 Agent Runtime / SDK Runner / Terminal 模块边界，以及当前脚本入口
+  - 清理文档中已经不存在的设计/Review 文档入口，避免后续继续按旧路径查找资料
+
 - **后端 Review 盘点已沉淀为文档**：
   - 新增 `docs/reviews/backend-review-2026-04-28.md`，记录当前后端功能项、主要风险、死代码候选与建议处理顺序
   - 本次盘点确认 `pnpm --filter server test` 通过，当前为 116 个服务端用例
