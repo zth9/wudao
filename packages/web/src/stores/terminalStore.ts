@@ -73,7 +73,7 @@ function buildRestoredSession(
   };
 }
 
-export const useTerminalStore = create<TerminalState>((set, get) => ({
+export const useTerminalStore = create<TerminalState>((set) => ({
   sessions: [],
 
   addSession: (s) => set((state) => ({ sessions: [...state.sessions, s] })),

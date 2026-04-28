@@ -190,14 +190,10 @@
     "user_memory_load_failed": "加载用户记忆失败"
   },
   "dashboard": {
-    "title": "仪表盘",
     "overview": "概览",
-    "task_stats": "任务统计",
     "usage_stats": "用量统计",
-    "welcome": "欢迎回来",
     "no_usage": "暂无用量数据",
     "loading_usage": "正在加载用量数据...",
-    "refresh_usage": "刷新用量",
     "auth_failed": "认证失败",
     "fix_in_settings": "前往设置修复",
     "welcome_user": "欢迎回来，{{name}}",
@@ -230,89 +226,29 @@
   },
   "artifacts": {
     "title": "产物",
-    "subtitle": "当前展示主产物文件：AGENTS.md",
-    "close_drawer": "收起产物抽屉",
     "description": "任务目标、约束和执行提示",
     "ready": "已生成",
     "pending": "待生成",
     "empty_title": "还没有生成 AGENTS.md",
-    "empty_hint": "可在左侧 AI 对话栏点击生成",
-    "collapse": "收起产物抽屉",
     "empty_desc": "可在左侧 AI 对话栏点击生成"
   },
   "terminal": {
-    "title": "任务终端",
-    "session_summary": "{{count}} 个终端 · 可拖拽排序",
-    "not_started": "终端未启动",
-    "restore_all": "全部恢复",
-    "new_terminal": "新建终端",
-    "no_linked_sessions": "暂无关联终端，历史会话将在此显示",
-    "linked": "关联",
-    "session_opened": "该会话已在终端区打开",
-    "restore_session": "恢复此历史终端会话",
-    "opened": "已打开",
-    "restore": "恢复",
-    "empty_with_history": "还没有打开中的终端，您可以从上方恢复历史会话，或者启动一个新的终端会话。",
-    "empty_without_history": "终端尚未启动，通过点击下方按钮开始您的工作。",
-    "dialog_title": "启动工作台",
-    "name_label": "终端名称",
-    "name_placeholder": "请输入终端名称",
-    "randomize_name": "随机生成",
-    "provider_label": "模型供应商",
-    "permission_mode_label": "权限模式",
-    "launch": "启动终端",
     "rename": "重命名",
     "close": "关闭终端",
     "process_exit": "进程已退出，代码: {{code}}",
     "error_prefix": "错误",
-    "initial_prompt": "请先阅读当前目录中的 AGENTS.md，了解目标与约束后再开始执行。",
-    "permission_modes": {
-      "bypassPermissions": {
-        "label": "全自动",
-        "desc": "跳过所有权限确认"
-      },
-      "plan": {
-        "label": "规划模式",
-        "desc": "只规划不执行"
-      },
-      "default": {
-        "label": "默认",
-        "desc": "每次操作需确认权限"
-      }
-    }
+    "initial_prompt": "请先阅读当前目录中的 AGENTS.md，了解目标与约束后再开始执行。"
   },
   "terminal_dialog": {
     "title": "启动工作台",
     "name_label": "终端名称",
     "name_placeholder": "请输入终端名称",
     "permission_label": "权限模式",
-    "confirm": "启动",
-    "permission_modes": {
-      "bypassPermissions": {
-        "label": "全自动",
-        "desc": "跳过所有权限确认"
-      },
-      "plan": {
-        "label": "规划模式",
-        "desc": "只规划不执行"
-      },
-      "default": {
-        "label": "默认",
-        "desc": "每次操作需确认权限"
-      }
-    }
+    "confirm": "启动"
   },
   "provider_status": {
     "selected": "已选",
     "default": "默认"
-  },
-  "language": {
-    "english": "English",
-    "chinese": "中文"
-  },
-  "task_status": {
-    "execution": "执行中",
-    "done": "已完成"
   },
   "terminal_panel": {
     "title": "任务终端",

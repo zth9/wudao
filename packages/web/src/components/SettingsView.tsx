@@ -98,8 +98,8 @@ export default function SettingsView() {
       if (data.url) {
         setUser({ avatar: data.url });
       }
-    } catch (err) {
-      console.error("Avatar upload failed:", err);
+    } catch {
+      // Avatar upload is optional; keep the settings form usable on failure.
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

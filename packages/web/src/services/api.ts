@@ -292,61 +292,6 @@ export const tasks = {
     return controller;
   },
 
-  streamTaskChat(
-    taskId: string,
-    message: string,
-    onDelta: (delta: string) => void,
-    onDone: () => void,
-    onError: (error: string) => void,
-    providerId?: string,
-    seedMessage?: string,
-  ): AbortController {
-    const controller = new AbortController();
-
-    fetch(`${BASE}/tasks/${taskId}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, providerId, seedMessage }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          onError(`HTTP ${res.status}`);
-          return;
-        }
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop()!;
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data:")) continue;
-            const data = trimmed.slice(5).trim();
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.delta) onDelta(parsed.delta);
-              if (parsed.done) onDone();
-              if (parsed.error) onError(parsed.error);
-            } catch {
-              // skip
-            }
-          }
-        }
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") onError(err.message);
-      });
-
-    return controller;
-  },
 };
 
 // System utilities

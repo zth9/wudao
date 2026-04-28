@@ -2,6 +2,19 @@
 
 > 用户视角的变更记录。每完成一个可感知的功能后，由 Claude Code 更新。
 
+## 2026-04-28
+
+- **前端死代码与旧代码已清理**：
+  - 修复了前端完整 TypeScript 检查失败项，并让 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters` 通过
+  - 删除旧版普通任务聊天发送链路，前端只保留 `chat_messages` 到 Agent timeline 的历史展示 fallback
+  - `taskStore` 现复用 `utils/agent-timeline.ts` 的统一映射与合并逻辑，并清理未用 import/参数、重复 `TASK_TYPES`、旧 i18n key、无引用 CSS 类和生产路径调试日志
+  - 已完成 `pnpm --filter web test`（18 个测试文件 / 111 个用例）与 `pnpm --filter web build`
+
+- **前端 Review 盘点已沉淀为文档**：
+  - 新增 `docs/reviews/frontend-review-2026-04-28.md`，记录当前前端功能项、死代码候选、类型检查风险与建议清理顺序
+  - 本次盘点确认 `pnpm --filter web test` 与 `pnpm --filter web build` 通过，但 `pnpm --filter web exec tsc --noEmit` 仍有类型错误需要后续收口
+  - 重点清理候选包括旧版普通任务聊天链路、重复的 Agent timeline 映射逻辑、`urgency` 旧字段残留、旧 i18n key、未定义滚动条类名和调试日志
+
 ## 2026-04-06
 
 - **记忆系统已移除 OpenViking 依赖**：

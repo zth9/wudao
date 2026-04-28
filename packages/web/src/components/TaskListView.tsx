@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
 import {
+  TASK_TYPES,
   type FilterTab,
   type SortOption,
 } from "./task-panel/constants";
@@ -474,7 +475,7 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300 mb-1.5 block">{t('tasks.type')}</label>
                     <div className="flex flex-wrap gap-2">
-                      {TASK_TYPES.map((type: TaskType) => (
+                      {TASK_TYPES.map((type) => (
                         <button
                           key={type}
                           onClick={() => setParsedTask((current) => current ? { ...current, type } : current)}
@@ -605,8 +606,6 @@ function LoadingAnimation() {
     </div>
   );
 }
-
-const TASK_TYPES: TaskType[] = ["feature", "bugfix", "investigation", "exploration", "refactor", "learning"];
 
 type ParsedTaskDraft = {
   title: string;

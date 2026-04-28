@@ -62,13 +62,6 @@
     @apply dark:bg-system-gray-800 dark:border-white/10 dark:shadow-none;
   }
 
-  .apple-sidebar {
-    @apply apple-glass border-r border-black/5;
-    @apply dark:bg-black dark:border-white/10;
-    height: 100%;
-    overflow-y: auto;
-  }
-
   .apple-btn {
     @apply px-4 py-2 rounded-apple font-medium transition-all duration-200 active:scale-95 disabled:opacity-50;
   }
@@ -99,11 +92,6 @@
   /* Standard Apple Dropdown with Glassmorphism */
   .apple-dropdown {
     @apply backdrop-blur-apple bg-white/70 rounded-apple-xl shadow-apple-lg border border-black/5 p-1 z-40;
-    @apply dark:bg-black/60 dark:border-white/10 dark:shadow-2xl;
-  }
-
-  .apple-floating-panel {
-    @apply backdrop-blur-apple bg-white/80 rounded-apple-2xl shadow-apple-lg border border-black/5;
     @apply dark:bg-black/60 dark:border-white/10 dark:shadow-2xl;
   }
 

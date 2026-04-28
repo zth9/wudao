@@ -9,7 +9,6 @@ import {
   Activity,
   TrendingUp,
   Box,
-  Loader2,
   AlertCircle,
   ExternalLink,
   Clock,

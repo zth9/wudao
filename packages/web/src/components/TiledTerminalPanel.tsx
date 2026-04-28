@@ -208,7 +208,7 @@ export default function TiledTerminalPanel({
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <SortableContext items={sessions.map((s) => s.localId)} strategy={rectSortingStrategy}>
-            <div className="flex-1 min-h-0 p-4 overflow-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 p-4 overflow-auto">
               <div
                 className="grid gap-4 h-full"
                 style={{

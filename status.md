@@ -8,6 +8,7 @@
 
 当前能力基线：
 
+- **前端死代码与旧代码已按 Review 建议顺序清理完成**：前端当前已修复 `tsc --noEmit` 失败项，并可通过 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters`；旧版普通任务聊天发送链路已删除，`chat_messages` 仅保留为 Agent timeline 历史展示 fallback；`taskStore` 已复用 `utils/agent-timeline.ts` 的统一映射逻辑；同时清理了未用 import/参数、重复 `TASK_TYPES`、明显旧 i18n key、无引用 CSS 类和生产路径调试日志。本轮已完成 `pnpm --filter web test`（18 个测试文件 / 111 个用例）与 `pnpm --filter web build`
 - **Agent Chat 运行时表外键现已支持启动期自修复**：针对历史数据库里 `task_agent_runs`、`task_agent_messages`、`task_sdk_runs`、`task_items` 仍引用已删除的 `tasks_legacy_migration` 表、导致任务聊天发送消息直接返回 `HTTP 500` 的问题，后端现在会在启动时自动重建这些运行时表到正确的 `tasks` 外键上，并保留已有 run/message/sdk/event 数据；本地开发服务已验证 `POST /api/tasks/{task_id}/agent-chat/runs` 恢复返回 `200`
 - **`pnpm install` 现可自动 bootstrap 项目本地 `uv`**：根目录安装链路不再要求用户先手动安装系统级 `uv`；当本机缺少 `uv` 时，仓库会自动把官方 `uv` 安装到 `workspace/tools/uv`，随后继续执行 `uv sync --project packages/server --locked --all-groups`，把后端 `.venv` 与 `httpx[socks]` 等 Python 依赖一并准备好
 - **服务端现已内置 `httpx` 的 SOCKS 代理支持**：`packages/server` 的 Python 依赖已从 `httpx` 切到 `httpx[socks]`，首次安装或后续 `pnpm install` 时会把 `socksio` 一并装进 `.venv`；当本机设置了 `ALL_PROXY` / `HTTPS_PROXY` 等 SOCKS 代理环境变量时，任务解析与聊天请求不再因为缺少 `socksio` 而直接 500

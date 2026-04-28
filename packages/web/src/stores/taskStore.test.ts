@@ -11,27 +11,18 @@ const {
   mockDelete,
   mockParse,
   mockGenerateDocs,
-  mockStreamTaskChat,
   mockStreamTaskAgentRun,
-  mockAbortController,
   mockAgentAbortController,
   mockRemoveByTaskId,
   mockFetchSdkRuns,
   mockSubscribeSdkEvents,
   mockSetTaskLayout,
-  capturedCallbacks,
   capturedAgentCallbacks,
 } = vi.hoisted(() => {
-  const callbacks = {
-    onDelta: null as ((d: string) => void) | null,
-    onDone: null as (() => void) | null,
-    onError: null as ((e: string) => void) | null,
-  };
   const agentCallbacks = {
     onEvent: null as ((event: any) => void) | null,
     onError: null as ((error: string) => void) | null,
   };
-  const ctrl = { abort: vi.fn() };
   const agentCtrl = { abort: vi.fn() };
   return {
     mockList: vi.fn(),
@@ -43,24 +34,16 @@ const {
     mockDelete: vi.fn(),
     mockParse: vi.fn(),
     mockGenerateDocs: vi.fn(),
-    mockStreamTaskChat: vi.fn((_tid: string, _msg: string, onDelta: any, onDone: any, onError: any) => {
-      callbacks.onDelta = onDelta;
-      callbacks.onDone = onDone;
-      callbacks.onError = onError;
-      return ctrl;
-    }),
     mockStreamTaskAgentRun: vi.fn((_tid: string, _msg: string, onEvent: any, onError: any) => {
       agentCallbacks.onEvent = onEvent;
       agentCallbacks.onError = onError;
       return agentCtrl;
     }),
-    mockAbortController: ctrl,
     mockAgentAbortController: agentCtrl,
     mockRemoveByTaskId: vi.fn(),
     mockFetchSdkRuns: vi.fn(),
     mockSubscribeSdkEvents: vi.fn(),
     mockSetTaskLayout: vi.fn(),
-    capturedCallbacks: callbacks,
     capturedAgentCallbacks: agentCallbacks,
   };
 });
@@ -77,7 +60,6 @@ vi.mock("../services/api", () => ({
     parse: mockParse,
     generateDocs: mockGenerateDocs,
     openWorkspace: vi.fn(),
-    streamTaskChat: mockStreamTaskChat,
     streamTaskAgentRun: mockStreamTaskAgentRun,
   },
 }));
@@ -144,12 +126,9 @@ const resetStore = () => {
   useTaskStore.setState({
     tasks: [],
     currentTask: null,
-    chatTaskId: null,
     agentChatTaskId: null,
     loading: false,
     generating: false,
-    chatMessages: [],
-    chatStreaming: false,
     agentRuns: [],
     agentTimeline: [],
     agentChatStreaming: false,
@@ -165,12 +144,8 @@ const resetStore = () => {
 beforeEach(() => {
   resetStore();
   vi.clearAllMocks();
-  capturedCallbacks.onDelta = null;
-  capturedCallbacks.onDone = null;
-  capturedCallbacks.onError = null;
   capturedAgentCallbacks.onEvent = null;
   capturedAgentCallbacks.onError = null;
-  mockAbortController.abort.mockReset();
   mockAgentAbortController.abort.mockReset();
   mockFetchSdkRuns.mockReset();
   mockSubscribeSdkEvents.mockReset();
@@ -259,42 +234,55 @@ describe("fetchOne", () => {
     mockGet.mockResolvedValue(task);
     await useTaskStore.getState().fetchOne("2026-02-26-1");
     expect(useTaskStore.getState().currentTask).toEqual(task);
-    expect(useTaskStore.getState().chatTaskId).toBe("2026-02-26-1");
+    expect(useTaskStore.getState().agentChatTaskId).toBe("2026-02-26-1");
   });
 
-  it("parses chat_messages JSON into chatMessages", async () => {
+  it("maps legacy chat_messages JSON into agentTimeline fallback", async () => {
     const msgs = [{ role: "user", content: "hi" }];
     const task = makeTask({ chat_messages: JSON.stringify(msgs) });
     mockGet.mockResolvedValue(task);
     await useTaskStore.getState().fetchOne("2026-02-26-1");
-    expect(useTaskStore.getState().chatMessages).toEqual(msgs);
+    expect(useTaskStore.getState().agentTimeline).toEqual([
+      {
+        id: "legacy-1",
+        kind: "user_text",
+        content: "hi",
+        status: "completed",
+      },
+    ]);
   });
 
-  it("sets empty chatMessages when chat_messages is null", async () => {
+  it("sets empty agentTimeline fallback when chat_messages is null", async () => {
     const task = makeTask({ chat_messages: null });
     mockGet.mockResolvedValue(task);
     await useTaskStore.getState().fetchOne("2026-02-26-1");
-    expect(useTaskStore.getState().chatMessages).toEqual([]);
+    expect(useTaskStore.getState().agentTimeline).toEqual([]);
   });
 
-  it("sets empty chatMessages when chat_messages is invalid JSON", async () => {
+  it("sets empty agentTimeline fallback when chat_messages is invalid JSON", async () => {
     const task = makeTask({ chat_messages: "invalid" });
     mockGet.mockResolvedValue(task);
     await useTaskStore.getState().fetchOne("2026-02-26-1");
-    expect(useTaskStore.getState().chatMessages).toEqual([]);
+    expect(useTaskStore.getState().agentTimeline).toEqual([]);
   });
 
-  it("keeps in-memory chat when revisiting the same task during streaming", async () => {
-    const msgs = [{ role: "assistant", content: "streaming..." }];
+  it("keeps in-memory agent timeline when revisiting the same task during streaming", async () => {
+    const timeline = [{
+      id: "assistant-1",
+      kind: "assistant_text",
+      content: "streaming...",
+      status: "streaming",
+      streaming: true,
+    }];
     useTaskStore.setState({
-      chatTaskId: "2026-02-26-1",
-      chatMessages: msgs as never[],
-      chatStreaming: true,
+      agentChatTaskId: "2026-02-26-1",
+      agentTimeline: timeline as never[],
+      agentChatStreaming: true,
     });
     mockGet.mockResolvedValue(makeTask());
     await useTaskStore.getState().fetchOne("2026-02-26-1");
-    expect(useTaskStore.getState().chatMessages).toEqual(msgs);
-    expect(useTaskStore.getState().chatStreaming).toBe(true);
+    expect(useTaskStore.getState().agentTimeline).toEqual(timeline);
+    expect(useTaskStore.getState().agentChatStreaming).toBe(true);
   });
 
   it("ignores stale detail responses when a newer task wins", async () => {
@@ -452,127 +440,6 @@ describe("generateDocs", () => {
     mockList.mockResolvedValue(pagedResponse([]));
     await useTaskStore.getState().generateDocs("2026-02-26-1");
     expect(mockList).toHaveBeenCalled();
-  });
-});
-
-describe("startInitialChat", () => {
-  it("seeds the provided task info message immediately and starts streaming", () => {
-    const seedMessage = `[Task Info]
-Title: 启动任务
-Type: ✨ Feature
-Initial Intent: 补齐首轮对话
-
-Please first understand the task, and use the conversation to gradually fill in the information needed to generate the artifact.`;
-    useTaskStore.getState().startInitialChat("t1", seedMessage);
-    expect(useTaskStore.getState().chatMessages).toEqual([
-      {
-        role: "user",
-        content: seedMessage,
-      },
-    ]);
-    expect(useTaskStore.getState().chatStreaming).toBe(true);
-    expect(useTaskStore.getState().chatTaskId).toBe("t1");
-    expect(mockStreamTaskChat).toHaveBeenCalledWith(
-      "t1",
-      "",
-      expect.any(Function),
-      expect.any(Function),
-      expect.any(Function),
-      undefined,
-      seedMessage,
-    );
-  });
-
-  it("writes assistant delta after seeded task info", () => {
-    useTaskStore.getState().startInitialChat(
-      "t1",
-      `[任务信息]
-标题：启动任务
-类型：✨ 功能
-初步意图：无
-
-请先理解任务，并通过对话逐步补齐生成产物所需的信息。`,
-    );
-    capturedCallbacks.onDelta!("先理解一下任务");
-    expect(useTaskStore.getState().chatMessages).toEqual([
-      {
-        role: "user",
-        content: `[任务信息]
-标题：启动任务
-类型：✨ 功能
-初步意图：无
-
-请先理解任务，并通过对话逐步补齐生成产物所需的信息。`,
-      },
-      { role: "assistant", content: "先理解一下任务" },
-    ]);
-  });
-});
-
-describe("sendChatMessage", () => {
-  it("appends user message to chatMessages immediately", () => {
-    useTaskStore.getState().sendChatMessage("t1", "hello");
-    const msgs = useTaskStore.getState().chatMessages;
-    expect(msgs).toHaveLength(1);
-    expect(msgs[0]).toEqual({ role: "user", content: "hello" });
-  });
-
-  it("sets chatStreaming=true", () => {
-    useTaskStore.getState().sendChatMessage("t1", "hello");
-    expect(useTaskStore.getState().chatStreaming).toBe(true);
-    expect(useTaskStore.getState().chatTaskId).toBe("t1");
-  });
-
-  it("accumulates delta into assistant message", () => {
-    useTaskStore.getState().sendChatMessage("t1", "hello");
-    capturedCallbacks.onDelta!("part 1 ");
-    capturedCallbacks.onDelta!("part 2");
-    const msgs = useTaskStore.getState().chatMessages;
-    expect(msgs).toHaveLength(2);
-    expect(msgs[1]).toEqual({ role: "assistant", content: "part 1 part 2" });
-  });
-
-  it("sets chatStreaming=false on done and refreshes the task", async () => {
-    mockGet.mockResolvedValue(makeTask());
-    useTaskStore.getState().sendChatMessage("t1", "hello");
-    capturedCallbacks.onDone!();
-    await Promise.resolve();
-    expect(useTaskStore.getState().chatStreaming).toBe(false);
-  });
-
-  it("sets chatStreaming=false on error", () => {
-    console.error = vi.fn();
-    useTaskStore.getState().sendChatMessage("t1", "hello");
-    capturedCallbacks.onError!("oops");
-    expect(useTaskStore.getState().chatStreaming).toBe(false);
-  });
-
-  it("passes providerId to streamTaskChat", () => {
-    useTaskStore.getState().sendChatMessage("t1", "hello", "kimi");
-    expect(mockStreamTaskChat).toHaveBeenCalledWith(
-      "t1",
-      "hello",
-      expect.any(Function),
-      expect.any(Function),
-      expect.any(Function),
-      "kimi",
-      undefined,
-    );
-  });
-});
-
-describe("abortChat", () => {
-  it("calls abort on the controller and sets chatStreaming=false", () => {
-    useTaskStore.getState().sendChatMessage("t1", "hello");
-    expect(useTaskStore.getState().chatStreaming).toBe(true);
-    useTaskStore.getState().abortChat();
-    expect(mockAbortController.abort).toHaveBeenCalled();
-    expect(useTaskStore.getState().chatStreaming).toBe(false);
-  });
-
-  it("does nothing when no active stream", () => {
-    useTaskStore.getState().abortChat();
-    expect(mockAbortController.abort).not.toHaveBeenCalled();
   });
 });
 
@@ -821,32 +688,44 @@ describe("remove", () => {
 });
 
 describe("clearCurrent", () => {
-  it("resets currentTask, chatTaskId, chatMessages, and chatStreaming when idle", () => {
+  it("resets currentTask and agent chat state when idle", () => {
     useTaskStore.setState({
       currentTask: makeTask(),
-      chatTaskId: "t1",
-      chatMessages: [{ role: "user", content: "x" }],
-      chatStreaming: false,
+      agentChatTaskId: "t1",
+      agentTimeline: [{
+        id: "user-1",
+        kind: "user_text",
+        content: "x",
+        status: "completed",
+      }] as never[],
+      agentChatStreaming: false,
     });
     useTaskStore.getState().clearCurrent();
     expect(useTaskStore.getState().currentTask).toBeNull();
-    expect(useTaskStore.getState().chatTaskId).toBeNull();
-    expect(useTaskStore.getState().chatMessages).toEqual([]);
-    expect(useTaskStore.getState().chatStreaming).toBe(false);
+    expect(useTaskStore.getState().agentChatTaskId).toBeNull();
+    expect(useTaskStore.getState().agentTimeline).toEqual([]);
+    expect(useTaskStore.getState().agentChatStreaming).toBe(false);
   });
 
-  it("keeps streaming chat state when leaving the current task during reply", () => {
+  it("keeps streaming agent chat state when leaving the current task during reply", () => {
+    const timeline = [{
+      id: "assistant-1",
+      kind: "assistant_text",
+      content: "partial",
+      status: "streaming",
+      streaming: true,
+    }];
     useTaskStore.setState({
       currentTask: makeTask(),
-      chatTaskId: "2026-02-26-1",
-      chatMessages: [{ role: "assistant", content: "partial" }],
-      chatStreaming: true,
+      agentChatTaskId: "2026-02-26-1",
+      agentTimeline: timeline as never[],
+      agentChatStreaming: true,
     });
     useTaskStore.getState().clearCurrent();
     expect(useTaskStore.getState().currentTask).toBeNull();
-    expect(useTaskStore.getState().chatTaskId).toBe("2026-02-26-1");
-    expect(useTaskStore.getState().chatMessages).toEqual([{ role: "assistant", content: "partial" }]);
-    expect(useTaskStore.getState().chatStreaming).toBe(true);
+    expect(useTaskStore.getState().agentChatTaskId).toBe("2026-02-26-1");
+    expect(useTaskStore.getState().agentTimeline).toEqual(timeline);
+    expect(useTaskStore.getState().agentChatStreaming).toBe(true);
   });
 
   it("invalidates pending fetchOne updates after leaving task", async () => {

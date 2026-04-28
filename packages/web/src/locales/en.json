@@ -190,14 +190,10 @@
     "user_memory_load_failed": "Failed to load user memory"
   },
   "dashboard": {
-    "title": "Dashboard",
     "overview": "Overview",
-    "task_stats": "Task Stats",
     "usage_stats": "Usage Stats",
-    "welcome": "Welcome back",
     "no_usage": "No usage data available",
     "loading_usage": "Loading usage data...",
-    "refresh_usage": "Refresh Usage",
     "auth_failed": "Authentication Failed",
     "fix_in_settings": "Fix in Settings",
     "welcome_user": "Welcome back, {{name}}",
@@ -230,89 +226,29 @@
   },
   "artifacts": {
     "title": "Artifacts",
-    "subtitle": "Showing the primary artifact file: AGENTS.md",
-    "close_drawer": "Collapse artifacts drawer",
     "description": "Task goals, constraints, and execution hints",
     "ready": "Ready",
     "pending": "Pending",
     "empty_title": "AGENTS.md has not been generated yet",
-    "empty_hint": "Generate it from the AI chat panel on the left",
-    "collapse": "Collapse artifacts drawer",
     "empty_desc": "Generate it from the AI chat panel on the left"
   },
   "terminal": {
-    "title": "Task Terminal",
-    "session_summary": "{{count}} terminals · draggable reorder",
-    "not_started": "Terminal not started",
-    "restore_all": "Restore all",
-    "new_terminal": "New terminal",
-    "no_linked_sessions": "No linked terminals yet. Historical sessions will appear here.",
-    "linked": "Linked",
-    "session_opened": "This session is already open in the terminal area",
-    "restore_session": "Restore this historical terminal session",
-    "opened": "Open",
-    "restore": "Restore",
-    "empty_with_history": "No terminals are currently open. Restore a previous session above or start a new one.",
-    "empty_without_history": "No terminal has been started yet. Launch one below to begin working.",
-    "dialog_title": "Launch Workspace",
-    "name_label": "Terminal Name",
-    "name_placeholder": "Enter a terminal name",
-    "randomize_name": "Generate random name",
-    "provider_label": "Model Provider",
-    "permission_mode_label": "Permission Mode",
-    "launch": "Launch Terminal",
     "rename": "Rename",
     "close": "Close Terminal",
     "process_exit": "Process exited, code: {{code}}",
     "error_prefix": "Error",
-    "initial_prompt": "Please read AGENTS.md in the current directory first, then start working with the goals and constraints in mind.",
-    "permission_modes": {
-      "bypassPermissions": {
-        "label": "Full Auto",
-        "desc": "Skip all permission confirmations"
-      },
-      "plan": {
-        "label": "Plan Mode",
-        "desc": "Plan only, do not execute"
-      },
-      "default": {
-        "label": "Default",
-        "desc": "Confirm permissions for each operation"
-      }
-    }
+    "initial_prompt": "Please read AGENTS.md in the current directory first, then start working with the goals and constraints in mind."
   },
   "terminal_dialog": {
     "title": "Launch Workspace",
     "name_label": "Terminal Name",
     "name_placeholder": "Enter a terminal name",
     "permission_label": "Permission Mode",
-    "confirm": "Start",
-    "permission_modes": {
-      "bypassPermissions": {
-        "label": "Full Auto",
-        "desc": "Skip all permission confirmations"
-      },
-      "plan": {
-        "label": "Plan Mode",
-        "desc": "Plan only, do not execute"
-      },
-      "default": {
-        "label": "Default",
-        "desc": "Confirm permissions for each operation"
-      }
-    }
+    "confirm": "Start"
   },
   "provider_status": {
     "selected": "Selected",
     "default": "Default"
-  },
-  "language": {
-    "english": "English",
-    "chinese": "中文"
-  },
-  "task_status": {
-    "execution": "In Progress",
-    "done": "Done"
   },
   "terminal_panel": {
     "title": "Task Terminal",

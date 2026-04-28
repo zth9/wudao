@@ -32,15 +32,6 @@ export function parseChatMessages(raw: string | null): ChatMessage[] {
   }
 }
 
-export function upsertAssistantMessage(messages: ChatMessage[], content: string): ChatMessage[] {
-  const assistant = { role: "assistant", content } as const;
-  const last = messages[messages.length - 1];
-  if (last?.role === "assistant") {
-    return [...messages.slice(0, -1), assistant];
-  }
-  return [...messages, assistant];
-}
-
 function parseAgentStatus(value: unknown): AgentTimelineStatus {
   return value === "streaming" || value === "failed" || value === "waiting_approval" ? value : "completed";
 }

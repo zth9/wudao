@@ -267,7 +267,6 @@ function handleSdkEvent(
       break;
 
     case "sdk_run.completed":
-      console.log("[SdkRunner] sdk_run.completed, will fetch agent thread");
       set((state) => ({
         sdkTimeline: [...state.sdkTimeline, { id: nextId(), kind: "status_change", status: "completed" }],
         sdkRunning: false,
@@ -276,7 +275,6 @@ function handleSdkEvent(
       setTimeout(() => {
         const run = get().sdkRuns.find((r) => r.id === runId);
         if (run?.task_id) {
-          console.log("[SdkRunner] tool completed, refreshing task:", run.task_id);
           void useTaskStore.getState().fetchOne(run.task_id);
         }
       }, 500);

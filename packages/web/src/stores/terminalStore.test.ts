@@ -156,7 +156,7 @@ describe("terminalStore session identifiers", () => {
           taskId: "2026-03-06-1",
         },
       ],
-      [{ id: "gemini", name: "Gemini", endpoint: "", model: "", api_key: null, usage_auth_token: null, usage_cookie: null, is_default: false, sort_order: 1, created_at: "", updated_at: "" }],
+      [{ id: "gemini", name: "Gemini", endpoint: "", model: "", api_key: null, usage_auth_token: null, usage_cookie: null, is_default: 0, sort_order: 1, created_at: "" }],
     );
 
     const [session] = useTerminalStore.getState().sessions;

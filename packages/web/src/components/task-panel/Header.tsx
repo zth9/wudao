@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Task, TaskType } from "../../services/api";
+import type { Task } from "../../services/api";
 import { tasks as tasksApi } from "../../services/api";
-import { useTaskStore } from "../../stores/taskStore";
 import { 
   ArrowLeft, 
   ChevronDown, 
@@ -9,9 +8,7 @@ import {
   FolderOpen, 
   CheckCircle2, 
   RotateCcw, 
-  Calendar, 
   AlertCircle, 
-  X,
   Box,
   TrendingUp,
   Zap,
@@ -25,6 +22,7 @@ import { formatLocalizedDateInDefaultTimeZone } from "../../utils/time";
 import { cn } from "../../utils/cn";
 import { shouldSubmitOnEnter } from "../../utils/ime";
 import { CalendarPopup } from "./CalendarPopup";
+import { TASK_TYPES } from "./constants";
 
 interface Props {
   task: Task;
@@ -48,7 +46,6 @@ interface Props {
 export function Header({
   task,
   onBack,
-  onSwitchTask,
   onUpdate,
   onToggleStatus,
   showDeleteConfirm,
@@ -96,7 +93,6 @@ export function Header({
     setEditingTitle(false);
   };
 
-  const taskTypes: TaskType[] = ["feature", "bugfix", "investigation", "exploration", "refactor", "learning"];
   const priorities = [0, 1, 2, 3, 4] as const;
   const currentPriority = priorities.includes(task.priority as any) ? task.priority : 2;
 
@@ -189,7 +185,7 @@ export function Header({
                       exit={{ opacity: 0, y: 5, scale: 0.95 }}
                       className="absolute left-0 top-full mt-1 apple-dropdown w-24 z-50"
                     >
-                      {taskTypes.map((type) => (
+                      {TASK_TYPES.map((type) => (
                         <button
                           key={type}
                           onClick={() => { onUpdate({ type }); setShowTypeMenu(false); }}

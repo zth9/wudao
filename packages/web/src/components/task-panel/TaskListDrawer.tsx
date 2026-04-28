@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { type Task } from "../../services/api";
-import { X, CheckCircle2, Circle, Clock } from "lucide-react";
+import { X, CheckCircle2, Circle } from "lucide-react";
 import { cn } from "../../utils/cn";
 import {
   TASK_LIST_DRAWER_BACKDROP_CLASS,
@@ -57,7 +57,7 @@ export function TaskListDrawer({ isOpen, onClose, tasks, currentTaskId, onSwitch
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-2 dark-scrollbar">
+            <div className="flex-1 overflow-y-auto p-2">
               <div className="space-y-6 py-2">
                 {/* Active Tasks */}
                 {activeTasks.length > 0 && (

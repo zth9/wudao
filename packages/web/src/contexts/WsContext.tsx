@@ -86,10 +86,9 @@ export function WsProvider({ children }: { children: ReactNode }) {
 
         // Link to task if applicable
         const confirmed = useTerminalStore.getState().sessions.find((s) => s.id === sessionId);
-        const linkPayload = confirmed
-          ? buildTaskSessionLinkPayload(confirmed, { includeSessionName: true })
-          : null;
-        if (linkPayload) {
+        if (confirmed) {
+          const linkPayload = buildTaskSessionLinkPayload(confirmed, { includeSessionName: true });
+          if (!linkPayload) return;
           useTaskStore.getState().linkSession(
             linkPayload.taskId,
             linkPayload.sessionId,
@@ -113,7 +112,8 @@ export function WsProvider({ children }: { children: ReactNode }) {
         const updatedSessions = useTerminalStore.getState().sessions;
         for (const remoteSession of remoteSessions) {
           const restored = updatedSessions.find((session) => session.id === remoteSession.id);
-          const linkPayload = restored ? buildTaskSessionLinkPayload(restored) : null;
+          if (!restored) continue;
+          const linkPayload = buildTaskSessionLinkPayload(restored);
           if (!linkPayload) continue;
           useTaskStore.getState().linkSession(
             linkPayload.taskId,

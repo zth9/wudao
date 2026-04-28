@@ -4,12 +4,16 @@ import { cn } from "../utils/cn";
 
 export const TASK_WORKSPACE_HEADER_HEIGHT_PX = 49;
 
+type DivAttributes = HTMLAttributes<HTMLDivElement> & {
+  [key: `data-${string}`]: string | number | boolean | undefined;
+};
+
 interface Props {
   title: string;
   icon: LucideIcon;
   actions?: ReactNode;
-  wrapperProps?: HTMLAttributes<HTMLDivElement>;
-  panelProps?: HTMLAttributes<HTMLDivElement>;
+  wrapperProps?: DivAttributes;
+  panelProps?: DivAttributes;
 }
 
 export function TaskWorkspacePanelHeader({

@@ -42,7 +42,7 @@ export default function TaskArtifactsDrawer({ taskId, agentDoc, onClose }: Props
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 p-4 overflow-y-auto dark-scrollbar">
+      <div className="flex-1 min-h-0 p-4 overflow-y-auto">
         <div className="min-h-full bg-white/88 dark:bg-[#232323]/88 border border-black/5 dark:border-white/10 rounded-apple-xl p-4 shadow-apple-sm">
           {agentDoc ? (
             <MarkdownContent content={agentDoc} />
