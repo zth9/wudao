@@ -556,5 +556,3 @@ def workspace_tools_prompt_schema() -> list[dict[str, Any]]:
     ]
 
 
-def render_tool_result_for_prompt(tool_name: str, output: dict[str, Any]) -> str:
-    return f"[tool_result:{tool_name}]\n{output}"

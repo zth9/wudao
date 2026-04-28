@@ -19,7 +19,6 @@ from typing import Any
 from fastapi import WebSocket
 
 from .claude_session_store import has_persisted_claude_session
-from .logger import logger
 from .paths import WORKSPACE_DIR
 from .task_claude_md import generate_task_claude_md
 from .task_service import is_valid_task_id
@@ -96,10 +95,6 @@ def _has_codex_session(session_id: str) -> bool:
     if not session_id.strip():
         return False
     return _find_file_recursive(CODEX_SESSIONS_ROOT, lambda entry: entry.name.endswith(f"-{session_id}.jsonl"), 4)
-
-
-def _has_any_codex_session() -> bool:
-    return _find_file_recursive(CODEX_SESSIONS_ROOT, lambda entry: entry.name.endswith(".jsonl"), 4)
 
 
 def _read_codex_session_meta(path: Path) -> dict[str, str] | None:
@@ -296,10 +291,6 @@ def _has_gemini_session(session_id: str) -> bool:
         return bool(meta and meta["id"] == session_id)
 
     return _find_file_recursive(GEMINI_TMP_ROOT, matcher, 4)
-
-
-def _has_any_gemini_session() -> bool:
-    return _find_file_recursive(GEMINI_TMP_ROOT, _is_gemini_session_file, 4)
 
 
 def _resolve_resume_behavior(provider_id: str, requested_resume_session_id: str | None) -> dict[str, Any]:

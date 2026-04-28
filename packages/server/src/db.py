@@ -113,11 +113,6 @@ class DatabaseManager:
             cursor = self._conn.execute(sql, params)
             return [_row_to_dict(row) for row in cursor.fetchall() if row is not None]
 
-    def transaction(self, statements: list[tuple[str, tuple[Any, ...]]]) -> None:
-        with self.locked_connection() as conn:
-            for sql, params in statements:
-                conn.execute(sql, params)
-
     def _table_columns(self, table: str) -> list[str]:
         rows = self.query_all(f"PRAGMA table_info({table})")
         return [str(row["name"]) for row in rows]

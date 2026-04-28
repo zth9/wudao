@@ -57,7 +57,6 @@ from .task_service import (
     validate_transition,
 )
 from .terminal import terminal_manager
-from .time_utils import normalize_stored_utc_datetime
 from .usage_adapters import fetch_all_providers
 from .llm import LlmApiError, stream_chat
 
@@ -128,11 +127,6 @@ def _get_task_with_stats(task_id: str) -> dict[str, Any] | None:
     return db.query_one("SELECT * FROM tasks WHERE id = ?", (task_id,))
 
 
-def _provider_exists(provider_id: str) -> bool:
-    row = db.query_one("SELECT 1 AS ok FROM providers WHERE id = ?", (provider_id,))
-    return bool(row and row.get("ok") == 1)
-
-
 def _nullable_string(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
@@ -159,9 +153,7 @@ def create_app() -> FastAPI:
             yield
         finally:
             from .sdk_runner.sdk_runner import registry as sdk_registry
-            from .sdk_runner.sdk_approval import approval_manager
             await sdk_registry.shutdown()
-            approval_manager.clear()
             await terminal_manager.close_all_sessions()
 
     app = FastAPI(lifespan=lifespan)

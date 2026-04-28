@@ -7,7 +7,6 @@ so they can be cancelled individually or cleaned up on shutdown.
 from __future__ import annotations
 
 import asyncio
-import uuid
 from typing import Any, Callable, Awaitable
 
 from ..logger import logger

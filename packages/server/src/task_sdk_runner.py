@@ -11,7 +11,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from .sdk_runner.sdk_store import get_sdk_run, list_task_sdk_runs, list_sdk_events
 from .sdk_runner.sdk_runner import registry
-from .sdk_runner.sdk_approval import approval_manager
 from .task_service import get_task_by_id
 
 
@@ -67,28 +66,6 @@ def register_sdk_runner_routes(app: FastAPI) -> None:
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
-    @app.post("/api/tasks/{task_id}/sdk-runner/{run_id}/approve")
-    async def approve_sdk_action(task_id: str, run_id: str, request: Request) -> JSONResponse:
-        task = get_task_by_id(task_id)
-        if not task:
-            return JSONResponse({"error": "Task not found"}, status_code=404)
-        run = get_sdk_run(run_id)
-        if not run or run["task_id"] != task_id:
-            return JSONResponse({"error": "SDK run not found"}, status_code=404)
-
-        body = await request.json()
-        approval_id = body.get("approval_id", "")
-        approved = body.get("approved", False)
-
-        if not approval_id:
-            return JSONResponse({"error": "approval_id is required"}, status_code=400)
-
-        ok = approval_manager.resolve(approval_id, approved=bool(approved))
-        if not ok:
-            return JSONResponse({"error": "Approval not found or already resolved"}, status_code=404)
-
-        return JSONResponse({"ok": True})
-
     @app.post("/api/tasks/{task_id}/sdk-runner/{run_id}/cancel")
     async def cancel_sdk_run(task_id: str, run_id: str) -> JSONResponse:
         task = get_task_by_id(task_id)
@@ -102,5 +79,4 @@ def register_sdk_runner_routes(app: FastAPI) -> None:
         if not cancelled:
             return JSONResponse({"error": "Run is not active"}, status_code=409)
 
-        approval_manager.cancel_all_for_run(run_id)
         return JSONResponse({"ok": True})

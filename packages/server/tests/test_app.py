@@ -501,7 +501,6 @@ def test_terminal_websocket_rejects_invalid_codex_resume_id(tmp_path, monkeypatc
     terminal_module = importlib.import_module("src.terminal")
 
     monkeypatch.setattr(terminal_module, "_has_codex_session", lambda session_id: False)
-    monkeypatch.setattr(terminal_module, "_has_any_codex_session", lambda: True)
 
     def fail_popen(*args, **kwargs):
         raise AssertionError("subprocess.Popen should not be called for invalid resume requests")

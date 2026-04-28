@@ -25,6 +25,7 @@
 - Agentic Chat 工具化：`docs/design/agentic-chat-tooling.md`
 - 后端 Python 重构计划：`docs/design/server-python-refactor.md`
 - 前端开发规范：`docs/design/frontend-guidelines.md`
+- 后端代码 Review：`docs/reviews/backend-review-2026-04-28.md`
 - 大功能计划模板：`docs/design/feature-plan-template.md`
 - 当前开发进度：`status.md`
 - 用户视角变更记录：`docs/changelog.md`

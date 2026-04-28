@@ -4,6 +4,11 @@
 
 ## 2026-04-28
 
+- **后端 Review 盘点已沉淀为文档**：
+  - 新增 `docs/reviews/backend-review-2026-04-28.md`，记录当前后端功能项、主要风险、死代码候选与建议处理顺序
+  - 本次盘点确认 `pnpm --filter server test` 通过，当前为 116 个服务端用例
+  - 重点待处理项包括默认 Provider 可被清空、删除任务时 SDK Runner 取消竞态、SDK Runner 历史 SSE 终态重复发送，以及 SDK 审批桥未接通造成的死路径
+
 - **前端死代码与旧代码已清理**：
   - 修复了前端完整 TypeScript 检查失败项，并让 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters` 通过
   - 删除旧版普通任务聊天发送链路，前端只保留 `chat_messages` 到 Agent timeline 的历史展示 fallback

@@ -98,7 +98,6 @@ def test_resize_updates_winsize_and_notifies_process_group(tmp_path, monkeypatch
 def test_resolve_resume_behavior_rejects_invalid_codex_session(tmp_path, monkeypatch):
     terminal_module = load_terminal(tmp_path, monkeypatch)
     monkeypatch.setattr(terminal_module, "_has_codex_session", lambda session_id: False)
-    monkeypatch.setattr(terminal_module, "_has_any_codex_session", lambda: True)
 
     resolved = terminal_module._resolve_resume_behavior("openai", "backend-session-1")
 

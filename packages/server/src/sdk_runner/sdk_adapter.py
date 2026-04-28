@@ -7,7 +7,6 @@ for persistence in task_sdk_events and SSE delivery to the frontend.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 
@@ -233,16 +232,3 @@ def convert_sdk_message(msg: Any) -> list[dict[str, Any]]:
     if converter is None:
         return [_evt("sdk.progress", message=f"[unknown: {cls_name}]")]
     return converter(msg)
-
-
-# ---------------------------------------------------------------------------
-# Approval bridge dataclass
-# ---------------------------------------------------------------------------
-
-@dataclass
-class ApprovalRequest:
-    """Represents a pending permission request from the SDK."""
-
-    approval_id: str
-    tool_name: str
-    tool_input: dict[str, Any]
