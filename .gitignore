@@ -49,3 +49,4 @@ env/
 # Task workspace data
 workspace/*/
 packages/workspace/
+workspace/

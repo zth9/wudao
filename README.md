@@ -81,11 +81,5 @@ wudao/
 ```
 
 ## 关键文档
-
-- [任务工作台方案](docs/design/task-workspace-integration.md)
-- [任务上下文注入](docs/design/task-context-injection.md)
-- [Agentic Chat 工具化](docs/design/agentic-chat-tooling.md)
-- [记忆系统管理](docs/design/memory-system-integration.md)
-- [后端 Python 重构](docs/design/server-python-refactor.md)
 - [前端开发规范](docs/design/frontend-guidelines.md)
 - [当前开发进度](status.md)
