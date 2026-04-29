@@ -14,8 +14,8 @@ describe("DefaultProviderToggle", () => {
       }),
     );
 
-    expect(html).toContain("dark:text-system-gray-100");
-    expect(html).toContain("dark:border-white/35");
-    expect(html).toContain("dark:bg-white/[0.04]");
+    expect(html).toContain("text-foreground");
+    expect(html).toContain("border-border");
+    expect(html).toContain("bg-default");
   });
 });

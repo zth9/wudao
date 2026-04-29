@@ -7,7 +7,8 @@ import {
   TASK_LIST_DRAWER_BACKDROP_CLASS,
   TASK_LIST_DRAWER_PANEL_CLASS,
 } from "./task-list-drawer-layout";
-import { WudaoButton, WudaoIconButton } from "../ui/heroui";
+import { Button } from "@heroui/react/button";
+import { Tooltip } from "@heroui/react/tooltip";
 
 interface Props {
   isOpen: boolean;
@@ -45,19 +46,25 @@ export function TaskListDrawer({ isOpen, onClose, tasks, currentTaskId, onSwitch
             className={cn(TASK_LIST_DRAWER_PANEL_CLASS, "z-[70]")}
           >
             {/* Header */}
-            <div className="h-14 flex items-center justify-between px-4 border-b border-black/5 dark:border-white/10 shrink-0">
-              <h2 className="text-sm font-black uppercase tracking-widest text-system-gray-600 dark:text-system-gray-300">
+            <div className="h-14 flex items-center justify-between px-4 border-b border-border shrink-0">
+              <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
                 {t('tasks.task_list')}
               </h2>
-              <WudaoIconButton
-                onPress={onClose}
-                tone="ghost"
-                className="h-8 w-8 rounded-full text-system-gray-400"
-                tooltip={t("common.close")}
-                aria-label={t("common.close")}
-              >
-                <X size={18} />
-              </WudaoIconButton>
+              <Tooltip delay={300} closeDelay={0}>
+                <Button
+                  isIconOnly
+                  variant="ghost"
+                  onPress={onClose}
+                  className="h-8 w-8 rounded-full text-muted"
+                  aria-label={t("common.close")}
+                >
+                  <X size={18} />
+                </Button>
+                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                  <Tooltip.Arrow className="fill-overlay" />
+                  {t("common.close")}
+                </Tooltip.Content>
+              </Tooltip>
             </div>
 
             {/* List */}
@@ -67,8 +74,8 @@ export function TaskListDrawer({ isOpen, onClose, tasks, currentTaskId, onSwitch
                 {activeTasks.length > 0 && (
                   <div>
                     <div className="px-3 mb-2 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-apple-blue shadow-[0_0_8px_rgba(0,122,255,0.5)]" />
-                      <p className="text-[10px] font-black text-system-gray-400 uppercase tracking-[0.2em]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(0,122,255,0.5)]" />
+                      <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
                         {t('common.active')}
                       </p>
                     </div>
@@ -92,8 +99,8 @@ export function TaskListDrawer({ isOpen, onClose, tasks, currentTaskId, onSwitch
                 {doneTasks.length > 0 && (
                   <div>
                     <div className="px-3 mb-2 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-apple-green opacity-50" />
-                      <p className="text-[10px] font-black text-system-gray-400 uppercase tracking-[0.2em]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success opacity-50" />
+                      <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
                         {t('common.done')}
                       </p>
                     </div>
@@ -129,40 +136,40 @@ function TaskItem({ task, isActive, onClick }: { task: Task; isActive: boolean; 
   const priorityClassName = isActive
     ? "bg-white/20 text-white"
     : normalizedPriority === 0
-      ? "bg-apple-red/10 text-apple-red"
+      ? "bg-danger/10 text-danger"
       : normalizedPriority === 1
-        ? "bg-apple-orange/10 text-apple-orange"
+        ? "bg-warning/10 text-warning"
         : normalizedPriority === 2
-          ? "bg-apple-yellow/20 text-orange-600 dark:text-apple-yellow"
+          ? "bg-warning/20 text-warning"
           : normalizedPriority === 3
-            ? "bg-apple-blue/10 text-apple-blue"
-            : "bg-apple-green/10 text-apple-green";
-  
+            ? "bg-accent/10 text-accent"
+            : "bg-success/10 text-success";
+
   return (
-    <WudaoButton
+    <Button
+      variant="ghost"
       onPress={onClick}
-      tone="plain"
       className={cn(
-        "relative flex h-auto min-h-0 w-full flex-col items-stretch overflow-hidden rounded-apple-xl px-3 py-3 text-left transition-all duration-300 group",
+        "relative flex h-auto min-h-0 w-full flex-col items-stretch overflow-hidden rounded-xl px-3 py-3 text-left transition-all duration-300 group",
         isActive
-          ? "bg-apple-blue text-white shadow-apple-md scale-[1.02] z-10"
-          : "hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-600 dark:text-system-gray-300"
+          ? "bg-accent text-accent-foreground shadow-md scale-[1.02] z-10"
+          : "hover:bg-default text-foreground"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className={cn(
             "text-sm font-bold leading-tight truncate",
-            isActive ? "text-white" : "text-foreground dark:text-system-gray-100"
+            isActive ? "text-white" : "text-foreground"
           )}>
             {task.title}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className={cn(
               "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md",
-              isActive 
-                ? "bg-white/20 text-white" 
-                : "bg-black/5 dark:bg-white/10 text-system-gray-500 dark:text-system-gray-300"
+              isActive
+                ? "bg-white/20 text-white"
+                : "bg-default text-muted"
             )}>
               {t(`task_types.${task.type}`)}
             </span>
@@ -174,16 +181,16 @@ function TaskItem({ task, isActive, onClick }: { task: Task; isActive: boolean; 
             </span>
             <span className={cn(
               "text-[9px] font-mono opacity-40 uppercase",
-              isActive ? "text-white" : "text-system-gray-400 dark:text-system-gray-500"
+              isActive ? "text-white" : "text-muted"
             )}>
               #{task.id.slice(0, 6)}
             </span>
           </div>
         </div>
-        
+
         <div className={cn(
           "shrink-0 mt-0.5",
-          isActive ? "text-white/80" : "text-system-gray-300"
+          isActive ? "text-white/80" : "text-default-foreground"
         )}>
           {task.status === "done" ? <CheckCircle2 size={16} /> : <Circle size={16} className="opacity-40" />}
         </div>
@@ -191,8 +198,8 @@ function TaskItem({ task, isActive, onClick }: { task: Task; isActive: boolean; 
 
       {/* Hover/Active Indicator */}
       {!isActive && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-apple-blue group-hover:h-6 transition-all rounded-r-full" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-accent group-hover:h-6 transition-all rounded-r-full" />
       )}
-    </WudaoButton>
+    </Button>
   );
 }

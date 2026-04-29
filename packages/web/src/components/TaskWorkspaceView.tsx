@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
 import { LoadingIndicator } from "./LoadingIndicator";
-import { WudaoModal, WudaoModalBody } from "./ui/heroui";
+import { Modal } from "@heroui/react/modal";
 import { buildInitialTaskInfoMessage } from "../utils/task-chat";
 import {
   getArtifactsDragPreview,
@@ -50,8 +50,8 @@ function TerminalPanelFallback() {
   const { t } = useTranslation();
   return (
     <div className="flex-1 min-w-0 flex flex-col bg-white/30 dark:bg-black/10">
-      <div className="h-14 shrink-0 border-b border-black/5 dark:border-white/10 bg-white/50 dark:bg-black/40 px-4 flex items-center">
-        <div className="h-4 w-32 rounded bg-black/5 dark:bg-white/5" />
+      <div className="h-14 shrink-0 border-b border-border bg-surface/50 px-4 flex items-center">
+        <div className="h-4 w-32 rounded bg-default" />
       </div>
       <LoadingIndicator text={t("common.loading")} className="flex-1" />
     </div>
@@ -70,18 +70,21 @@ function SidePanelFallback() {
 function DialogFallback({ onCancel }: { onCancel: () => void }) {
   const { t } = useTranslation();
   return (
-    <WudaoModal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(open) => {
         if (!open) onCancel();
       }}
-      size="sm"
-      dialogClassName="w-full max-w-md bg-white/90 dark:bg-system-gray-800/90"
+      variant="blur"
     >
-      <WudaoModalBody className="flex flex-col items-center p-8">
-        <LoadingIndicator text={t("common.loading")} />
-      </WudaoModalBody>
-    </WudaoModal>
+      <Modal.Container size="sm">
+        <Modal.Dialog className="w-full max-w-md">
+          <Modal.Body className="flex flex-col items-center p-8">
+            <LoadingIndicator text={t("common.loading")} />
+          </Modal.Body>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
 }
 
@@ -723,14 +726,14 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
 
   if (!currentTask) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background-secondary dark:bg-black/40">
+      <div className="flex-1 flex items-center justify-center bg-surface-secondary dark:bg-background">
         <LoadingIndicator text={t("tasks.loading_task")} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-background-secondary dark:bg-black relative">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-surface-secondary dark:bg-background relative">
       {/* Top Navigation Bar */}
       <Header
         task={currentTask}
@@ -769,7 +772,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           }}
           transition={isDragging || isArtifactsDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 200 }}
           className={cn(
-            "flex flex-col min-h-0 border-r border-black/5 dark:border-white/10 bg-white/20 dark:bg-white/5 shrink-0",
+            "flex flex-col min-h-0 border-r border-border bg-surface/20 shrink-0",
             !terminalOpen && "border-r-0"
           )}
           style={{ minWidth: 320 }}
@@ -804,7 +807,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
             >
               <div
                 onMouseDown={handleDragStart}
-                className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative"
+                className="w-[1px] shrink-0 cursor-col-resize bg-default hover:bg-accent transition-colors group relative"
               >
                 <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
               </div>
@@ -833,7 +836,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         {sdkRunnerOpen && (
           <div
             onMouseDown={handleSdkRunnerDragStart}
-            className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative z-30"
+            className="w-[1px] shrink-0 cursor-col-resize bg-default hover:bg-accent transition-colors group relative z-30"
           >
             <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
           </div>
@@ -864,7 +867,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         {artifactsOpen && (
           <div
             onMouseDown={handleArtifactsDragStart}
-            className="w-[1px] shrink-0 cursor-col-resize bg-black/5 dark:bg-white/5 hover:bg-apple-blue dark:hover:bg-apple-blue transition-colors group relative z-30"
+            className="w-[1px] shrink-0 cursor-col-resize bg-default hover:bg-accent transition-colors group relative z-30"
           >
              <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
           </div>

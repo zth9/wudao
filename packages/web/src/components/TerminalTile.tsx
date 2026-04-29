@@ -14,7 +14,9 @@ import {
 import { useTaskStore } from "../stores/taskStore";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { shouldSubmitOnEnter } from "../utils/ime";
-import { WudaoIconButton, WudaoInput } from "./ui/heroui";
+import { Button } from "@heroui/react/button";
+import { Input } from "@heroui/react/input";
+import { Tooltip } from "@heroui/react/tooltip";
 
 const loadTerminalView = () => import("./TerminalView");
 const TerminalView = lazy(loadTerminalView);
@@ -75,23 +77,23 @@ const TerminalTile = forwardRef<HTMLDivElement, Props>(
       <div
         ref={ref}
         style={style}
-        className="flex flex-col border border-black/5 dark:border-white/10 rounded-apple-xl overflow-hidden bg-[#09090b] shadow-apple-md min-h-0 min-w-0 group"
+        className="flex flex-col border border-border rounded-xl overflow-hidden bg-[#09090b] shadow-md min-h-0 min-w-0 group"
         {...rest}
       >
-        <div className="h-9 shrink-0 bg-white/80 dark:bg-system-gray-800/80 border-b border-black/5 dark:border-white/10 flex items-center px-3 gap-2 backdrop-blur-md">
+        <div className="h-9 shrink-0 bg-surface/80 border-b border-border flex items-center px-3 gap-2 backdrop-blur-md">
           <div
-            className="cursor-grab active:cursor-grabbing text-system-gray-400 hover:text-apple-blue transition-colors p-1 -ml-1"
+            className="cursor-grab active:cursor-grabbing text-muted hover:text-accent transition-colors p-1 -ml-1"
             {...dragHandleProps}
           >
             <GripVertical size={14} />
           </div>
 
-          <div className="w-5 h-5 rounded-apple bg-apple-blue/10 flex items-center justify-center text-apple-blue shrink-0">
+          <div className="w-5 h-5 rounded-md bg-accent/10 flex items-center justify-center text-accent shrink-0">
             <TerminalIcon size={12} />
           </div>
 
           {editingName ? (
-            <WudaoInput
+            <Input
               ref={inputRef}
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
@@ -113,11 +115,11 @@ const TerminalTile = forwardRef<HTMLDivElement, Props>(
                   cancelRename();
                 }
               }}
-              className="min-h-0 flex-1 bg-black/5 px-2 py-0.5 text-[11px] font-bold text-system-gray-700 dark:bg-white/5 dark:text-system-gray-200"
+              className="min-h-0 flex-1 bg-default px-2 py-0.5 text-[11px] font-bold text-foreground"
             />
           ) : (
             <span
-              className="text-[11px] font-bold tracking-wider text-system-gray-500 dark:text-system-gray-400 truncate flex-1 cursor-text select-none"
+              className="text-[11px] font-bold tracking-wider text-muted truncate flex-1 cursor-text select-none"
               title={`${session.name} · ${session.providerName}`}
               onDoubleClick={() => setEditingName(true)}
             >
@@ -126,24 +128,36 @@ const TerminalTile = forwardRef<HTMLDivElement, Props>(
           )}
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <WudaoIconButton
-              onPress={() => setEditingName(true)}
-              tone="ghost"
-              className="h-6 w-6 rounded-apple text-system-gray-400 hover:text-apple-blue"
-              tooltip={t("terminal.rename")}
-              aria-label={t("terminal.rename")}
-            >
-              <Pencil size={12} />
-            </WudaoIconButton>
-            <WudaoIconButton
-              onPress={onClose}
-              tone="ghost"
-              className="h-6 w-6 rounded-apple text-system-gray-400 hover:bg-apple-red/10 hover:text-apple-red"
-              tooltip={t("terminal.close")}
-              aria-label={t("terminal.close")}
-            >
-              <X size={14} />
-            </WudaoIconButton>
+            <Tooltip delay={300} closeDelay={0}>
+              <Button
+                isIconOnly
+                variant="ghost"
+                onPress={() => setEditingName(true)}
+                className="h-6 w-6 rounded-md text-muted hover:text-accent"
+                aria-label={t("terminal.rename")}
+              >
+                <Pencil size={12} />
+              </Button>
+              <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                <Tooltip.Arrow className="fill-overlay" />
+                {t("terminal.rename")}
+              </Tooltip.Content>
+            </Tooltip>
+            <Tooltip delay={300} closeDelay={0}>
+              <Button
+                isIconOnly
+                variant="ghost"
+                onPress={onClose}
+                className="h-6 w-6 rounded-md text-muted hover:bg-danger/10 hover:text-danger"
+                aria-label={t("terminal.close")}
+              >
+                <X size={14} />
+              </Button>
+              <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                <Tooltip.Arrow className="fill-overlay" />
+                {t("terminal.close")}
+              </Tooltip.Content>
+            </Tooltip>
           </div>
         </div>
 

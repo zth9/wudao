@@ -38,16 +38,16 @@ export function TaskWorkspacePanelHeader({
       <div
         {...restPanelProps}
         className={cn(
-          "flex items-center justify-between border-b border-black/5 bg-white/90 backdrop-blur-apple dark:border-white/10 dark:bg-[#1c1c1e]/85 px-4 py-3",
+          "flex items-center justify-between border-b border-border bg-overlay/90 backdrop-blur-xl dark:bg-overlay/85 px-4 py-3",
           panelClassName,
         )}
         style={{ height: `${TASK_WORKSPACE_HEADER_HEIGHT_PX}px`, ...panelStyle }}
       >
         <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-apple-md border border-black/5 bg-black/5 text-apple-blue dark:border-white/10 dark:bg-white/5">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-default text-accent">
             <Icon size={14} />
           </div>
-          <span className="truncate text-[11px] font-bold tracking-[0.08em] text-system-gray-500 dark:text-system-gray-400">
+          <span className="truncate text-[11px] font-bold tracking-[0.08em] text-muted">
             {title}
           </span>
         </div>

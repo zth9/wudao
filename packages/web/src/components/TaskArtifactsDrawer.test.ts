@@ -29,7 +29,7 @@ describe("TaskArtifactsDrawer", () => {
     expect(html).toContain('data-task-workspace-drawer="true"');
     expect(html).toContain('data-task-workspace-drawer-header="true"');
     expect(html).toContain("height:49px");
-    expect(html).toContain("text-xs font-bold text-foreground dark:text-foreground-dark");
-    expect(html).toContain("text-[10px] text-system-gray-400 dark:text-system-gray-300 mt-0.5");
+    expect(html).toContain("text-xs font-bold text-foreground");
+    expect(html).toContain("text-[10px] text-muted mt-0.5");
   });
 });

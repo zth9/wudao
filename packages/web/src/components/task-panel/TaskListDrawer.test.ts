@@ -59,8 +59,8 @@ describe("TaskListDrawer", () => {
     );
 
     expect(html).toContain(">P4<");
-    expect(html).toContain("bg-apple-green/10 text-apple-green");
+    expect(html).toContain("bg-success/10 text-success");
     expect(html).toContain("fixed left-0 top-0 bottom-0");
-    expect(html).toContain("border-r border-black/5");
+    expect(html).toContain("border-r border-border");
   });
 });

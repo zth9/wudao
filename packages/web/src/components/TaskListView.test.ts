@@ -24,7 +24,7 @@ describe("ProviderSelector", () => {
       })
     );
 
-    expect(html).toContain("text-foreground dark:text-foreground-dark");
+    expect(html).toContain("text-foreground");
   });
 
   it("为默认供应商渲染状态徽标", () => {

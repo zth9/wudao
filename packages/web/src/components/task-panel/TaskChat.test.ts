@@ -57,10 +57,10 @@ describe("TaskChat", () => {
       })
     );
 
-    expect(html).toContain("bg-[#EDEDED] dark:bg-[#191919]");
-    expect(html).toContain("rounded-apple-xl");
-    expect(html).toContain("bg-[#95EC69]/90 text-black dark:bg-[#3EB575]/90");
-    expect(html).toContain("bg-white/80 text-black border border-black/5 dark:bg-[#2E2E2E]/80 dark:text-white dark:border-white/10");
+    expect(html).toContain("bg-background dark:bg-background-secondary");
+    expect(html).toContain("rounded-xl");
+    expect(html).toContain("bg-[#95EC69]/90 text-foreground dark:bg-[#3EB575]/90");
+    expect(html).toContain("bg-surface/80 text-foreground border border-border");
   });
 
   it("让标题行继续贴边，并把输入区渲染成带外边距的圆角浮层", () => {
@@ -87,16 +87,16 @@ describe("TaskChat", () => {
     expect(html).toContain('data-task-chat-bottom-fade="true"');
     expect(html).toContain('class="absolute top-0 left-0 right-0 z-20"');
     expect(html).toContain('class="absolute bottom-0 left-0 right-0 z-20"');
-    expect(html).toContain("border-b border-black/5 bg-white/90 backdrop-blur-apple dark:border-white/10 dark:bg-[#1c1c1e]/85");
-    expect(html).toContain("m-3 rounded-apple-2xl border border-black/5 bg-white/90 shadow-apple-lg backdrop-blur-apple dark:border-white/10 dark:bg-[#1c1c1e]/85");
-    expect(html).toContain("bg-gradient-to-b from-[#EDEDED]/0 via-[#EDEDED]/24 to-[#EDEDED]/96 backdrop-blur-md dark:from-[#191919]/0 dark:via-[#191919]/28 dark:to-[#191919]/94");
+    expect(html).toContain("border-b border-border");
+    expect(html).toContain("m-3 rounded-2xl border border-border bg-surface/90 shadow-lg backdrop-blur-xl");
+    expect(html).toContain("bg-gradient-to-b from-background/0 via-background/24 to-background/96 backdrop-blur-md");
     expect(html).toContain("opacity-0");
     expect(html).toContain("left:0px");
     expect(html).toContain("right:6px");
     expect(html).toContain("height:76px");
     expect(html).toContain("-webkit-mask-image:linear-gradient(to right, transparent 0, black 10px, black calc(100% - 18px), transparent 100%)");
     expect(html).toContain("mask-image:linear-gradient(to right, transparent 0, black 10px, black calc(100% - 18px), transparent 100%)");
-    expect(html).toContain("flex-1 rounded-apple-xl border border-black/5 bg-white/60");
+    expect(html).toContain("flex-1 rounded-xl border border-border bg-surface/60");
     expect(html).toContain('data-task-chat-provider-trigger="true"');
     expect(html).toContain(TASK_CHAT_PROVIDER_TRIGGER_CLASS);
     expect(TASK_CHAT_PROVIDER_MENU_CLASS).toContain("w-48");
@@ -280,7 +280,7 @@ describe("TaskChat", () => {
     expect(html).toContain('data-shatter-duration="1100"');
     expect(html).toContain('data-shatter-cycle="2"');
     expect(html).toContain('h-9 w-9');
-    expect(html).toContain('shadow-apple-md');
+    expect(html).toContain('shadow-md');
     expect(html).not.toContain('border-white/30');
     expect(html).not.toContain('radial-gradient(');
     expect(html).toContain('data-scroll-shard="north-west"');

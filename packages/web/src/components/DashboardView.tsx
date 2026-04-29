@@ -17,7 +17,9 @@ import {
 import { cn } from "../utils/cn";
 import { type ViewKey } from "../app-route";
 import { LoadingIndicator } from "./LoadingIndicator";
-import { WudaoCard, WudaoIconButton, WudaoButton } from "./ui/heroui";
+import { Button } from "@heroui/react/button";
+import { Card } from "@heroui/react/card";
+import { Tooltip } from "@heroui/react/tooltip";
 
 interface Props {
   onNavigate: (view: ViewKey) => void;
@@ -128,10 +130,10 @@ export default function DashboardView({ onNavigate }: Props) {
 
   const stats = useMemo(() => {
     return [
-      { id: "active", label: t("common.active"), value: taskStats.active, icon: Activity, color: "text-apple-blue", bg: "bg-apple-blue/10" },
-      { id: "done", label: t("common.done"), value: taskStats.done, icon: CheckCircle2, color: "text-apple-green", bg: "bg-apple-green/10" },
-      { id: "priority", label: `${t("priority_labels.0")}/${t("priority_labels.1")}`, value: taskStats.high_priority, icon: TrendingUp, color: "text-apple-red", bg: "bg-apple-red/10" },
-      { id: "all", label: t("common.all"), value: taskStats.all, icon: Box, color: "text-apple-purple", bg: "bg-apple-purple/10" },
+      { id: "active", label: t("common.active"), value: taskStats.active, icon: Activity, color: "text-accent", bg: "bg-accent/10" },
+      { id: "done", label: t("common.done"), value: taskStats.done, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+      { id: "priority", label: `${t("priority_labels.0")}/${t("priority_labels.1")}`, value: taskStats.high_priority, icon: TrendingUp, color: "text-danger", bg: "bg-danger/10" },
+      { id: "all", label: t("common.all"), value: taskStats.all, icon: Box, color: "text-accent", bg: "bg-accent/10" },
     ];
   }, [taskStats, t]);
 
@@ -139,27 +141,37 @@ export default function DashboardView({ onNavigate }: Props) {
   const refreshBusy = loadingUsage || loadingTaskStats;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background-secondary dark:bg-black/40 overflow-y-auto">
+    <div className="flex-1 flex flex-col min-h-0 bg-surface-secondary dark:bg-background overflow-y-auto">
       <header className="px-8 pt-8 pb-4 shrink-0 flex items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold text-apple-blue uppercase tracking-[0.2em] mb-1">{t("dashboard.overview")}</p>
+          <p className="text-[11px] font-bold text-accent uppercase tracking-[0.2em] mb-1">{t("dashboard.overview")}</p>
           <h1 className="text-3xl font-extrabold tracking-tight">{t("dashboard.welcome_user", { name: displayName })}</h1>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-system-gray-400 dark:text-system-gray-300 hidden sm:block">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted hidden sm:block">
             {t("dashboard.auto_refresh_in", { seconds: nextRefreshSeconds })}
           </p>
-          <WudaoIconButton
-            onPress={() => void refreshDashboard()}
-            disabled={refreshBusy}
-            tone="ghost"
-            className="text-system-gray-400 duration-500 active:rotate-180 dark:text-system-gray-300"
-            tooltip={t("dashboard.refresh_dashboard")}
-            aria-label={t("dashboard.refresh_dashboard")}
-          >
-            <RefreshCw size={18} className={cn(refreshBusy && "animate-spin")} />
-          </WudaoIconButton>
+          <Tooltip delay={300} closeDelay={0}>
+            <Button
+              isIconOnly
+              variant="ghost"
+              onPress={() => void refreshDashboard()}
+              isDisabled={refreshBusy}
+              className="text-muted duration-500 active:rotate-180"
+              aria-label={t("dashboard.refresh_dashboard")}
+            >
+              <RefreshCw size={18} className={cn(refreshBusy && "animate-spin")} />
+            </Button>
+            <Tooltip.Content
+              className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md"
+              placement="top"
+              showArrow
+            >
+              <Tooltip.Arrow className="fill-overlay" />
+              {t("dashboard.refresh_dashboard")}
+            </Tooltip.Content>
+          </Tooltip>
         </div>
       </header>
 
@@ -172,31 +184,31 @@ export default function DashboardView({ onNavigate }: Props) {
               </div>
             ) : (
               stats.map((stat) => (
-                <WudaoButton
+                <Button
                   key={stat.id}
+                  variant="ghost"
                   onPress={() => onNavigate("tasks")}
-                  tone="plain"
-                  className="group w-full rounded-apple-xl border border-black/5 bg-white p-5 text-left shadow-apple-card transition-all dark:border-white/10 dark:bg-system-gray-800 dark:shadow-none"
+                  className="group w-full rounded-xl border border-border bg-surface p-5 text-left shadow-sm transition-all"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className={cn("p-2 rounded-apple-lg", stat.bg)}>
+                    <div className={cn("p-2 rounded-lg", stat.bg)}>
                       <stat.icon size={20} className={stat.color} />
                     </div>
-                    <ArrowUpRight size={16} className="text-system-gray-300 group-hover:text-apple-blue transition-colors" />
+                    <ArrowUpRight size={16} className="text-default-foreground group-hover:text-accent transition-colors" />
                   </div>
-                  <p className="text-[11px] font-bold text-system-gray-400 dark:text-system-gray-300 uppercase tracking-widest">{stat.label}</p>
+                  <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{stat.label}</p>
                   <p className="text-3xl font-black mt-1 tracking-tight">{stat.value}</p>
-                </WudaoButton>
+                </Button>
               ))
             )}
           </div>
 
           <div className="space-y-8">
-            <WudaoCard className="min-h-[400px] p-6">
+            <Card className="min-h-[400px] p-6">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                  <TrendingUp size={18} className="text-apple-purple" />
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-system-gray-500 dark:text-system-gray-400">{t("dashboard.usage_stats")}</h2>
+                  <TrendingUp size={18} className="text-accent" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t("dashboard.usage_stats")}</h2>
                 </div>
               </div>
 
@@ -207,24 +219,24 @@ export default function DashboardView({ onNavigate }: Props) {
               ) : usageData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {usageData.map((usage) => (
-                    <WudaoCard
+                    <Card
                       key={usage.provider}
-                      className="relative flex flex-col overflow-hidden rounded-apple-2xl bg-system-gray-50 p-5 shadow-none dark:bg-white/5"
+                      className="relative flex flex-col overflow-hidden rounded-2xl bg-surface-secondary p-5 shadow-none"
                     >
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-apple-lg bg-apple-blue/10 flex items-center justify-center text-apple-blue">
+                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
                             <Shield size={20} />
                           </div>
                           <div>
                             <p className="text-sm font-bold tracking-tight">{usage.provider}</p>
-                            <p className="text-[10px] text-system-gray-400 dark:text-system-gray-300 font-bold uppercase tracking-widest">
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                               {usage.status === "ok" ? t("dashboard.provider_connected") : t("dashboard.provider_error")}
                             </p>
                           </div>
                         </div>
                         {usage.url && (
-                          <a href={usage.url} target="_blank" rel="noreferrer" className="p-2 rounded-full hover:bg-apple-blue/10 text-system-gray-300 hover:text-apple-blue transition-all">
+                          <a href={usage.url} target="_blank" rel="noreferrer" className="p-2 rounded-full hover:bg-accent/10 text-default-foreground hover:text-accent transition-all">
                             <ExternalLink size={14} />
                           </a>
                         )}
@@ -234,16 +246,16 @@ export default function DashboardView({ onNavigate }: Props) {
                         {usage.items.map((item) => (
                           <div key={item.label} className="space-y-2">
                             <div className="flex items-center justify-between px-1">
-                              <span className="text-[11px] font-bold text-system-gray-500 dark:text-system-gray-400 uppercase tracking-tight">{item.label}</span>
+                              <span className="text-[11px] font-bold text-muted uppercase tracking-tight">{item.label}</span>
                               <span className="text-xs font-black tabular-nums">{item.used}{item.total ? ` / ${item.total}` : ""}</span>
                             </div>
 
                             {item.total && (
-                              <div className="h-2 w-full bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
+                              <div className="h-2 w-full bg-default rounded-full overflow-hidden">
                                 <div
                                   className={cn(
                                     "h-full rounded-full transition-all duration-1000",
-                                    (item.used / item.total) > 0.9 ? "bg-apple-red" : "bg-apple-blue",
+                                    (item.used / item.total) > 0.9 ? "bg-danger" : "bg-accent",
                                   )}
                                   style={{ width: `${Math.min(100, (item.used / item.total) * 100)}%` }}
                                 />
@@ -252,10 +264,10 @@ export default function DashboardView({ onNavigate }: Props) {
 
                             {item.detail && (
                               <div className="flex items-start gap-1.5 px-1 pt-1">
-                                <Clock size={10} className="text-system-gray-400 dark:text-system-gray-300 mt-0.5 shrink-0" />
-                                <p className="text-[10px] leading-relaxed text-system-gray-400 dark:text-system-gray-300 font-medium">
+                                <Clock size={10} className="text-muted mt-0.5 shrink-0" />
+                                <p className="text-[10px] leading-relaxed text-muted font-medium">
                                   {item.detail.split(" · ").map((part, index) => (
-                                    <span key={index} className={cn(/刷新|重置|refresh/i.test(part) ? "text-apple-blue/80 font-bold" : "")}>
+                                    <span key={index} className={cn(/刷新|重置|refresh/i.test(part) ? "text-accent font-bold" : "")}>
                                       {index > 0 && " · "}
                                       {part}
                                     </span>
@@ -268,19 +280,19 @@ export default function DashboardView({ onNavigate }: Props) {
                       </div>
 
                       {usage.status === "error" && (
-                        <div className="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center">
-                          <AlertCircle size={32} className="text-apple-red mb-2" />
-                          <p className="text-xs font-bold text-apple-red px-4 leading-tight">{usage.error || t("dashboard.auth_failed")}</p>
-                          <WudaoButton
+                        <div className="absolute inset-0 bg-overlay/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                          <AlertCircle size={32} className="text-danger mb-2" />
+                          <p className="text-xs font-bold text-danger px-4 leading-tight">{usage.error || t("dashboard.auth_failed")}</p>
+                          <Button
+                            variant="ghost"
                             onPress={() => onNavigate("settings")}
-                            tone="plain"
-                            className="mt-4 h-auto p-0 text-[10px] font-black uppercase tracking-widest text-apple-blue hover:underline"
+                            className="mt-4 h-auto p-0 text-[10px] font-black uppercase tracking-widest text-accent hover:underline"
                           >
                             {t("dashboard.fix_in_settings")}
-                          </WudaoButton>
+                          </Button>
                         </div>
                       )}
-                    </WudaoCard>
+                    </Card>
                   ))}
                 </div>
               ) : (
@@ -289,13 +301,13 @@ export default function DashboardView({ onNavigate }: Props) {
                     <LoadingIndicator text={t("dashboard.loading_usage")} />
                   ) : (
                     <>
-                      <div className="w-16 h-1 bg-system-gray-100 dark:bg-system-gray-800 rounded-full mb-4" />
+                      <div className="w-16 h-1 bg-default rounded-full mb-4" />
                       <p className="text-xs font-medium uppercase tracking-widest">{usageError || t("dashboard.no_usage")}</p>
                     </>
                   )}
                 </div>
               )}
-            </WudaoCard>
+            </Card>
 
           </div>
         </div>

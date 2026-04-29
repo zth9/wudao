@@ -18,6 +18,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@heroui/react/button";
+import { Dropdown } from "@heroui/react/dropdown";
+import { Tooltip } from "@heroui/react/tooltip";
 import { useSettingsStore } from "../../stores/settingsStore";
 import MarkdownContent from "../MarkdownContent";
 import { TASK_WORKSPACE_HEADER_HEIGHT_PX, TaskWorkspacePanelHeader } from "../TaskWorkspacePanelHeader";
@@ -29,14 +32,6 @@ import {
   shouldShowTaskChatScrollButton,
 } from "../../utils/task-chat";
 import { type AgentTimelineItem } from "../../stores/taskStore";
-import {
-  WudaoButton,
-  WudaoDropdown,
-  WudaoDropdownItem,
-  WudaoDropdownMenu,
-  WudaoDropdownPopover,
-  WudaoIconButton,
-} from "../ui/heroui";
 
 const SCROLL_TO_BOTTOM_SHATTER_DURATION_MS = 1100;
 const SCROLL_TO_BOTTOM_SHARDS = [
@@ -167,10 +162,10 @@ export function TaskChatScrollToBottomButton({
             onClick={onClick}
             title={title}
             className={cn(
-              "relative h-9 w-9 rounded-full flex items-center justify-center overflow-visible shadow-apple-md",
+              "relative h-9 w-9 rounded-full flex items-center justify-center overflow-visible shadow-md",
               shattering
                 ? "pointer-events-none bg-transparent"
-                : "bg-apple-blue text-white hover:bg-apple-blue/90"
+                : "bg-accent text-white hover:bg-accent/90"
             )}
           >
             <motion.span
@@ -202,7 +197,7 @@ export function TaskChatScrollToBottomButton({
                       ease: [0.22, 1, 0.36, 1],
                     }}
                     className={cn(
-                      "absolute z-[2] rounded-[5px] bg-apple-blue shadow-[0_0_0_1px_rgba(255,255,255,0.18)]",
+                      "absolute z-[2] rounded-[5px] bg-accent shadow-[0_0_0_1px_rgba(255,255,255,0.18)]",
                       piece.className
                     )}
                     style={piece.style}
@@ -243,7 +238,7 @@ type ToolExchangeRenderItem = {
 type TaskChatRenderItem = AgentTimelineItem | ToolExchangeRenderItem;
 
 export const TASK_CHAT_PROVIDER_TRIGGER_CLASS =
-  "flex items-center gap-1.5 h-8 px-2 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent";
+  "flex items-center gap-1.5 h-8 px-2 rounded-lg bg-default hover:bg-default/80 transition-all border border-transparent";
 
 export const TASK_CHAT_PROVIDER_MENU_CLASS =
   "w-48";
@@ -267,14 +262,14 @@ export function resolveTaskChatBottomFadeVisibilityClass(autoScrollEnabled: bool
 function TaskChatReplyingIndicator() {
   return (
     <div data-replying-indicator="true" className="flex gap-3">
-      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-apple-sm border border-black/5 dark:border-white/10 mt-1 overflow-hidden bg-white dark:bg-system-gray-800 text-apple-blue">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-border mt-1 overflow-hidden bg-surface text-accent">
         <Bot size={14} />
       </div>
-      <div className="max-w-[85%] rounded-apple-xl border border-black/5 bg-white/80 backdrop-blur-md px-4 py-3 text-black shadow-apple-md dark:border-white/10 dark:bg-[#2E2E2E]/80 dark:text-white">
+      <div className="max-w-[85%] rounded-xl border border-border bg-surface/80 backdrop-blur-md px-4 py-3 text-foreground shadow-md">
         <div className="flex items-center gap-1.5" aria-hidden="true">
-          <span className="h-2 w-2 rounded-full bg-apple-blue animate-pulse [animation-delay:0ms]" />
-          <span className="h-2 w-2 rounded-full bg-apple-blue animate-pulse [animation-delay:150ms]" />
-          <span className="h-2 w-2 rounded-full bg-apple-blue animate-pulse [animation-delay:300ms]" />
+          <span className="h-2 w-2 rounded-full bg-accent animate-pulse [animation-delay:0ms]" />
+          <span className="h-2 w-2 rounded-full bg-accent animate-pulse [animation-delay:150ms]" />
+          <span className="h-2 w-2 rounded-full bg-accent animate-pulse [animation-delay:300ms]" />
         </div>
       </div>
     </div>
@@ -377,23 +372,23 @@ function CollapsibleToolMessageCard({
       data-tool-expanded={expanded ? "true" : "false"}
     >
       <div className="flex items-center gap-3 px-4 py-3">
-        <WudaoButton
+        <Button
           onPress={handleToggle}
           aria-expanded={expanded}
-          tone="plain"
+          variant="ghost"
           className="flex h-auto min-h-0 min-w-0 flex-1 items-center gap-3 text-left"
         >
           <ChevronRight
             size={14}
             className={cn(
-              "shrink-0 text-system-gray-400 transition-transform duration-200 ease-out",
+              "shrink-0 text-muted transition-transform duration-200 ease-out",
               expanded && "rotate-90"
             )}
           />
           <div className="min-w-0 flex-1">{cardHeader}</div>
           <span
             className={cn(
-              "shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 transition-opacity duration-200",
+              "shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-opacity duration-200",
               expanded && "hidden"
             )}
           >
@@ -401,26 +396,26 @@ function CollapsibleToolMessageCard({
           </span>
           <span
             className={cn(
-              "hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 transition-opacity duration-200",
+              "hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-opacity duration-200",
               expanded && "inline"
             )}
           >
             {collapseLabel}
           </span>
-        </WudaoButton>
+        </Button>
         {sdkRunId && onOpenSdkRun && (
-          <WudaoButton
+          <Button
             type="button"
             onPress={() => onOpenSdkRun(sdkRunId)}
             data-sdk-run-link={sdkRunId}
-            tone="plain"
-            className="inline-flex h-auto min-h-0 shrink-0 items-center gap-1 rounded-full border border-apple-blue/20 bg-apple-blue/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue hover:bg-apple-blue/15"
+            variant="ghost"
+            className="inline-flex h-auto min-h-0 shrink-0 items-center gap-1 rounded-full border border-accent/20 bg-accent/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-accent hover:bg-accent/15"
           >
             <span>{openSdkRunnerLabel}</span>
-            <span className="text-[9px] tracking-[0.08em] text-system-gray-500 dark:text-system-gray-300">
+            <span className="text-[9px] tracking-[0.08em] text-muted">
               {shortSdkRunId(sdkRunId)}
             </span>
-          </WudaoButton>
+          </Button>
         )}
       </div>
       <div
@@ -433,7 +428,7 @@ function CollapsibleToolMessageCard({
         <div className="min-h-0 overflow-hidden">
           <div
             className={cn(
-              "border-t border-black/5 transition-[opacity,transform] duration-200 ease-out dark:border-white/10",
+              "border-t border-border transition-[opacity,transform] duration-200 ease-out",
               expanded ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
             )}
           >
@@ -523,14 +518,14 @@ export function TaskChat({
   // Use a ghost textarea to measure height without breaking CSS transitions
   useEffect(() => {
     if (!ghostRef.current) return;
-    
+
     // Reset height to 0px to accurately measure the new content's scrollHeight
     ghostRef.current.style.height = '0px';
     const scrollHeight = ghostRef.current.scrollHeight;
-    
+
     // Base 38px (1 line: 14px padding + 24px line-height)
     // Max 10 lines: 14px padding + 240px = 254px
-    const newHeight = Math.min(Math.max(scrollHeight, 38), 254); 
+    const newHeight = Math.min(Math.max(scrollHeight, 38), 254);
     setTextareaHeight(newHeight);
   }, [input]);
 
@@ -566,7 +561,7 @@ export function TaskChat({
   };
 
   return (
-    <div className="relative flex-1 h-full min-h-0 overflow-hidden bg-[#EDEDED] dark:bg-[#191919]">
+    <div className="relative flex-1 h-full min-h-0 overflow-hidden bg-background dark:bg-background-secondary">
       {/* Sub-header: Absolute Top */}
       <TaskWorkspacePanelHeader
         title={t('tasks.agent_chat')}
@@ -593,8 +588,8 @@ export function TaskChat({
         >
           {items.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-               <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-center mb-4">
-                  <Sparkles size={24} className="text-apple-blue" />
+               <div className="w-12 h-12 rounded-2xl bg-default flex items-center justify-center mb-4">
+                  <Sparkles size={24} className="text-accent" />
                </div>
                <p className="text-xs font-medium leading-relaxed max-w-[200px]">
                  {t('tasks.placeholder_input')}
@@ -618,9 +613,9 @@ export function TaskChat({
                 {item.kind === "error" ? (
                   <AlertCircle size={14} className="text-red-500" />
                 ) : ToolIcon ? (
-                  <ToolIcon size={14} className="text-apple-blue" />
+                  <ToolIcon size={14} className="text-accent" />
                 ) : (
-                  <Wrench size={14} className="text-apple-blue" />
+                  <Wrench size={14} className="text-accent" />
                 )}
                 <span>
                   {item.kind === "tool_exchange" && t("tasks.tool_message_label")}
@@ -631,10 +626,10 @@ export function TaskChat({
                   {item.kind === "error" && t("tasks.error_label")}
                 </span>
                 {"toolName" in item && (
-                  <span className="text-system-gray-400 normal-case tracking-normal">{item.toolName}</span>
+                  <span className="text-muted normal-case tracking-normal">{item.toolName}</span>
                 )}
                 {isRunningToolCall && (
-                  <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue">
+                  <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
                     <Loader2 size={11} className="animate-spin" />
                     <span>{t("tasks.tool_running")}</span>
                   </span>
@@ -647,21 +642,21 @@ export function TaskChat({
                 {item.kind === "tool_exchange" && (
                   <>
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 mb-2">{t("tasks.tool_input_label")}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">{t("tasks.tool_input_label")}</div>
                       <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.input)}</pre>
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 mb-2">{t("tasks.tool_output_label")}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">{t("tasks.tool_output_label")}</div>
                       <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.output)}</pre>
                     </div>
                   </>
                 )}
                 {item.kind === "tool_call" && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 mb-2">{t("tasks.tool_input_label")}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">{t("tasks.tool_input_label")}</div>
                     <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.input)}</pre>
                     {isRunningToolCall && (
-                      <div className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-apple-blue">
+                      <div className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-accent">
                         <Loader2 size={12} className="animate-spin" />
                         <span>{t("tasks.tool_running_detail")}</span>
                       </div>
@@ -670,20 +665,20 @@ export function TaskChat({
                 )}
                 {item.kind === "tool_result" && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 mb-2">{t("tasks.tool_output_label")}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">{t("tasks.tool_output_label")}</div>
                     <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.output)}</pre>
                   </div>
                 )}
                 {item.kind === "approval" && (
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-system-gray-400 mb-2">{t("tasks.tool_input_label")}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">{t("tasks.tool_input_label")}</div>
                     <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.input)}</pre>
                   </div>
                 )}
                 {item.kind === "artifact" && (
                   <div className="text-[13px] leading-relaxed">
                     <div className="font-semibold">{item.path}</div>
-                    <div className="mt-1 text-system-gray-500 dark:text-system-gray-300">{item.summary}</div>
+                    <div className="mt-1 text-muted">{item.summary}</div>
                   </div>
                 )}
                 {item.kind === "error" && (
@@ -700,7 +695,7 @@ export function TaskChat({
                   isUser ? "flex-row-reverse" : "flex-row"
                 )}
               >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-apple-sm border border-black/5 dark:border-white/10 mt-1 overflow-hidden bg-white dark:bg-system-gray-800 text-apple-blue">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-border mt-1 overflow-hidden bg-surface text-accent">
                   {isUser ? (
                     user.avatar ? (
                       (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
@@ -718,19 +713,19 @@ export function TaskChat({
 
                 {item.kind === "user_text" || item.kind === "assistant_text" ? (
                   <div className={cn(
-                    "max-w-[85%] px-4 py-2.5 rounded-apple-xl text-[14px] leading-relaxed shadow-apple-md transition-all backdrop-blur-md",
+                    "max-w-[85%] px-4 py-2.5 rounded-xl text-[14px] leading-relaxed shadow-md transition-all backdrop-blur-md",
                     item.kind === "user_text"
-                      ? "bg-[#95EC69]/90 text-black dark:bg-[#3EB575]/90 selection:bg-black/10 selection:text-black"
-                      : "bg-white/80 text-black border border-black/5 dark:bg-[#2E2E2E]/80 dark:text-white dark:border-white/10 selection:bg-black/10 selection:text-black dark:selection:bg-white/20 dark:selection:text-white"
+                      ? "bg-[#95EC69]/90 text-foreground dark:bg-[#3EB575]/90 selection:bg-black/10 selection:text-black"
+                      : "bg-surface/80 text-foreground border border-border selection:bg-black/10 selection:text-black dark:selection:bg-white/20 dark:selection:text-white"
                   )}>
                     <MarkdownContent content={item.content} />
                   </div>
                 ) : (
                   <div className={cn(
-                    "max-w-[85%] rounded-apple-xl border shadow-apple-md overflow-hidden backdrop-blur-md",
+                    "max-w-[85%] rounded-xl border shadow-md overflow-hidden backdrop-blur-md",
                     item.kind === "error"
                       ? "border-red-400/30 bg-red-50/80 text-red-900 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-100"
-                      : "border-black/5 bg-white/80 text-black dark:border-white/10 dark:bg-[#2A2A2A]/80 dark:text-white"
+                      : "border-border bg-surface/80 text-foreground"
                   )}>
                     {isCollapsibleToolItem ? (
                       <CollapsibleToolMessageCard
@@ -745,7 +740,7 @@ export function TaskChat({
                       />
                     ) : (
                       <>
-                        <div className="px-4 py-3 border-b border-black/5 dark:border-white/10">
+                        <div className="px-4 py-3 border-b border-border">
                           {cardHeader}
                         </div>
                         {cardBody}
@@ -774,7 +769,7 @@ export function TaskChat({
           }}
         >
           <div
-            className="h-full w-full bg-gradient-to-b from-[#EDEDED]/0 via-[#EDEDED]/24 to-[#EDEDED]/96 backdrop-blur-md dark:from-[#191919]/0 dark:via-[#191919]/28 dark:to-[#191919]/94"
+            className="h-full w-full bg-gradient-to-b from-background/0 via-background/24 to-background/96 backdrop-blur-md"
             style={{
               WebkitMaskImage: TASK_CHAT_BOTTOM_FADE_EDGE_MASK,
               maskImage: TASK_CHAT_BOTTOM_FADE_EDGE_MASK,
@@ -798,60 +793,67 @@ export function TaskChat({
         data-task-chat-input-shell="true"
         className="absolute bottom-0 left-0 right-0 z-20"
       >
-        <div className="relative m-3 rounded-apple-2xl border border-black/5 bg-white/90 shadow-apple-lg backdrop-blur-apple dark:border-white/10 dark:bg-[#1c1c1e]/85">
+        <div className="relative m-3 rounded-2xl border border-border bg-surface/90 shadow-lg backdrop-blur-xl">
           <div
             data-task-chat-input-panel="true"
             className="relative z-10 px-4 pt-3 pb-3"
           >
             <div className="flex items-center justify-end gap-2 mb-2">
               {/* Provider Selector */}
-              <WudaoDropdown isOpen={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
-                <WudaoButton
-                  data-task-chat-provider-trigger="true"
-                  className={TASK_CHAT_PROVIDER_TRIGGER_CLASS}
-                  tone="plain"
-                  type="button"
-                >
-                  <span className="text-[10px] font-bold text-system-gray-400 uppercase">{currentProvider?.name}</span>
-                  <ChevronDown size={12} className="text-system-gray-400" />
-                </WudaoButton>
-                <WudaoDropdownPopover
+              <Dropdown isOpen={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
+                <Dropdown.Trigger>
+                  <Button
+                    data-task-chat-provider-trigger="true"
+                    className={TASK_CHAT_PROVIDER_TRIGGER_CLASS}
+                    variant="ghost"
+                    type="button"
+                  >
+                    <span className="text-[10px] font-bold text-muted uppercase">{currentProvider?.name}</span>
+                    <ChevronDown size={12} className="text-muted" />
+                  </Button>
+                </Dropdown.Trigger>
+                <Dropdown.Popover
                   data-task-chat-provider-menu="true"
-                  className={TASK_CHAT_PROVIDER_MENU_CLASS}
+                  className={cn("rounded-xl border border-border bg-surface/90 p-1 shadow-lg backdrop-blur-xl", TASK_CHAT_PROVIDER_MENU_CLASS)}
                   placement="top end"
                 >
-                  <WudaoDropdownMenu
+                  <Dropdown.Menu
                     aria-label={t("tasks.model")}
                     onAction={(key) => {
                       onProviderChange(String(key));
                       setProviderMenuOpen(false);
                     }}
+                    className="flex min-w-0 flex-col gap-0.5 outline-none"
                   >
                     {providers.map((p) => (
-                      <WudaoDropdownItem
+                      <Dropdown.Item
                         key={p.id}
                         id={p.id}
                         textValue={`${p.name} ${p.model || p.id}`}
-                        isSelected={p.id === currentProvider?.id}
-                        className="flex-col items-stretch justify-start"
+                        className={cn(
+                          "flex min-h-0 w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold outline-none transition-colors data-[focused=true]:bg-default",
+                          p.id === currentProvider?.id
+                            ? "bg-accent text-white shadow-sm data-[focused=true]:bg-accent/90"
+                            : "text-muted"
+                        )}
                       >
                         <div className="font-bold">{p.name}</div>
-                        <div className={cn("text-[9px] truncate opacity-60", p.id === currentProvider?.id ? "text-white" : "text-system-gray-400")}>{p.model || p.id}</div>
-                      </WudaoDropdownItem>
+                        <div className={cn("text-[9px] truncate opacity-60", p.id === currentProvider?.id ? "text-white" : "text-muted")}>{p.model || p.id}</div>
+                      </Dropdown.Item>
                     ))}
-                  </WudaoDropdownMenu>
-                </WudaoDropdownPopover>
-              </WudaoDropdown>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
 
-              <div className="w-[1px] h-4 bg-black/5 dark:bg-white/5 mx-1" />
+              <div className="w-[1px] h-4 bg-default mx-1" />
 
-              <WudaoButton
+              <Button
                 onPress={onGenerateDocs}
-                disabled={generatingDocs || streaming}
-                tone="secondary"
+                isDisabled={generatingDocs || streaming}
+                variant="secondary"
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
-                  agentDoc && "text-apple-green border-apple-green/20"
+                  agentDoc && "text-success border-success/20"
                 )}
               >
                 {generatingDocs ? (
@@ -860,13 +862,13 @@ export function TaskChat({
                   <FileCode size={12} />
                 )}
                 {agentDoc ? t("tasks.update_agents") : t("tasks.generate_agents")}
-              </WudaoButton>
+              </Button>
             </div>
 
             <div className="flex items-end gap-2">
               <div
                 data-task-chat-input-field="true"
-                className="relative flex-1 rounded-apple-xl border border-black/5 bg-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-white/10 dark:bg-white/10 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                className="relative flex-1 rounded-xl border border-border bg-surface/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
               >
                 {/* Ghost textarea for measuring true height without affecting animations */}
                 <textarea
@@ -889,7 +891,7 @@ export function TaskChat({
                     isInputComposingRef.current = false;
                   }}
                   placeholder={t('tasks.placeholder_title')}
-                  className="w-full bg-transparent border-none px-4 py-[7px] text-sm text-black focus:outline-none focus:ring-0 placeholder:text-system-gray-400 transition-[height] duration-200 ease-in-out resize-none overflow-y-auto block scrollbar-hide leading-[24px] dark:text-system-gray-100"
+                  className="w-full bg-transparent border-none px-4 py-[7px] text-sm text-foreground focus:outline-none focus:ring-0 placeholder:text-muted transition-[height] duration-200 ease-in-out resize-none overflow-y-auto block scrollbar-hide leading-[24px]"
                   style={{ height: `${textareaHeight}px` }}
                   onKeyDown={(e) => {
                     if (!shouldSubmitOnEnter(e, isInputComposingRef.current)) return;
@@ -900,35 +902,47 @@ export function TaskChat({
               </div>
               <div className="flex-shrink-0 flex items-center justify-center">
                 {streaming ? (
-                  <WudaoIconButton
-                    onPress={onAbort}
-                    tone="danger"
-                    className="p-2 rounded-apple-lg bg-apple-red text-white hover:bg-apple-red/90 transition-colors shadow-apple-sm h-[38px] w-[38px] flex items-center justify-center"
-                    tooltip={t("common.stop_generation")}
-                    aria-label={t("common.stop_generation")}
-                  >
-                    <StopCircle size={18} />
-                  </WudaoIconButton>
+                  <Tooltip delay={300} closeDelay={0}>
+                    <Button
+                      isIconOnly
+                      onPress={onAbort}
+                      variant="danger"
+                      className="p-2 rounded-lg bg-danger text-white hover:bg-danger/90 transition-colors shadow-sm h-[38px] w-[38px] flex items-center justify-center"
+                      aria-label={t("common.stop_generation")}
+                    >
+                      <StopCircle size={18} />
+                    </Button>
+                    <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                      <Tooltip.Arrow className="fill-overlay" />
+                      {t("common.stop_generation")}
+                    </Tooltip.Content>
+                  </Tooltip>
                 ) : (
-                  <WudaoIconButton
-                    onPress={handleSend}
-                    disabled={!input.trim() || generatingDocs}
-                    tone={input.trim() ? "primary" : "secondary"}
-                    className={cn(
-                      "p-2 rounded-apple-lg transition-all shadow-apple-sm flex items-center justify-center h-[38px] w-[38px]",
-                      input.trim()
-                        ? "bg-apple-blue text-white hover:bg-apple-blue/90"
-                        : "bg-system-gray-100 dark:bg-system-gray-800 text-system-gray-400"
-                    )}
-                    tooltip={t("tasks.agent_chat")}
-                    aria-label={t("tasks.agent_chat")}
-                  >
-                    <Send size={18} />
-                  </WudaoIconButton>
+                  <Tooltip delay={300} closeDelay={0}>
+                    <Button
+                      isIconOnly
+                      onPress={handleSend}
+                      isDisabled={!input.trim() || generatingDocs}
+                      variant={input.trim() ? "primary" : "secondary"}
+                      className={cn(
+                        "p-2 rounded-lg transition-all shadow-sm flex items-center justify-center h-[38px] w-[38px]",
+                        input.trim()
+                          ? "bg-accent text-white hover:bg-accent/90"
+                          : "bg-default text-muted"
+                      )}
+                      aria-label={t("tasks.agent_chat")}
+                    >
+                      <Send size={18} />
+                    </Button>
+                    <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                      <Tooltip.Arrow className="fill-overlay" />
+                      {t("tasks.agent_chat")}
+                    </Tooltip.Content>
+                  </Tooltip>
                 )}
               </div>
             </div>
-            <p className="text-[9px] text-system-gray-400 font-bold uppercase tracking-widest mt-2 text-center opacity-50">
+            <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-2 text-center opacity-50">
               {t('tasks.chat_hint')}
             </p>
           </div>

@@ -23,7 +23,8 @@ import {
   type ViewKey,
 } from "./app-route";
 import { LoadingIndicator } from "./components/LoadingIndicator";
-import { WudaoButton, WudaoDropdown, WudaoDropdownItem, WudaoDropdownMenu, WudaoDropdownPopover } from "./components/ui/heroui";
+import { Button } from "@heroui/react/button";
+import { Dropdown } from "@heroui/react/dropdown";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 const DashboardView = lazy(() => import("./components/DashboardView"));
@@ -140,111 +141,105 @@ function AppInner() {
   const userDisplayName = user.nickname || t("common.user");
 
   return (
-    <div className="h-screen flex flex-col bg-background dark:bg-black text-foreground dark:text-foreground-dark overflow-hidden">
-      <header className="h-14 apple-glass border-b border-black/5 dark:border-white/10 flex items-center justify-between px-6 z-30 shrink-0 relative">
+    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
+      <header className="h-14 backdrop-blur-xl border-b border-border flex items-center justify-between px-6 z-30 shrink-0 relative bg-overlay/80">
         <div className="flex items-center gap-2 min-w-[160px]">
-          <div className="w-8 h-8 rounded-apple-lg bg-gradient-to-br from-apple-blue to-apple-purple flex items-center justify-center text-white text-xs font-extrabold shadow-apple-sm">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent flex items-center justify-center text-white text-xs font-extrabold shadow-sm">
             WD
           </div>
-          <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-apple-blue to-apple-purple bg-clip-text text-transparent">Wudao</h1>
+          <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-accent to-accent bg-clip-text text-transparent">Wudao</h1>
         </div>
 
-        <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-black/5 dark:bg-white/5 rounded-apple-xl">
+        <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-default rounded-xl">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.key;
             return (
-              <WudaoButton
+              <Button
                 key={item.key}
                 onPress={() => handleViewChange(item.key)}
-                tone="plain"
+                variant="ghost"
                 className={cn(
-                  "flex items-center gap-2 px-4 py-1.5 rounded-apple-lg transition-colors duration-200 group relative",
+                  "flex items-center gap-2 px-4 py-1.5 rounded-lg transition-colors duration-200 group relative",
                   isActive
                     ? "text-white"
-                    : "text-system-gray-500 dark:text-system-gray-400 hover:text-foreground dark:hover:text-foreground-dark",
+                    : "text-muted hover:text-foreground",
                 )}
               >
-                <Icon size={16} className={cn("relative z-10 transition-transform group-active:scale-90", isActive ? "text-white" : "text-apple-blue")} />
+                <Icon size={16} className={cn("relative z-10 transition-transform group-active:scale-90", isActive ? "text-white" : "text-accent")} />
                 <span className="text-xs font-bold uppercase tracking-wider relative z-10">{item.label}</span>
                 {isActive && (
                   <motion.div
                     layoutId="active-pill"
-                    className="absolute inset-0 bg-apple-blue rounded-apple-lg shadow-apple-sm z-0"
+                    className="absolute inset-0 bg-accent rounded-lg shadow-sm z-0"
                     transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
                   />
                 )}
-              </WudaoButton>
+              </Button>
             );
           })}
         </nav>
 
         <div className="flex items-center gap-4">
           {/* Language Switcher */}
-          <WudaoDropdown
+          <Dropdown
             isOpen={langMenuOpen}
             onOpenChange={(open) => {
               setLangMenuOpen(open);
               if (open) setThemeMenuOpen(false);
             }}
           >
-            <WudaoButton
+            <Button
               aria-label={i18n.language.startsWith("zh") ? t("common.switch_to_english") : t("common.switch_to_chinese")}
-              title={i18n.language.startsWith("zh") ? t("common.switch_to_english") : t("common.switch_to_chinese")}
-              tone="ghost"
+              variant="ghost"
               isIconOnly
-              className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors text-xs font-bold"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-default border border-border text-muted hover:text-accent transition-colors text-xs font-bold"
             >
               {i18n.language.startsWith("zh") ? "中" : "En"}
-            </WudaoButton>
-            <WudaoDropdownPopover className="min-w-9 w-9">
-              <WudaoDropdownMenu
+            </Button>
+            <Dropdown.Popover className="min-w-9 w-9">
+              <Dropdown.Menu
                 aria-label={i18n.language.startsWith("zh") ? t("common.switch_to_english") : t("common.switch_to_chinese")}
                 onAction={(key) => {
                   void i18n.changeLanguage(String(key));
                   setLangMenuOpen(false);
                 }}
               >
-                {languageItems.map((item) => {
-                  const isActive = i18n.language.startsWith(item.key);
-                  return (
-                    <WudaoDropdownItem
+                {languageItems.map((item) => (
+                    <Dropdown.Item
                       key={item.key}
                       id={item.key}
                       textValue={item.label}
-                      isSelected={isActive}
                       className="justify-center px-1.5 py-1.5 font-bold"
                     >
                       <span className="text-xs">{item.key === "zh" ? "中" : "EN"}</span>
-                    </WudaoDropdownItem>
-                  );
-                })}
-              </WudaoDropdownMenu>
-            </WudaoDropdownPopover>
-          </WudaoDropdown>
+                    </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
 
           {/* Theme Switcher */}
-          <WudaoDropdown
+          <Dropdown
             isOpen={themeMenuOpen}
             onOpenChange={(open) => {
               setThemeMenuOpen(open);
               if (open) setLangMenuOpen(false);
             }}
           >
-            <WudaoButton
+            <Button
               aria-label={themeItems.find((item) => item.key === theme)?.label ?? t("theme.auto")}
-              title={themeItems.find((item) => item.key === theme)?.label ?? t("theme.auto")}
-              tone="ghost"
+              variant="ghost"
               isIconOnly
-              className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-default border border-border text-muted hover:text-accent transition-colors"
             >
               {(() => {
                 const Icon = currentThemeIcon;
                 return <Icon size={16} />;
               })()}
-            </WudaoButton>
-            <WudaoDropdownPopover className="min-w-9 w-9">
-              <WudaoDropdownMenu
+            </Button>
+            <Dropdown.Popover className="min-w-9 w-9">
+              <Dropdown.Menu
                 aria-label={t("theme.auto")}
                 onAction={(key) => {
                   setTheme(key as typeof theme);
@@ -252,29 +247,27 @@ function AppInner() {
                 }}
               >
                 {themeItems.map((item) => {
-                  const isActive = theme === item.key;
                   const Icon = item.icon;
                   return (
-                    <WudaoDropdownItem
+                    <Dropdown.Item
                       key={item.key}
                       id={item.key}
                       textValue={item.label}
-                      isSelected={isActive}
                       className="justify-center p-1.5 font-bold"
                     >
-                      <Icon size={18} className={isActive ? "text-white" : ""} />
-                    </WudaoDropdownItem>
+                      <Icon size={18} className={theme === item.key ? "text-white" : ""} />
+                    </Dropdown.Item>
                   );
                 })}
-              </WudaoDropdownMenu>
-            </WudaoDropdownPopover>
-          </WudaoDropdown>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
 
-          <div className="flex items-center gap-3 px-2 border-l border-black/5 dark:border-white/10 ml-2 pl-6">
+          <div className="flex items-center gap-3 px-2 border-l border-border ml-2 pl-6">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold tracking-tight">{userDisplayName}</p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-apple-blue/10 border border-black/5 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-apple-sm group cursor-pointer hover:ring-2 hover:ring-apple-blue/20 transition-all">
+            <div className="w-9 h-9 rounded-full bg-accent/10 border border-border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer hover:ring-2 hover:ring-accent/20 transition-all">
               {((user.avatar && user.avatar.startsWith("/api")) || user.avatar.startsWith("http")) ? (
                 <img src={user.avatar} alt={t("common.avatar")} className="w-full h-full object-cover" />
               ) : (
@@ -285,7 +278,7 @@ function AppInner() {
         </div>
       </header>
 
-      <main className="flex-1 relative flex flex-col min-w-0 overflow-hidden bg-background-secondary dark:bg-black">
+      <main className="flex-1 relative flex flex-col min-w-0 overflow-hidden bg-surface-secondary">
         <div className="flex-1 flex flex-col min-h-0">
           <Suspense fallback={<ViewFallback />}>
             {activeView === "dashboard" && <DashboardView onNavigate={handleViewChange} />}
