@@ -33,6 +33,7 @@ import TerminalTile from "./TerminalTile";
 import { TaskWorkspaceDrawerShell } from "./TaskWorkspaceDrawerShell";
 import { useWs } from "../contexts/WsContext";
 import { cn } from "../utils/cn";
+import { WudaoButton, WudaoChip } from "./ui/heroui";
 
 interface Props {
   taskId: string;
@@ -122,24 +123,26 @@ export default function TiledTerminalPanel({
       headerActions={(
         <>
           {linkedSessionIds.length > 0 && (
-            <button
-              onClick={onRestoreAll}
+            <WudaoButton
+              onPress={onRestoreAll}
               disabled={!canLaunch || restorableCount === 0}
-              className="apple-btn-secondary h-8 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-30"
+              tone="secondary"
+              className="flex h-8 items-center gap-1.5 px-3 text-[11px] font-bold uppercase tracking-wider"
             >
               <RotateCcw size={14} className="text-system-gray-400 dark:text-system-gray-300" />
               {t("terminal_panel.restore_all")}
-            </button>
+            </WudaoButton>
           )}
 
-          <button
-            onClick={onNewTerminal}
+          <WudaoButton
+            onPress={onNewTerminal}
             disabled={!canLaunch}
-            className="apple-btn-primary h-8 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-apple-sm"
+            tone="primary"
+            className="flex h-8 items-center gap-1.5 px-3 text-[11px] font-bold uppercase tracking-wider shadow-apple-sm"
           >
             <Plus size={16} />
             {t("terminal_panel.new_terminal")}
-          </button>
+          </WudaoButton>
         </>
       )}
     >
@@ -152,9 +155,9 @@ export default function TiledTerminalPanel({
                 : t("terminal_panel.not_started")}
             </span>
             {linkedSessionIds.length > 0 && (
-              <span className="shrink-0 rounded-full bg-black/5 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-system-gray-500 dark:bg-white/5 dark:text-system-gray-300">
+              <WudaoChip className="shrink-0 bg-black/5 px-2 py-1 text-[10px] tracking-[0.12em] text-system-gray-500 dark:bg-white/5 dark:text-system-gray-300">
                 {t("terminal_panel.linked")}
-              </span>
+              </WudaoChip>
             )}
           </div>
 
@@ -175,11 +178,12 @@ export default function TiledTerminalPanel({
                   const label = linkedSessionNameMap[sessionId] || t("terminal_panel.session_fallback", { id: sessionId.slice(0, 8) });
 
                   return (
-                    <button
+                    <WudaoButton
                       key={sessionId}
-                      onClick={() => onRestoreSession(sessionId)}
+                      onPress={() => onRestoreSession(sessionId)}
                       disabled={isOpen || !canLaunch}
                       title={isOpen ? t("terminal_panel.session_open_title") : t("terminal_panel.session_restore_title")}
+                      tone="plain"
                       className={cn(
                         "h-6 px-3 text-[10px] font-bold rounded-full transition-all flex items-center gap-1.5 border tracking-tight",
                         isOpen
@@ -189,7 +193,7 @@ export default function TiledTerminalPanel({
                     >
                       <span className="truncate">{label}</span>
                       <span className="opacity-70 font-medium uppercase">{isOpen ? t("terminal_panel.opened") : t("terminal_panel.restore")}</span>
-                    </button>
+                    </WudaoButton>
                   );
                 })}
               </div>
@@ -285,14 +289,15 @@ function EmptyState({ wsReady, hasProviders, hasLinkedSessions, onNew }: {
         <p className="text-sm font-medium text-system-gray-500 dark:text-system-gray-400 mb-6 leading-relaxed">
           {hasLinkedSessions ? t("terminal_panel.empty_with_history") : t("terminal_panel.empty_without_history")}
         </p>
-        <button
-          onClick={onNew}
+        <WudaoButton
+          onPress={onNew}
           disabled={!wsReady || !hasProviders}
-          className="apple-btn-primary px-8 py-2.5 text-sm font-bold flex items-center gap-2 mx-auto shadow-apple-sm"
+          tone="primary"
+          className="mx-auto flex items-center gap-2 px-8 py-2.5 text-sm font-bold shadow-apple-sm"
         >
           <Plus size={18} />
           {t("terminal_panel.start_terminal")}
-        </button>
+        </WudaoButton>
       </div>
     </div>
   );

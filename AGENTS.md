@@ -13,7 +13,7 @@
 
 ## 当前能力基线
 
-- 前端是 Vite + React 19 + TypeScript + Tailwind CSS + zustand，入口在 `packages/web/src/App.tsx`
+- 前端是 Vite + React 19 + TypeScript + Tailwind CSS v4 + HeroUI v3 + zustand，入口在 `packages/web/src/App.tsx`
 - 后端是 FastAPI + sqlite3 + Python PTY，入口在 `packages/server/src/app.py`
 - 任务数据、Provider 配置、Agent Chat run/message、Claude Code Runner run/event 均持久化到 SQLite
 - Agentic Chat 使用 typed SSE、结构化 timeline 与工具协议，主要实现位于 `packages/server/src/task_agent_chat.py` 与 `packages/server/src/agent_runtime/`
@@ -30,6 +30,7 @@
 - 当前开发进度：`status.md`
 - 用户视角变更记录：`docs/changelog.md`
 - 前端开发规范：`docs/design/frontend-guidelines.md`
+- HeroUI 前端重构计划：`docs/design/heroui-frontend-refactor-plan.md`
 - 大功能或临时计划：优先新建到 `docs/design/`，并在本节补索引
 
 不要引用已经不存在的设计文档；如果需要恢复某个长期设计说明，先创建明确命名的文档，再把入口补到这里。
@@ -118,7 +119,7 @@
 ## 技术栈
 
 - Monorepo：pnpm workspace
-- 前端：Vite 6 + React 19 + TypeScript 5 + Tailwind CSS + zustand + i18next + lucide-react + framer-motion
+- 前端：Vite 6 + React 19 + TypeScript 5 + Tailwind CSS v4 + HeroUI v3 + zustand + i18next + lucide-react + framer-motion
 - 后端：FastAPI + WebSocket + SSE + Python PTY + sqlite3 + httpx + claude-agent-sdk
 - 终端渲染：xterm.js
 - 运行时：Node.js 22+、Python 3.12+，默认通过 `uv` 管理 Python 依赖与测试

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Send,
@@ -29,6 +29,14 @@ import {
   shouldShowTaskChatScrollButton,
 } from "../../utils/task-chat";
 import { type AgentTimelineItem } from "../../stores/taskStore";
+import {
+  WudaoButton,
+  WudaoDropdown,
+  WudaoDropdownItem,
+  WudaoDropdownMenu,
+  WudaoDropdownPopover,
+  WudaoIconButton,
+} from "../ui/heroui";
 
 const SCROLL_TO_BOTTOM_SHATTER_DURATION_MS = 1100;
 const SCROLL_TO_BOTTOM_SHARDS = [
@@ -238,9 +246,7 @@ export const TASK_CHAT_PROVIDER_TRIGGER_CLASS =
   "flex items-center gap-1.5 h-8 px-2 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent";
 
 export const TASK_CHAT_PROVIDER_MENU_CLASS =
-  "absolute z-[60] w-48 apple-dropdown";
-
-export const TASK_CHAT_PROVIDER_BACKDROP_CLASS = "fixed inset-0 z-40";
+  "w-48";
 
 const TASK_CHAT_INPUT_PANEL_MARGIN_PX = 12;
 const TASK_CHAT_INPUT_PANEL_BOTTOM_PADDING_PX = 116 + TASK_CHAT_INPUT_PANEL_MARGIN_PX;
@@ -251,13 +257,6 @@ const TASK_CHAT_BOTTOM_FADE_RIGHT_EDGE_FEATHER_PX = 18;
 const TASK_CHAT_BOTTOM_FADE_LEFT_INSET_PX = 0;
 const TASK_CHAT_BOTTOM_FADE_RIGHT_INSET_PX = 6;
 const TASK_CHAT_BOTTOM_FADE_EDGE_MASK = `linear-gradient(to right, transparent 0, black ${TASK_CHAT_BOTTOM_FADE_LEFT_EDGE_FEATHER_PX}px, black calc(100% - ${TASK_CHAT_BOTTOM_FADE_RIGHT_EDGE_FEATHER_PX}px), transparent 100%)`;
-
-const TASK_CHAT_PROVIDER_MENU_MOTION = {
-  initial: { opacity: 0, y: 4, scale: 0.985 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: 3, scale: 0.99 },
-  transition: { duration: 0.12, ease: "easeOut" as const },
-};
 
 export function resolveTaskChatBottomFadeVisibilityClass(autoScrollEnabled: boolean) {
   return autoScrollEnabled
@@ -368,11 +367,6 @@ function CollapsibleToolMessageCard({
     setExpanded((current) => !current);
   };
 
-  const handleOpenSdkRun = (event: MouseEvent<HTMLButtonElement>, targetSdkRunId: string) => {
-    event.stopPropagation();
-    onOpenSdkRun?.(targetSdkRunId);
-  };
-
   return (
     <div
       className="group"
@@ -383,11 +377,11 @@ function CollapsibleToolMessageCard({
       data-tool-expanded={expanded ? "true" : "false"}
     >
       <div className="flex items-center gap-3 px-4 py-3">
-        <button
-          type="button"
-          onClick={handleToggle}
+        <WudaoButton
+          onPress={handleToggle}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          tone="plain"
+          className="flex h-auto min-h-0 min-w-0 flex-1 items-center gap-3 text-left"
         >
           <ChevronRight
             size={14}
@@ -413,19 +407,20 @@ function CollapsibleToolMessageCard({
           >
             {collapseLabel}
           </span>
-        </button>
+        </WudaoButton>
         {sdkRunId && onOpenSdkRun && (
-          <button
+          <WudaoButton
             type="button"
-            onClick={(event) => handleOpenSdkRun(event, sdkRunId)}
+            onPress={() => onOpenSdkRun(sdkRunId)}
             data-sdk-run-link={sdkRunId}
-            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-apple-blue/20 bg-apple-blue/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue hover:bg-apple-blue/15"
+            tone="plain"
+            className="inline-flex h-auto min-h-0 shrink-0 items-center gap-1 rounded-full border border-apple-blue/20 bg-apple-blue/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-apple-blue hover:bg-apple-blue/15"
           >
             <span>{openSdkRunnerLabel}</span>
             <span className="text-[9px] tracking-[0.08em] text-system-gray-500 dark:text-system-gray-300">
               {shortSdkRunId(sdkRunId)}
             </span>
-          </button>
+          </WudaoButton>
         )}
       </div>
       <div
@@ -465,13 +460,11 @@ export function TaskChat({
 }: Props) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
-  const [showProviderMenu, setShowProviderMenu] = useState(false);
-  const [providerMenuPosition, setProviderMenuPosition] = useState<{ right: number; bottom: number } | null>(null);
+  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const ghostRef = useRef<HTMLTextAreaElement>(null);
   const inputShellRef = useRef<HTMLDivElement>(null);
-  const providerTriggerRef = useRef<HTMLButtonElement>(null);
   const shouldStickToBottomRef = useRef(true);
   const isInputComposingRef = useRef(false);
   const scrollButtonResetTimerRef = useRef<number | null>(null);
@@ -547,44 +540,6 @@ export function TaskChat({
     onSend(input.trim(), currentProvider?.id);
     setInput("");
   };
-
-  const syncProviderMenuPosition = (trigger: HTMLButtonElement | null = providerTriggerRef.current) => {
-    const shell = inputShellRef.current;
-    if (!trigger || !shell || typeof window === "undefined") return;
-    const triggerRect = trigger.getBoundingClientRect();
-    const shellRect = shell.getBoundingClientRect();
-    setProviderMenuPosition({
-      right: Math.max(shellRect.right - triggerRect.right, 0),
-      bottom: Math.max(shellRect.bottom - triggerRect.top + 4, 0),
-    });
-  };
-
-  const closeProviderMenu = () => {
-    setShowProviderMenu(false);
-    setProviderMenuPosition(null);
-  };
-
-  const toggleProviderMenu = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (showProviderMenu) {
-      closeProviderMenu();
-      return;
-    }
-    syncProviderMenuPosition(event.currentTarget);
-    setShowProviderMenu(true);
-  };
-
-  useEffect(() => {
-    if (!showProviderMenu || typeof window === "undefined") return;
-    syncProviderMenuPosition();
-    const handleViewportChange = () => syncProviderMenuPosition();
-    window.addEventListener("resize", handleViewportChange);
-    window.addEventListener("scroll", handleViewportChange, true);
-    return () => {
-      window.removeEventListener("resize", handleViewportChange);
-      window.removeEventListener("scroll", handleViewportChange, true);
-    };
-  }, [showProviderMenu, textareaHeight]);
 
   const handleScroll = () => {
     const container = scrollRef.current;
@@ -843,48 +798,6 @@ export function TaskChat({
         data-task-chat-input-shell="true"
         className="absolute bottom-0 left-0 right-0 z-20"
       >
-        <AnimatePresence>
-          {showProviderMenu && providerMenuPosition && (
-            <>
-              <div
-                data-task-chat-provider-backdrop="true"
-                className={TASK_CHAT_PROVIDER_BACKDROP_CLASS}
-                onClick={closeProviderMenu}
-              />
-              <motion.div
-                data-task-chat-provider-menu="true"
-                initial={TASK_CHAT_PROVIDER_MENU_MOTION.initial}
-                animate={TASK_CHAT_PROVIDER_MENU_MOTION.animate}
-                exit={TASK_CHAT_PROVIDER_MENU_MOTION.exit}
-                transition={TASK_CHAT_PROVIDER_MENU_MOTION.transition}
-                className={TASK_CHAT_PROVIDER_MENU_CLASS}
-                style={{ ...providerMenuPosition, willChange: "transform, opacity" }}
-              >
-                <div className="flex flex-col gap-0.5">
-                  {providers.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        onProviderChange(p.id);
-                        closeProviderMenu();
-                      }}
-                      className={cn(
-                        "apple-dropdown-item",
-                        p.id === currentProvider?.id
-                          ? "apple-dropdown-item-active"
-                          : "text-system-gray-600 dark:text-system-gray-400"
-                      )}
-                    >
-                      <div className="font-bold">{p.name}</div>
-                      <div className={cn("text-[9px] truncate opacity-60", p.id === currentProvider?.id ? "text-white" : "text-system-gray-400")}>{p.model || p.id}</div>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
         <div className="relative m-3 rounded-apple-2xl border border-black/5 bg-white/90 shadow-apple-lg backdrop-blur-apple dark:border-white/10 dark:bg-[#1c1c1e]/85">
           <div
             data-task-chat-input-panel="true"
@@ -892,26 +805,52 @@ export function TaskChat({
           >
             <div className="flex items-center justify-end gap-2 mb-2">
               {/* Provider Selector */}
-              <div className="relative">
-                <button
-                  ref={providerTriggerRef}
+              <WudaoDropdown isOpen={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
+                <WudaoButton
                   data-task-chat-provider-trigger="true"
-                  onClick={toggleProviderMenu}
                   className={TASK_CHAT_PROVIDER_TRIGGER_CLASS}
+                  tone="plain"
                   type="button"
                 >
                   <span className="text-[10px] font-bold text-system-gray-400 uppercase">{currentProvider?.name}</span>
                   <ChevronDown size={12} className="text-system-gray-400" />
-                </button>
-              </div>
+                </WudaoButton>
+                <WudaoDropdownPopover
+                  data-task-chat-provider-menu="true"
+                  className={TASK_CHAT_PROVIDER_MENU_CLASS}
+                  placement="top end"
+                >
+                  <WudaoDropdownMenu
+                    aria-label={t("tasks.model")}
+                    onAction={(key) => {
+                      onProviderChange(String(key));
+                      setProviderMenuOpen(false);
+                    }}
+                  >
+                    {providers.map((p) => (
+                      <WudaoDropdownItem
+                        key={p.id}
+                        id={p.id}
+                        textValue={`${p.name} ${p.model || p.id}`}
+                        isSelected={p.id === currentProvider?.id}
+                        className="flex-col items-stretch justify-start"
+                      >
+                        <div className="font-bold">{p.name}</div>
+                        <div className={cn("text-[9px] truncate opacity-60", p.id === currentProvider?.id ? "text-white" : "text-system-gray-400")}>{p.model || p.id}</div>
+                      </WudaoDropdownItem>
+                    ))}
+                  </WudaoDropdownMenu>
+                </WudaoDropdownPopover>
+              </WudaoDropdown>
 
               <div className="w-[1px] h-4 bg-black/5 dark:bg-white/5 mx-1" />
 
-              <button
-                onClick={onGenerateDocs}
+              <WudaoButton
+                onPress={onGenerateDocs}
                 disabled={generatingDocs || streaming}
+                tone="secondary"
                 className={cn(
-                  "apple-btn-secondary py-1 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5",
+                  "flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
                   agentDoc && "text-apple-green border-apple-green/20"
                 )}
               >
@@ -921,7 +860,7 @@ export function TaskChat({
                   <FileCode size={12} />
                 )}
                 {agentDoc ? t("tasks.update_agents") : t("tasks.generate_agents")}
-              </button>
+              </WudaoButton>
             </div>
 
             <div className="flex items-end gap-2">
@@ -961,26 +900,31 @@ export function TaskChat({
               </div>
               <div className="flex-shrink-0 flex items-center justify-center">
                 {streaming ? (
-                  <button
-                    onClick={onAbort}
+                  <WudaoIconButton
+                    onPress={onAbort}
+                    tone="danger"
                     className="p-2 rounded-apple-lg bg-apple-red text-white hover:bg-apple-red/90 transition-colors shadow-apple-sm h-[38px] w-[38px] flex items-center justify-center"
-                    title={t("common.stop_generation")}
+                    tooltip={t("common.stop_generation")}
+                    aria-label={t("common.stop_generation")}
                   >
                     <StopCircle size={18} />
-                  </button>
+                  </WudaoIconButton>
                 ) : (
-                  <button
-                    onClick={handleSend}
+                  <WudaoIconButton
+                    onPress={handleSend}
                     disabled={!input.trim() || generatingDocs}
+                    tone={input.trim() ? "primary" : "secondary"}
                     className={cn(
                       "p-2 rounded-apple-lg transition-all shadow-apple-sm flex items-center justify-center h-[38px] w-[38px]",
                       input.trim()
                         ? "bg-apple-blue text-white hover:bg-apple-blue/90"
                         : "bg-system-gray-100 dark:bg-system-gray-800 text-system-gray-400"
                     )}
+                    tooltip={t("tasks.agent_chat")}
+                    aria-label={t("tasks.agent_chat")}
                   >
                     <Send size={18} />
-                  </button>
+                  </WudaoIconButton>
                 )}
               </div>
             </div>

@@ -22,8 +22,17 @@ import { cn } from "../../utils/cn";
 import { shouldSubmitOnEnter } from "../../utils/ime";
 import { CalendarPopup } from "./CalendarPopup";
 import { TASK_TYPES } from "./constants";
-import { Dropdown } from "../ui/Dropdown";
-import { useDropdownTrigger } from "../ui/useDropdownTrigger";
+import {
+  WudaoButton,
+  WudaoDropdown,
+  WudaoDropdownItem,
+  WudaoDropdownMenu,
+  WudaoDropdownPopover,
+  WudaoIconButton,
+  WudaoInput,
+  WudaoPopover,
+  WudaoPopoverContent,
+} from "../ui/heroui";
 
 interface Props {
   task: Task;
@@ -64,10 +73,9 @@ export function Header({
   const { t, i18n } = useTranslation();
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(task.title);
-  const typeMenu = useDropdownTrigger();
-  const priorityMenu = useDropdownTrigger();
-  const calendarMenu = useDropdownTrigger();
-  const deleteClickPointRef = useRef({ x: 0, y: 0 });
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
+  const [calendarMenuOpen, setCalendarMenuOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleInputComposingRef = useRef(false);
 
@@ -113,27 +121,30 @@ export function Header({
     <header className="h-14 shrink-0 px-4 flex items-center justify-between gap-4 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-[#1c1c1e] relative">
       {/* Left: Back, Title & Metadata */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
-        <button
-          onClick={onBack}
+        <WudaoButton
+          onPress={onBack}
+          tone="plain"
           className="flex items-center gap-1.5 text-system-gray-400 hover:text-apple-blue transition-colors text-xs font-bold uppercase tracking-wider group shrink-0"
         >
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1" />
-        </button>
+        </WudaoButton>
 
         <div className="h-4 w-[1px] bg-black/5 dark:bg-white/5 shrink-0" />
 
         <div className="relative min-w-0 flex items-center gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <button 
-              onClick={onOpenTaskList}
-              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400 hover:text-apple-blue transition-colors shrink-0"
-              title={t('tasks.task_list')}
+            <WudaoIconButton
+              onPress={onOpenTaskList}
+              tone="ghost"
+              className="h-8 w-8 rounded-lg text-system-gray-400 hover:text-apple-blue"
+              tooltip={t('tasks.task_list')}
+              aria-label={t('tasks.task_list')}
             >
               <LayoutGrid size={18} />
-            </button>
+            </WudaoIconButton>
             
             {editingTitle ? (
-              <input
+              <WudaoInput
                 ref={titleInputRef}
                 value={draftTitle}
                 onChange={(e) => setDraftTitle(e.target.value)}
@@ -152,7 +163,7 @@ export function Header({
                   }
                   if (e.key === "Escape") { setDraftTitle(task.title); setEditingTitle(false); }
                 }}
-                className="bg-white/50 dark:bg-system-gray-800/50 border border-apple-blue/30 rounded-apple px-2 py-0.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-apple-blue/20"
+                className="min-h-0 w-auto bg-white/50 px-2 py-0.5 text-sm font-bold dark:bg-system-gray-800/50"
               />
             ) : (
               <h1 
@@ -166,72 +177,80 @@ export function Header({
           
           <div className="hidden xl:flex items-center gap-2 shrink-0">
             {/* Task Type Selector */}
-            <div className="relative">
-              <button
-                onClick={typeMenu.onTriggerClick}
-                className="flex items-center gap-1.5 h-8 w-24 px-2 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent"
+            <WudaoDropdown isOpen={typeMenuOpen} onOpenChange={setTypeMenuOpen}>
+              <WudaoButton
+                tone="plain"
+                className="flex h-8 min-h-0 w-24 items-center gap-1.5 rounded-apple-lg border border-transparent bg-black/5 px-2 transition-all hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
               >
                 <span className="text-[10px] font-black uppercase tracking-widest text-system-gray-600 dark:text-system-gray-300 truncate flex-1 text-left">
                   {t(`task_types.${task.type}`)}
                 </span>
                 <ChevronDown size={10} className="text-system-gray-400 shrink-0" />
-              </button>
-
-              <Dropdown open={typeMenu.open} onClose={typeMenu.close} anchorPoint={typeMenu.anchorPoint} className="left-0 top-full mt-1 w-24">
-                {TASK_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => { onUpdate({ type }); typeMenu.close(); }}
-                    className={cn(
-                      "apple-dropdown-item font-bold py-1.5 flex items-center justify-between",
-                      task.type === type
-                        ? "apple-dropdown-item-active"
-                        : "text-system-gray-600 dark:text-system-gray-300"
-                    )}
-                  >
-                    <span className="truncate">{t(`task_types.${type}`)}</span>
-                    {task.type === type && <CheckCircle2 size={10} className="shrink-0" />}
-                  </button>
-                ))}
-              </Dropdown>
-            </div>
+              </WudaoButton>
+              <WudaoDropdownPopover className="w-24 min-w-24">
+                <WudaoDropdownMenu
+                  aria-label={t("tasks.type")}
+                  onAction={(key) => {
+                    onUpdate({ type: String(key) });
+                    setTypeMenuOpen(false);
+                  }}
+                >
+                  {TASK_TYPES.map((type) => (
+                    <WudaoDropdownItem
+                      key={type}
+                      id={type}
+                      textValue={t(`task_types.${type}`)}
+                      isSelected={task.type === type}
+                      className="justify-between py-1.5 font-bold"
+                    >
+                      <span className="truncate">{t(`task_types.${type}`)}</span>
+                      {task.type === type && <CheckCircle2 size={10} className="shrink-0" />}
+                    </WudaoDropdownItem>
+                  ))}
+                </WudaoDropdownMenu>
+              </WudaoDropdownPopover>
+            </WudaoDropdown>
 
             {/* Priority Selector */}
-            <div className="relative">
-              <button
-                onClick={priorityMenu.onTriggerClick}
-                className="flex items-center gap-1.5 h-8 w-20 px-2 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent"
+            <WudaoDropdown isOpen={priorityMenuOpen} onOpenChange={setPriorityMenuOpen}>
+              <WudaoButton
+                tone="plain"
+                className="flex h-8 min-h-0 w-20 items-center gap-1.5 rounded-apple-lg border border-transparent bg-black/5 px-2 transition-all hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
               >
                 <TrendingUp size={12} className={cn("shrink-0", getPriorityColor(currentPriority))} />
                 <span className="text-[10px] font-black uppercase tracking-widest text-system-gray-600 dark:text-system-gray-300 flex-1 text-left">P{currentPriority}</span>
                 <ChevronDown size={10} className="text-system-gray-400 shrink-0" />
-              </button>
-
-              <Dropdown open={priorityMenu.open} onClose={priorityMenu.close} anchorPoint={priorityMenu.anchorPoint} className="left-0 top-full mt-1 w-20">
-                {priorities.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => { onUpdate({ priority: p }); priorityMenu.close(); }}
-                    className={cn(
-                      "apple-dropdown-item font-bold py-1.5 flex items-center justify-between",
-                      task.priority === p
-                        ? "apple-dropdown-item-active"
-                        : "text-system-gray-600 dark:text-system-gray-300"
-                    )}
-                  >
-                    <span className={cn(task.priority !== p && getPriorityColor(p))}>P{p}</span>
-                    {task.priority === p && <CheckCircle2 size={10} className="shrink-0" />}
-                  </button>
-                ))}
-              </Dropdown>
-            </div>
+              </WudaoButton>
+              <WudaoDropdownPopover className="w-20 min-w-20">
+                <WudaoDropdownMenu
+                  aria-label={t("tasks.priority")}
+                  onAction={(key) => {
+                    onUpdate({ priority: Number(key) });
+                    setPriorityMenuOpen(false);
+                  }}
+                >
+                  {priorities.map((p) => (
+                    <WudaoDropdownItem
+                      key={p}
+                      id={String(p)}
+                      textValue={`P${p}`}
+                      isSelected={task.priority === p}
+                      className="justify-between py-1.5 font-bold"
+                    >
+                      <span className={cn(task.priority !== p && getPriorityColor(p))}>P{p}</span>
+                      {task.priority === p && <CheckCircle2 size={10} className="shrink-0" />}
+                    </WudaoDropdownItem>
+                  ))}
+                </WudaoDropdownMenu>
+              </WudaoDropdownPopover>
+            </WudaoDropdown>
 
             {/* Due Date Selector */}
-            <div className="relative">
-              <button
-                onClick={calendarMenu.onTriggerClick}
+            <WudaoPopover isOpen={calendarMenuOpen} onOpenChange={setCalendarMenuOpen}>
+              <WudaoButton
+                tone="plain"
                 className={cn(
-                  "flex items-center gap-1.5 h-8 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent",
+                  "flex h-8 min-h-0 items-center gap-1.5 rounded-apple-lg border border-transparent bg-black/5 transition-all hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10",
                   task.due_at ? "w-32 px-2" : "w-8 justify-center"
                 )}
                 title={!task.due_at ? t('tasks.due_date') : undefined}
@@ -245,104 +264,124 @@ export function Header({
                     <ChevronDown size={10} className="text-system-gray-400 shrink-0" />
                   </>
                 )}
-              </button>
+              </WudaoButton>
 
-              <Dropdown open={calendarMenu.open} onClose={calendarMenu.close} anchorPoint={calendarMenu.anchorPoint} className="left-1/2 top-full mt-1">
+              <WudaoPopoverContent placement="bottom" className="p-0">
                 <CalendarPopup
                   selectedDate={task.due_at ? new Date(task.due_at) : null}
-                  onChange={(date) => { onUpdate({ due_at: date ? date.toISOString() : null }); calendarMenu.close(); }}
-                  onClose={calendarMenu.close}
+                  onChange={(date) => { onUpdate({ due_at: date ? date.toISOString() : null }); setCalendarMenuOpen(false); }}
+                  onClose={() => setCalendarMenuOpen(false)}
                 />
-              </Dropdown>
-            </div>
+              </WudaoPopoverContent>
+            </WudaoPopover>
           </div>
         </div>
       </div>
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1 shrink-0">
-        <button
-          onClick={onToggleTerminal}
+        <WudaoIconButton
+          onPress={onToggleTerminal}
+          tone="ghost"
           className={cn(
-            "p-2 rounded-full transition-colors",
+            "rounded-full transition-colors",
             terminalOpen 
               ? "bg-apple-blue/10 text-apple-blue" 
               : "hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400"
           )}
-          title={t('tasks.terminal')}
+          tooltip={t('tasks.terminal')}
+          aria-label={t('tasks.terminal')}
         >
           <TerminalSquare size={16} />
-        </button>
+        </WudaoIconButton>
 
-        <button
-          onClick={onToggleSdkRunner}
+        <WudaoIconButton
+          onPress={onToggleSdkRunner}
+          tone="ghost"
           className={cn(
-            "p-2 rounded-full transition-colors",
+            "rounded-full transition-colors",
             sdkRunnerOpen
               ? "bg-apple-blue/10 text-apple-blue"
               : "hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400"
           )}
-          title={t('sdkRunner.title')}
+          tooltip={t('sdkRunner.title')}
+          aria-label={t('sdkRunner.title')}
         >
           <Zap size={16} />
-        </button>
+        </WudaoIconButton>
 
-        <button
-          onClick={onToggleArtifacts}
+        <WudaoIconButton
+          onPress={onToggleArtifacts}
+          tone="ghost"
           className={cn(
-            "p-2 rounded-full transition-colors",
+            "rounded-full transition-colors",
             artifactsOpen 
               ? "bg-apple-blue/10 text-apple-blue" 
               : "hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400"
           )}
-          title={t('tasks.artifacts')}
+          tooltip={t('tasks.artifacts')}
+          aria-label={t('tasks.artifacts')}
         >
           <Box size={16} />
-        </button>
+        </WudaoIconButton>
 
-        <button
-          onClick={() => tasksApi.openWorkspace(task.id)}
-          className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400 transition-colors"
-          title={t('tasks.open_workspace')}
+        <WudaoIconButton
+          onPress={() => void tasksApi.openWorkspace(task.id)}
+          tone="ghost"
+          className="rounded-full text-system-gray-400"
+          tooltip={t('tasks.open_workspace')}
+          aria-label={t('tasks.open_workspace')}
         >
           <FolderOpen size={16} />
-        </button>
+        </WudaoIconButton>
 
         <div className="w-[1px] h-4 bg-black/5 dark:bg-white/5 mx-1" />
 
-        <button
-          onClick={onToggleStatus}
+        <WudaoIconButton
+          onPress={onToggleStatus}
+          tone="ghost"
           className={cn(
-            "p-2 rounded-full transition-all",
+            "rounded-full transition-all",
             task.status === "done" 
               ? "text-apple-green hover:bg-apple-green/10" 
               : "text-system-gray-400 hover:text-apple-blue hover:bg-black/5 dark:hover:bg-white/5"
           )}
-          title={task.status === "done" ? t('tasks.resume') : t('tasks.complete')}
+          tooltip={task.status === "done" ? t('tasks.resume') : t('tasks.complete')}
+          aria-label={task.status === "done" ? t('tasks.resume') : t('tasks.complete')}
         >
           {task.status === "done" ? <RotateCcw size={18} /> : <CheckCircle2 size={18} />}
-        </button>
+        </WudaoIconButton>
 
         <div className="relative">
-          <button
-            onClick={(e) => {
-              deleteClickPointRef.current = { x: e.clientX, y: e.clientY };
-              onDeleteClick();
+          <WudaoPopover
+            isOpen={showDeleteConfirm}
+            onOpenChange={(open) => {
+              if (open) {
+                onDeleteClick();
+              } else {
+                onDeleteCancel();
+              }
             }}
-            className="p-2 rounded-full hover:bg-apple-red/10 text-system-gray-400 hover:text-apple-red transition-colors"
-            title={t('common.delete')}
           >
-            <Trash2 size={16} />
-          </button>
+            <WudaoButton
+              isIconOnly
+              title={t('common.delete')}
+              tone="ghost"
+              className="p-2 rounded-full hover:bg-apple-red/10 text-system-gray-400 hover:text-apple-red transition-colors"
+              aria-label={t('common.delete')}
+            >
+              <Trash2 size={16} />
+            </WudaoButton>
 
-          <Dropdown open={showDeleteConfirm} onClose={onDeleteCancel} anchorPoint={deleteClickPointRef.current} className="right-0 top-full mt-2 p-4 w-64 text-center">
-            <AlertCircle size={32} className="text-apple-red mx-auto mb-2" />
-            <p className="text-sm font-bold mb-4">{t('tasks.delete_confirm')}</p>
-            <div className="flex gap-2">
-              <button onClick={onDeleteCancel} className="apple-dropdown-item bg-black/5 dark:bg-white/5 py-1.5 justify-center">{t('common.cancel')}</button>
-              <button onClick={onDeleteConfirm} className="apple-dropdown-item apple-dropdown-item-active py-1.5 justify-center">{t('common.delete')}</button>
-            </div>
-          </Dropdown>
+            <WudaoPopoverContent className="w-64 p-4 text-center">
+              <AlertCircle size={32} className="text-apple-red mx-auto mb-2" />
+              <p className="text-sm font-bold mb-4">{t('tasks.delete_confirm')}</p>
+              <div className="flex gap-2">
+                <WudaoButton onPress={onDeleteCancel} tone="secondary" className="flex-1 justify-center py-1.5 text-xs">{t('common.cancel')}</WudaoButton>
+                <WudaoButton onPress={onDeleteConfirm} tone="danger" className="flex-1 justify-center py-1.5 text-xs">{t('common.delete')}</WudaoButton>
+              </div>
+            </WudaoPopoverContent>
+          </WudaoPopover>
         </div>
       </div>
     </header>

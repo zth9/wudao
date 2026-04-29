@@ -30,7 +30,6 @@ vi.mock("../../stores/settingsStore", () => ({
 }));
 
 import {
-  TASK_CHAT_PROVIDER_BACKDROP_CLASS,
   TASK_CHAT_PROVIDER_MENU_CLASS,
   TASK_CHAT_PROVIDER_TRIGGER_CLASS,
   TaskChat,
@@ -100,9 +99,7 @@ describe("TaskChat", () => {
     expect(html).toContain("flex-1 rounded-apple-xl border border-black/5 bg-white/60");
     expect(html).toContain('data-task-chat-provider-trigger="true"');
     expect(html).toContain(TASK_CHAT_PROVIDER_TRIGGER_CLASS);
-    expect(TASK_CHAT_PROVIDER_MENU_CLASS).toContain("absolute");
-    expect(TASK_CHAT_PROVIDER_MENU_CLASS).toContain("apple-dropdown");
-    expect(TASK_CHAT_PROVIDER_BACKDROP_CLASS).toContain("fixed inset-0");
+    expect(TASK_CHAT_PROVIDER_MENU_CLASS).toContain("w-48");
   });
 
   it("将工具调用与工具结果合并为一个默认收起的卡片", () => {

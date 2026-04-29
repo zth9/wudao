@@ -9,6 +9,7 @@ import {
   type WudaoUserMemorySaveResult,
 } from "../services/api";
 import { cn } from "../utils/cn";
+import { WudaoButton, WudaoCard, WudaoTextArea } from "./ui/heroui";
 
 type MemoryModule = "user" | "agent";
 
@@ -147,13 +148,14 @@ export default function MemoriesView() {
           <h1 className="text-3xl font-extrabold tracking-tight">{t("memories.title")}</h1>
           <p className="mt-2 text-sm text-system-gray-500 dark:text-system-gray-300 max-w-3xl">{t("memories.subtitle")}</p>
         </div>
-        <button
-          onClick={() => void refreshAll(true)}
-          className="inline-flex items-center gap-2 rounded-apple-xl bg-apple-blue px-4 py-2 text-sm font-semibold text-white shadow-apple-sm transition-opacity hover:opacity-90"
+        <WudaoButton
+          onPress={() => void refreshAll(true)}
+          tone="primary"
+          className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold shadow-apple-sm"
         >
           <RefreshCw size={16} className={cn(refreshing && "animate-spin")} />
           <span>{refreshing ? t("memories.refreshing") : t("common.refresh")}</span>
-        </button>
+        </WudaoButton>
       </header>
 
       <div className="flex-1 min-h-0 px-8 pb-8">
@@ -163,25 +165,24 @@ export default function MemoriesView() {
               const active = activeModule === option.key;
               const Icon = option.icon;
               return (
-                <button
+                <WudaoButton
                   key={option.key}
-                  onClick={() => setActiveModule(option.key)}
+                  onPress={() => setActiveModule(option.key)}
+                  tone={active ? "primary" : "secondary"}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors",
-                    active
-                      ? "bg-apple-blue text-white"
-                      : "bg-black/5 text-system-gray-500 hover:text-apple-blue dark:bg-white/5 dark:text-system-gray-300",
+                    !active && "bg-black/5 text-system-gray-500 hover:text-apple-blue dark:bg-white/5 dark:text-system-gray-300",
                   )}
                 >
                   <Icon size={14} />
                   <span>{option.label}</span>
-                </button>
+                </WudaoButton>
               );
             })}
           </section>
 
           {activeModule === "user" && (
-            <section className="apple-card flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+            <WudaoCard className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
               <div className="flex shrink-0 items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -191,29 +192,32 @@ export default function MemoriesView() {
                   <p className="mt-2 text-sm text-system-gray-500 dark:text-system-gray-300 max-w-3xl">{t("memories.user_memory_desc")}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                  <button
-                    onClick={() => void handleOpenPath("user", userMemoryPath)}
+                  <WudaoButton
+                    onPress={() => void handleOpenPath("user", userMemoryPath)}
                     disabled={!userMemoryPath}
-                    className="inline-flex items-center gap-2 rounded-apple-xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-system-gray-600 dark:text-system-gray-200 transition-colors hover:text-apple-blue disabled:opacity-50"
+                    tone="secondary"
+                    className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold text-system-gray-600 hover:text-apple-blue dark:text-system-gray-200"
                   >
                     <FolderOpen size={16} />
                     <span>{t("memories.open_file")}</span>
-                  </button>
-                  <button
-                    onClick={() => setUserMemory("")}
+                  </WudaoButton>
+                  <WudaoButton
+                    onPress={() => setUserMemory("")}
                     disabled={userMemorySaving}
-                    className="inline-flex items-center gap-2 rounded-apple-xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-system-gray-600 dark:text-system-gray-200 transition-colors hover:text-apple-blue disabled:opacity-50"
+                    tone="secondary"
+                    className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold text-system-gray-600 hover:text-apple-blue dark:text-system-gray-200"
                   >
                     <span>{t("memories.clear_user_memory")}</span>
-                  </button>
-                  <button
-                    onClick={() => void handleSaveUserMemory()}
+                  </WudaoButton>
+                  <WudaoButton
+                    onPress={() => void handleSaveUserMemory()}
                     disabled={userMemorySaving || userMemoryLoading}
-                    className="inline-flex items-center gap-2 rounded-apple-xl bg-apple-blue px-4 py-2 text-sm font-semibold text-white shadow-apple-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                    tone="primary"
+                    className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold shadow-apple-sm"
                   >
                     {userMemorySaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                     <span>{userMemorySaving ? t("memories.saving_user_memory") : t("memories.save_user_memory")}</span>
-                  </button>
+                  </WudaoButton>
                 </div>
               </div>
 
@@ -228,7 +232,7 @@ export default function MemoriesView() {
                 </div>
               ) : (
                 <div className="mt-4 flex flex-1 min-h-0 flex-col gap-4">
-                  <textarea
+                  <WudaoTextArea
                     value={userMemory}
                     onChange={(e) => setUserMemory(e.target.value)}
                     placeholder={t("memories.user_memory_placeholder")}
@@ -248,11 +252,11 @@ export default function MemoriesView() {
                   {userMemoryWarning}
                 </div>
               )}
-            </section>
+            </WudaoCard>
           )}
 
           {activeModule === "agent" && (
-            <section className="apple-card flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+            <WudaoCard className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
               <div className="flex shrink-0 items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -262,29 +266,32 @@ export default function MemoriesView() {
                   <p className="mt-2 text-sm text-system-gray-500 dark:text-system-gray-300 max-w-3xl">{t("memories.agent_memory_desc")}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                  <button
-                    onClick={() => void handleOpenPath("agent", agentMemoryPath)}
+                  <WudaoButton
+                    onPress={() => void handleOpenPath("agent", agentMemoryPath)}
                     disabled={!agentMemoryPath}
-                    className="inline-flex items-center gap-2 rounded-apple-xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-system-gray-600 dark:text-system-gray-200 transition-colors hover:text-apple-blue disabled:opacity-50"
+                    tone="secondary"
+                    className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold text-system-gray-600 hover:text-apple-blue dark:text-system-gray-200"
                   >
                     <FolderOpen size={16} />
                     <span>{t("memories.open_file")}</span>
-                  </button>
-                  <button
-                    onClick={() => setAgentMemory("")}
+                  </WudaoButton>
+                  <WudaoButton
+                    onPress={() => setAgentMemory("")}
                     disabled={agentMemorySaving}
-                    className="inline-flex items-center gap-2 rounded-apple-xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-system-gray-600 dark:text-system-gray-200 transition-colors hover:text-apple-blue disabled:opacity-50"
+                    tone="secondary"
+                    className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold text-system-gray-600 hover:text-apple-blue dark:text-system-gray-200"
                   >
                     <span>{t("memories.clear_agent_memory")}</span>
-                  </button>
-                  <button
-                    onClick={() => void handleSaveAgentMemory()}
+                  </WudaoButton>
+                  <WudaoButton
+                    onPress={() => void handleSaveAgentMemory()}
                     disabled={agentMemorySaving || agentMemoryLoading}
-                    className="inline-flex items-center gap-2 rounded-apple-xl bg-apple-blue px-4 py-2 text-sm font-semibold text-white shadow-apple-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                    tone="primary"
+                    className="inline-flex items-center gap-2 rounded-apple-xl px-4 py-2 text-sm font-semibold shadow-apple-sm"
                   >
                     {agentMemorySaving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                     <span>{agentMemorySaving ? t("memories.saving_agent_memory") : t("memories.save_agent_memory")}</span>
-                  </button>
+                  </WudaoButton>
                 </div>
               </div>
 
@@ -299,7 +306,7 @@ export default function MemoriesView() {
                 </div>
               ) : (
                 <div className="mt-4 flex flex-1 min-h-0 flex-col gap-4">
-                  <textarea
+                  <WudaoTextArea
                     value={agentMemory}
                     onChange={(e) => setAgentMemory(e.target.value)}
                     placeholder={t("memories.agent_memory_placeholder")}
@@ -319,7 +326,7 @@ export default function MemoriesView() {
                   {agentMemoryWarning}
                 </div>
               )}
-            </section>
+            </WudaoCard>
           )}
         </div>
       </div>

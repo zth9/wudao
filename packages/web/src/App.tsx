@@ -23,8 +23,7 @@ import {
   type ViewKey,
 } from "./app-route";
 import { LoadingIndicator } from "./components/LoadingIndicator";
-import { Dropdown } from "./components/ui/Dropdown";
-import { useDropdownTrigger } from "./components/ui/useDropdownTrigger";
+import { WudaoButton, WudaoDropdown, WudaoDropdownItem, WudaoDropdownMenu, WudaoDropdownPopover } from "./components/ui/heroui";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 const DashboardView = lazy(() => import("./components/DashboardView"));
@@ -44,8 +43,8 @@ function ViewFallback() {
 function AppInner() {
   const { t, i18n } = useTranslation();
   const [route, setRoute] = useState<AppRoute>(() => parseAppRoute(window.location.search));
-  const langMenu = useDropdownTrigger();
-  const themeMenu = useDropdownTrigger();
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const lastTaskIdRef = useRef<string | null>(route.taskId);
   const fetchProviders = useSettingsStore((s) => s.fetch);
   const { theme, setTheme, user } = useSettingsStore();
@@ -155,9 +154,10 @@ function AppInner() {
             const Icon = item.icon;
             const isActive = activeView === item.key;
             return (
-              <button
+              <WudaoButton
                 key={item.key}
-                onClick={() => handleViewChange(item.key)}
+                onPress={() => handleViewChange(item.key)}
+                tone="plain"
                 className={cn(
                   "flex items-center gap-2 px-4 py-1.5 rounded-apple-lg transition-colors duration-200 group relative",
                   isActive
@@ -174,75 +174,101 @@ function AppInner() {
                     transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
                   />
                 )}
-              </button>
+              </WudaoButton>
             );
           })}
         </nav>
 
         <div className="flex items-center gap-4">
           {/* Language Switcher */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={(e) => { langMenu.onTriggerClick(e); themeMenu.close(); }}
+          <WudaoDropdown
+            isOpen={langMenuOpen}
+            onOpenChange={(open) => {
+              setLangMenuOpen(open);
+              if (open) setThemeMenuOpen(false);
+            }}
+          >
+            <WudaoButton
+              aria-label={i18n.language.startsWith("zh") ? t("common.switch_to_english") : t("common.switch_to_chinese")}
+              title={i18n.language.startsWith("zh") ? t("common.switch_to_english") : t("common.switch_to_chinese")}
+              tone="ghost"
+              isIconOnly
               className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors text-xs font-bold"
             >
               {i18n.language.startsWith("zh") ? "中" : "En"}
-            </button>
-
-            <Dropdown open={langMenu.open} onClose={langMenu.close} anchorPoint={langMenu.anchorPoint} className="right-0 top-full mt-1 w-9">
-              {languageItems.map((item) => {
-                const isActive = i18n.language.startsWith(item.key);
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => { void i18n.changeLanguage(item.key); langMenu.close(); }}
-                    className={cn(
-                      "apple-dropdown-item font-bold py-1.5 flex items-center justify-center",
-                      isActive
-                        ? "apple-dropdown-item-active"
-                        : "text-system-gray-600 dark:text-system-gray-300",
-                    )}
-                  >
-                    <span className="text-xs">{item.key === "zh" ? "中" : "EN"}</span>
-                  </button>
-                );
-              })}
-            </Dropdown>
-          </div>
+            </WudaoButton>
+            <WudaoDropdownPopover className="min-w-9 w-9">
+              <WudaoDropdownMenu
+                aria-label={i18n.language.startsWith("zh") ? t("common.switch_to_english") : t("common.switch_to_chinese")}
+                onAction={(key) => {
+                  void i18n.changeLanguage(String(key));
+                  setLangMenuOpen(false);
+                }}
+              >
+                {languageItems.map((item) => {
+                  const isActive = i18n.language.startsWith(item.key);
+                  return (
+                    <WudaoDropdownItem
+                      key={item.key}
+                      id={item.key}
+                      textValue={item.label}
+                      isSelected={isActive}
+                      className="justify-center px-1.5 py-1.5 font-bold"
+                    >
+                      <span className="text-xs">{item.key === "zh" ? "中" : "EN"}</span>
+                    </WudaoDropdownItem>
+                  );
+                })}
+              </WudaoDropdownMenu>
+            </WudaoDropdownPopover>
+          </WudaoDropdown>
 
           {/* Theme Switcher */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={(e) => { themeMenu.onTriggerClick(e); langMenu.close(); }}
+          <WudaoDropdown
+            isOpen={themeMenuOpen}
+            onOpenChange={(open) => {
+              setThemeMenuOpen(open);
+              if (open) setLangMenuOpen(false);
+            }}
+          >
+            <WudaoButton
+              aria-label={themeItems.find((item) => item.key === theme)?.label ?? t("theme.auto")}
+              title={themeItems.find((item) => item.key === theme)?.label ?? t("theme.auto")}
+              tone="ghost"
+              isIconOnly
               className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors"
             >
               {(() => {
                 const Icon = currentThemeIcon;
                 return <Icon size={16} />;
               })()}
-            </button>
-
-            <Dropdown open={themeMenu.open} onClose={themeMenu.close} anchorPoint={themeMenu.anchorPoint} className="right-0 top-full mt-1 w-9">
-              {themeItems.map((item) => {
-                const isActive = theme === item.key;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => { setTheme(item.key as typeof theme); themeMenu.close(); }}
-                    className={cn(
-                      "apple-dropdown-item font-bold p-1.5 flex items-center justify-center",
-                      isActive
-                        ? "apple-dropdown-item-active"
-                        : "text-system-gray-600 dark:text-system-gray-300",
-                    )}
-                  >
-                    <Icon size={18} className={isActive ? "text-white" : ""} />
-                  </button>
-                );
-              })}
-            </Dropdown>
-          </div>
+            </WudaoButton>
+            <WudaoDropdownPopover className="min-w-9 w-9">
+              <WudaoDropdownMenu
+                aria-label={t("theme.auto")}
+                onAction={(key) => {
+                  setTheme(key as typeof theme);
+                  setThemeMenuOpen(false);
+                }}
+              >
+                {themeItems.map((item) => {
+                  const isActive = theme === item.key;
+                  const Icon = item.icon;
+                  return (
+                    <WudaoDropdownItem
+                      key={item.key}
+                      id={item.key}
+                      textValue={item.label}
+                      isSelected={isActive}
+                      className="justify-center p-1.5 font-bold"
+                    >
+                      <Icon size={18} className={isActive ? "text-white" : ""} />
+                    </WudaoDropdownItem>
+                  );
+                })}
+              </WudaoDropdownMenu>
+            </WudaoDropdownPopover>
+          </WudaoDropdown>
 
           <div className="flex items-center gap-3 px-2 border-l border-black/5 dark:border-white/10 ml-2 pl-6">
             <div className="text-right hidden sm:block">

@@ -17,6 +17,7 @@ import {
 import { cn } from "../utils/cn";
 import { type ViewKey } from "../app-route";
 import { LoadingIndicator } from "./LoadingIndicator";
+import { WudaoCard, WudaoIconButton, WudaoButton } from "./ui/heroui";
 
 interface Props {
   onNavigate: (view: ViewKey) => void;
@@ -149,14 +150,16 @@ export default function DashboardView({ onNavigate }: Props) {
           <p className="text-[10px] font-bold uppercase tracking-widest text-system-gray-400 dark:text-system-gray-300 hidden sm:block">
             {t("dashboard.auto_refresh_in", { seconds: nextRefreshSeconds })}
           </p>
-          <button
-            onClick={() => void refreshDashboard()}
+          <WudaoIconButton
+            onPress={() => void refreshDashboard()}
             disabled={refreshBusy}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400 dark:text-system-gray-300 transition-all active:rotate-180 duration-500"
-            title={t("dashboard.refresh_dashboard")}
+            tone="ghost"
+            className="text-system-gray-400 duration-500 active:rotate-180 dark:text-system-gray-300"
+            tooltip={t("dashboard.refresh_dashboard")}
+            aria-label={t("dashboard.refresh_dashboard")}
           >
             <RefreshCw size={18} className={cn(refreshBusy && "animate-spin")} />
-          </button>
+          </WudaoIconButton>
         </div>
       </header>
 
@@ -169,10 +172,11 @@ export default function DashboardView({ onNavigate }: Props) {
               </div>
             ) : (
               stats.map((stat) => (
-                <button
+                <WudaoButton
                   key={stat.id}
-                  onClick={() => onNavigate("tasks")}
-                  className="apple-card p-5 group transition-all text-left w-full"
+                  onPress={() => onNavigate("tasks")}
+                  tone="plain"
+                  className="group w-full rounded-apple-xl border border-black/5 bg-white p-5 text-left shadow-apple-card transition-all dark:border-white/10 dark:bg-system-gray-800 dark:shadow-none"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className={cn("p-2 rounded-apple-lg", stat.bg)}>
@@ -182,13 +186,13 @@ export default function DashboardView({ onNavigate }: Props) {
                   </div>
                   <p className="text-[11px] font-bold text-system-gray-400 dark:text-system-gray-300 uppercase tracking-widest">{stat.label}</p>
                   <p className="text-3xl font-black mt-1 tracking-tight">{stat.value}</p>
-                </button>
+                </WudaoButton>
               ))
             )}
           </div>
 
           <div className="space-y-8">
-            <section className="apple-card p-6 min-h-[400px]">
+            <WudaoCard className="min-h-[400px] p-6">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
                   <TrendingUp size={18} className="text-apple-purple" />
@@ -203,9 +207,9 @@ export default function DashboardView({ onNavigate }: Props) {
               ) : usageData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {usageData.map((usage) => (
-                    <div
+                    <WudaoCard
                       key={usage.provider}
-                      className="p-5 rounded-apple-2xl bg-system-gray-50 dark:bg-white/5 border border-black/5 dark:border-white/10 relative overflow-hidden group flex flex-col"
+                      className="relative flex flex-col overflow-hidden rounded-apple-2xl bg-system-gray-50 p-5 shadow-none dark:bg-white/5"
                     >
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
@@ -267,15 +271,16 @@ export default function DashboardView({ onNavigate }: Props) {
                         <div className="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center">
                           <AlertCircle size={32} className="text-apple-red mb-2" />
                           <p className="text-xs font-bold text-apple-red px-4 leading-tight">{usage.error || t("dashboard.auth_failed")}</p>
-                          <button
-                            onClick={() => onNavigate("settings")}
-                            className="mt-4 text-[10px] font-black text-apple-blue uppercase tracking-widest hover:underline"
+                          <WudaoButton
+                            onPress={() => onNavigate("settings")}
+                            tone="plain"
+                            className="mt-4 h-auto p-0 text-[10px] font-black uppercase tracking-widest text-apple-blue hover:underline"
                           >
                             {t("dashboard.fix_in_settings")}
-                          </button>
+                          </WudaoButton>
                         </div>
                       )}
-                    </div>
+                    </WudaoCard>
                   ))}
                 </div>
               ) : (
@@ -290,7 +295,7 @@ export default function DashboardView({ onNavigate }: Props) {
                   )}
                 </div>
               )}
-            </section>
+            </WudaoCard>
 
           </div>
         </div>

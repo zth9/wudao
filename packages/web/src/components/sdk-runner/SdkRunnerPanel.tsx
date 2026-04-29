@@ -6,6 +6,7 @@ import { cn } from "../../utils/cn";
 import { shortSdkRunId } from "../../utils/sdk-runner";
 import MarkdownContent from "../MarkdownContent";
 import { TaskWorkspaceDrawerShell } from "../TaskWorkspaceDrawerShell";
+import { WudaoButton, WudaoChip } from "../ui/heroui";
 
 function formatRunTimestamp(value: string): string {
   if (!value) {
@@ -49,9 +50,9 @@ function SdkHeaderActions({ taskId }: { taskId: string }) {
   return (
     <>
       {activeSdkRunId && (
-        <span className="rounded-full border border-black/5 bg-black/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-system-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-system-gray-300">
+        <WudaoChip className="border-black/5 bg-black/5 px-2 py-0.5 text-system-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-system-gray-300">
           {shortSdkRunId(activeSdkRunId)}
-        </span>
+        </WudaoChip>
       )}
       {sdkRunning && (
         <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-green-500">
@@ -65,12 +66,13 @@ function SdkHeaderActions({ taskId }: { taskId: string }) {
         </span>
       )}
       {activeRun && (activeRun.status === "pending" || activeRun.status === "running") && (
-        <button
-          onClick={() => cancelSdkRun(taskId, activeRun.id)}
-          className="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-400 transition-colors hover:bg-red-400/15"
+        <WudaoButton
+          onPress={() => cancelSdkRun(taskId, activeRun.id)}
+          tone="danger"
+          className="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-400 hover:bg-red-400/15"
         >
           {t("sdkRunner.cancel")}
-        </button>
+        </WudaoButton>
       )}
     </>
   );
@@ -94,11 +96,12 @@ function SdkRunHistory({ taskId }: { taskId: string }) {
         {sdkRuns.map((run) => {
           const selected = run.id === activeSdkRunId;
           return (
-            <button
+            <WudaoButton
               key={run.id}
               type="button"
               data-sdk-run-item={run.id}
-              onClick={() => selectSdkRun(taskId, run.id)}
+              onPress={() => selectSdkRun(taskId, run.id)}
+              tone="plain"
               className={cn(
                 "w-full rounded-apple-xl border px-3 py-2 text-left transition-colors",
                 selected
@@ -110,7 +113,7 @@ function SdkRunHistory({ taskId }: { taskId: string }) {
                 <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-system-gray-500 dark:text-system-gray-300">
                   {shortSdkRunId(run.id)}
                 </span>
-                <span className={cn(
+                <WudaoChip className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]",
                   run.status === "running" || run.status === "pending"
                     ? "bg-green-500/10 text-green-400"
@@ -121,7 +124,7 @@ function SdkRunHistory({ taskId }: { taskId: string }) {
                         : "bg-black/5 text-system-gray-500 dark:bg-white/5 dark:text-system-gray-300",
                 )}>
                   {resolveRunStatusLabel(run.status, t)}
-                </span>
+                </WudaoChip>
                 <span className="ml-auto text-[10px] text-system-gray-400">
                   {formatRunTimestamp(run.created_at)}
                 </span>
@@ -129,7 +132,7 @@ function SdkRunHistory({ taskId }: { taskId: string }) {
               <div className="mt-2 text-[12px] leading-relaxed text-system-gray-700 dark:text-system-gray-100 overflow-hidden text-ellipsis whitespace-nowrap">
                 {run.prompt || t("sdkRunner.noPrompt")}
               </div>
-            </button>
+            </WudaoButton>
           );
         })}
       </div>
@@ -143,14 +146,15 @@ function SdkToolCard({ item }: { item: SdkTimelineItem & { kind: "tool_use" } })
 
   return (
     <div className="rounded-lg border border-white/10 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
+      <WudaoButton
+        onPress={() => setExpanded(!expanded)}
+        tone="plain"
         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors"
       >
         <span className="text-blue-400">⚡</span>
         <span className="font-medium">{t("sdkRunner.toolUse")}: {item.toolName}</span>
         <span className="ml-auto opacity-40">{expanded ? "▼" : "▶"}</span>
-      </button>
+      </WudaoButton>
       {expanded && (
         <pre className="px-3 py-2 text-xs opacity-70 border-t border-white/5 overflow-x-auto max-h-40">
           {JSON.stringify(item.input, null, 2)}
@@ -166,14 +170,15 @@ function SdkToolResultCard({ item }: { item: SdkTimelineItem & { kind: "tool_res
 
   return (
     <div className={`rounded-lg border overflow-hidden ${item.isError ? "border-red-400/30" : "border-white/10"}`}>
-      <button
-        onClick={() => setExpanded(!expanded)}
+      <WudaoButton
+        onPress={() => setExpanded(!expanded)}
+        tone="plain"
         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors"
       >
         <span className={item.isError ? "text-red-400" : "text-green-400"}>{item.isError ? "✗" : "✓"}</span>
         <span className="font-medium">{t("sdkRunner.toolResult")}</span>
         <span className="ml-auto opacity-40">{expanded ? "▼" : "▶"}</span>
-      </button>
+      </WudaoButton>
       <div className={`px-3 py-2 text-xs opacity-70 border-t border-white/5 ${expanded ? "" : "max-h-24 overflow-hidden"}`}>
         <MarkdownContent content={item.content} className="text-[13px] leading-6" />
       </div>
@@ -216,18 +221,20 @@ function SdkApprovalCard({
       </pre>
       {isPending && activeSdkRunId && (
         <div className="flex gap-2 px-3 py-2 border-t border-orange-400/20">
-          <button
-            onClick={() => approveSdkAction(taskId, activeSdkRunId, item.approvalId, true)}
+          <WudaoButton
+            onPress={() => approveSdkAction(taskId, activeSdkRunId, item.approvalId, true)}
+            tone="secondary"
             className="flex-1 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs font-medium hover:bg-green-500/30 transition-colors"
           >
             {t("sdkRunner.approve")}
-          </button>
-          <button
-            onClick={() => approveSdkAction(taskId, activeSdkRunId, item.approvalId, false)}
+          </WudaoButton>
+          <WudaoButton
+            onPress={() => approveSdkAction(taskId, activeSdkRunId, item.approvalId, false)}
+            tone="danger"
             className="flex-1 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-colors"
           >
             {t("sdkRunner.deny")}
-          </button>
+          </WudaoButton>
         </div>
       )}
     </div>

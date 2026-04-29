@@ -35,6 +35,8 @@
     "refresh": "Refresh",
     "launch": "Launch",
     "rename": "Rename",
+    "move_up": "Move up",
+    "move_down": "Move down",
     "user": "User",
     "avatar": "Avatar",
     "stop_generation": "Stop generation",
@@ -127,7 +129,9 @@
       "Th",
       "Fr",
       "Sa"
-    ]
+    ],
+    "previous_month": "Previous month",
+    "next_month": "Next month"
   },
   "settings": {
     "preferences": "Preferences",

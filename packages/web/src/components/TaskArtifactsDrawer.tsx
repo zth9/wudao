@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { tasks as tasksApi } from "../services/api";
 import MarkdownContent from "./MarkdownContent";
 import { TaskWorkspaceDrawerShell } from "./TaskWorkspaceDrawerShell";
+import { WudaoButton, WudaoChip } from "./ui/heroui";
 
 interface Props {
   taskId: string;
@@ -26,19 +27,20 @@ export default function TaskArtifactsDrawer({ taskId, agentDoc, onClose }: Props
           <div className="text-[10px] text-system-gray-400 dark:text-system-gray-300 mt-0.5">{t("artifacts.description")}</div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span
-            className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+          <WudaoChip
+            className={`px-2 py-0.5 text-[9px] ${
               ready ? "bg-apple-green/10 text-apple-green" : "bg-black/5 dark:bg-white/5 text-system-gray-400 dark:text-system-gray-300"
             }`}
           >
             {ready ? t("artifacts.ready") : t("artifacts.pending")}
-          </span>
-          <button
-            onClick={() => tasksApi.openWorkspace(taskId)}
-            className="px-2.5 py-1 apple-btn-secondary text-[10px] font-bold"
+          </WudaoChip>
+          <WudaoButton
+            onPress={() => void tasksApi.openWorkspace(taskId)}
+            tone="secondary"
+            className="px-2.5 py-1 text-[10px] font-bold"
           >
             {t("tasks.open_workspace")}
-          </button>
+          </WudaoButton>
         </div>
       </div>
 

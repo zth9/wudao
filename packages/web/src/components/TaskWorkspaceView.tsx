@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
 import { LoadingIndicator } from "./LoadingIndicator";
+import { WudaoModal, WudaoModalBody } from "./ui/heroui";
 import { buildInitialTaskInfoMessage } from "../utils/task-chat";
 import {
   getArtifactsDragPreview,
@@ -69,12 +70,18 @@ function SidePanelFallback() {
 function DialogFallback({ onCancel }: { onCancel: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative apple-glass bg-white/90 dark:bg-system-gray-800/90 border border-black/5 dark:border-white/10 rounded-apple-2xl shadow-apple-lg w-full max-w-md overflow-hidden p-8 flex flex-col items-center">
+    <WudaoModal
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+      size="sm"
+      dialogClassName="w-full max-w-md bg-white/90 dark:bg-system-gray-800/90"
+    >
+      <WudaoModalBody className="flex flex-col items-center p-8">
         <LoadingIndicator text={t("common.loading")} />
-      </div>
-    </div>
+      </WudaoModalBody>
+    </WudaoModal>
   );
 }
 

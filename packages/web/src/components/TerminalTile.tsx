@@ -14,6 +14,7 @@ import {
 import { useTaskStore } from "../stores/taskStore";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { shouldSubmitOnEnter } from "../utils/ime";
+import { WudaoIconButton, WudaoInput } from "./ui/heroui";
 
 const loadTerminalView = () => import("./TerminalView");
 const TerminalView = lazy(loadTerminalView);
@@ -90,7 +91,7 @@ const TerminalTile = forwardRef<HTMLDivElement, Props>(
           </div>
 
           {editingName ? (
-            <input
+            <WudaoInput
               ref={inputRef}
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
@@ -112,7 +113,7 @@ const TerminalTile = forwardRef<HTMLDivElement, Props>(
                   cancelRename();
                 }
               }}
-              className="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-apple-blue/30 rounded-apple px-2 py-0.5 text-[11px] font-bold text-system-gray-700 dark:text-system-gray-200 focus:outline-none focus:ring-2 focus:ring-apple-blue/20"
+              className="min-h-0 flex-1 bg-black/5 px-2 py-0.5 text-[11px] font-bold text-system-gray-700 dark:bg-white/5 dark:text-system-gray-200"
             />
           ) : (
             <span
@@ -125,20 +126,24 @@ const TerminalTile = forwardRef<HTMLDivElement, Props>(
           )}
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => setEditingName(true)}
-              className="w-6 h-6 rounded-apple hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-system-gray-400 hover:text-apple-blue transition-all"
-              title={t("terminal.rename")}
+            <WudaoIconButton
+              onPress={() => setEditingName(true)}
+              tone="ghost"
+              className="h-6 w-6 rounded-apple text-system-gray-400 hover:text-apple-blue"
+              tooltip={t("terminal.rename")}
+              aria-label={t("terminal.rename")}
             >
               <Pencil size={12} />
-            </button>
-            <button
-              onClick={onClose}
-              className="w-6 h-6 rounded-apple hover:bg-apple-red/10 flex items-center justify-center text-system-gray-400 hover:text-apple-red transition-all"
-              title={t("terminal.close")}
+            </WudaoIconButton>
+            <WudaoIconButton
+              onPress={onClose}
+              tone="ghost"
+              className="h-6 w-6 rounded-apple text-system-gray-400 hover:bg-apple-red/10 hover:text-apple-red"
+              tooltip={t("terminal.close")}
+              aria-label={t("terminal.close")}
             >
               <X size={14} />
-            </button>
+            </WudaoIconButton>
           </div>
         </div>
 

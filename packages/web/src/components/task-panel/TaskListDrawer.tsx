@@ -7,6 +7,7 @@ import {
   TASK_LIST_DRAWER_BACKDROP_CLASS,
   TASK_LIST_DRAWER_PANEL_CLASS,
 } from "./task-list-drawer-layout";
+import { WudaoButton, WudaoIconButton } from "../ui/heroui";
 
 interface Props {
   isOpen: boolean;
@@ -48,12 +49,15 @@ export function TaskListDrawer({ isOpen, onClose, tasks, currentTaskId, onSwitch
               <h2 className="text-sm font-black uppercase tracking-widest text-system-gray-600 dark:text-system-gray-300">
                 {t('tasks.task_list')}
               </h2>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-400 transition-colors"
+              <WudaoIconButton
+                onPress={onClose}
+                tone="ghost"
+                className="h-8 w-8 rounded-full text-system-gray-400"
+                tooltip={t("common.close")}
+                aria-label={t("common.close")}
               >
                 <X size={18} />
-              </button>
+              </WudaoIconButton>
             </div>
 
             {/* List */}
@@ -135,10 +139,11 @@ function TaskItem({ task, isActive, onClick }: { task: Task; isActive: boolean; 
             : "bg-apple-green/10 text-apple-green";
   
   return (
-    <button
-      onClick={onClick}
+    <WudaoButton
+      onPress={onClick}
+      tone="plain"
       className={cn(
-        "w-full text-left px-3 py-3 rounded-apple-xl transition-all duration-300 group relative overflow-hidden",
+        "relative flex h-auto min-h-0 w-full flex-col items-stretch overflow-hidden rounded-apple-xl px-3 py-3 text-left transition-all duration-300 group",
         isActive
           ? "bg-apple-blue text-white shadow-apple-md scale-[1.02] z-10"
           : "hover:bg-black/5 dark:hover:bg-white/5 text-system-gray-600 dark:text-system-gray-300"
@@ -188,6 +193,6 @@ function TaskItem({ task, isActive, onClick }: { task: Task; isActive: boolean; 
       {!isActive && (
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-apple-blue group-hover:h-6 transition-all rounded-r-full" />
       )}
-    </button>
+    </WudaoButton>
   );
 }

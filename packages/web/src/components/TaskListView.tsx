@@ -27,8 +27,22 @@ import {
 } from "./task-panel/constants";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { shouldSubmitOnEnter } from "../utils/ime";
-import { Dropdown } from "./ui/Dropdown";
-import { useDropdownTrigger } from "./ui/useDropdownTrigger";
+import {
+  WudaoButton,
+  WudaoCard,
+  WudaoChip,
+  WudaoDropdown,
+  WudaoDropdownItem,
+  WudaoDropdownMenu,
+  WudaoDropdownPopover,
+  WudaoIconButton,
+  WudaoInput,
+  WudaoModal,
+  WudaoModalBody,
+  WudaoModalFooter,
+  WudaoModalHeader,
+  WudaoTextArea,
+} from "./ui/heroui";
 
 function RelativeTime({ dateStr }: { dateStr: string }) {
   const { t } = useTranslation();
@@ -72,7 +86,7 @@ export default function TaskListView({ onSelect }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [tab, setTab] = useState<FilterTab>("active");
   const [search, setSearch] = useState("");
-  const sortMenu = useDropdownTrigger();
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
   useEffect(() => {
     void fetchAll(taskSortBy, taskSortOrder);
@@ -115,13 +129,14 @@ export default function TaskListView({ onSelect }: Props) {
             {tabCounts.active} {t('common.active')} • {tabCounts.done} {t('common.done')}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="apple-btn-primary flex items-center gap-2"
+        <WudaoButton
+          onPress={() => setShowCreate(true)}
+          tone="primary"
+          className="flex items-center gap-2"
         >
           <Plus size={18} />
           <span>{t('tasks.new_task')}</span>
-        </button>
+        </WudaoButton>
       </header>
 
       {/* Toolbar */}
@@ -130,11 +145,12 @@ export default function TaskListView({ onSelect }: Props) {
           {TABS.map((ft) => {
             const isActive = tab === ft.key;
             return (
-              <button
+              <WudaoButton
                 key={ft.key}
-                onClick={() => setTab(ft.key)}
+                onPress={() => setTab(ft.key)}
+                tone="plain"
                 className={cn(
-                  "px-5 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-full transition-colors duration-200 relative group",
+                  "relative h-auto min-h-0 rounded-full px-5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors duration-200 group",
                   isActive
                     ? "text-apple-blue dark:text-white"
                     : "text-system-gray-500 dark:text-system-gray-400 hover:text-system-gray-700 dark:hover:text-system-gray-200"
@@ -151,14 +167,14 @@ export default function TaskListView({ onSelect }: Props) {
                     transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
                   />
                 )}
-              </button>
+              </WudaoButton>
             );
           })}
         </div>
 
         <div className="flex-1 relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-system-gray-400 dark:text-system-gray-300" />
-          <input
+          <WudaoInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('common.search')}
@@ -167,21 +183,51 @@ export default function TaskListView({ onSelect }: Props) {
         </div>
 
         <div className="relative flex items-center bg-black/5 dark:bg-white/5 rounded-apple-lg border border-black/5 dark:border-white/10 p-0.5 shrink-0 min-w-[140px]">
-          <button
-            onClick={sortMenu.onTriggerClick}
-            className="flex-1 flex items-center justify-between gap-2 px-3 py-1 rounded-apple hover:bg-black/5 dark:hover:bg-white/5 transition-all border-r border-black/5 dark:border-white/10"
-          >
-            <div className="flex items-center gap-2">
-               <SlidersHorizontal size={14} className="text-apple-blue shrink-0" />
-               <span className="text-[11px] font-bold text-system-gray-600 dark:text-system-gray-300 uppercase tracking-tight">{currentSortLabel}</span>
-            </div>
-            <ChevronDown size={12} className="text-system-gray-400 dark:text-system-gray-300 shrink-0" />
-          </button>
+          <WudaoDropdown isOpen={sortMenuOpen} onOpenChange={setSortMenuOpen}>
+            <WudaoButton
+              tone="plain"
+              className="flex h-8 min-h-0 flex-1 items-center justify-between gap-2 rounded-apple border-r border-black/5 px-3 py-1 transition-all hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            >
+              <div className="flex items-center gap-2">
+                 <SlidersHorizontal size={14} className="text-apple-blue shrink-0" />
+                 <span className="text-[11px] font-bold text-system-gray-600 dark:text-system-gray-300 uppercase tracking-tight">{currentSortLabel}</span>
+              </div>
+              <ChevronDown size={12} className="text-system-gray-400 dark:text-system-gray-300 shrink-0" />
+            </WudaoButton>
+            <WudaoDropdownPopover className="min-w-[140px]">
+              <WudaoDropdownMenu
+                aria-label={currentSortLabel}
+                onAction={(key) => {
+                  setTaskSortBy(key as SortOption);
+                  setSortMenuOpen(false);
+                }}
+              >
+                {SORT_OPTS.map((opt) => (
+                  <WudaoDropdownItem
+                    key={opt.key}
+                    id={opt.key}
+                    textValue={opt.label}
+                    isSelected={taskSortBy === opt.key}
+                    className="justify-between"
+                  >
+                    <span className="font-bold tracking-tight">{opt.label}</span>
+                    {taskSortBy === opt.key && (
+                      <motion.div layoutId="sort-check" initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
+                        ✓
+                      </motion.div>
+                    )}
+                  </WudaoDropdownItem>
+                ))}
+              </WudaoDropdownMenu>
+            </WudaoDropdownPopover>
+          </WudaoDropdown>
 
-          <button
-            onClick={toggleOrder}
-            className="px-2.5 py-1 rounded-apple hover:bg-black/5 dark:hover:bg-white/5 transition-all text-apple-blue flex items-center justify-center shrink-0"
+          <WudaoIconButton
+            onPress={toggleOrder}
+            tone="ghost"
+            className="h-8 w-8 shrink-0 text-apple-blue"
             title={taskSortOrder === "asc" ? t("common.sort_ascending") : t("common.sort_descending")}
+            aria-label={taskSortOrder === "asc" ? t("common.sort_ascending") : t("common.sort_descending")}
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -194,34 +240,7 @@ export default function TaskListView({ onSelect }: Props) {
                 {taskSortOrder === "asc" ? <ArrowUpNarrowWide size={16} /> : <ArrowDownWideNarrow size={16} />}
               </motion.div>
             </AnimatePresence>
-          </button>
-
-          <Dropdown open={sortMenu.open} onClose={sortMenu.close} anchorPoint={sortMenu.anchorPoint} className="left-0 right-0 top-full mt-1 min-w-full">
-            <div className="flex flex-col gap-0.5">
-              {SORT_OPTS.map((opt) => (
-                <button
-                  key={opt.key}
-                  onClick={() => {
-                    setTaskSortBy(opt.key);
-                    sortMenu.close();
-                  }}
-                  className={cn(
-                    "apple-dropdown-item flex items-center justify-between",
-                    taskSortBy === opt.key
-                      ? "apple-dropdown-item-active"
-                      : "text-system-gray-600 dark:text-system-gray-300"
-                  )}
-                >
-                  <span className="font-bold tracking-tight">{opt.label}</span>
-                  {taskSortBy === opt.key && (
-                    <motion.div layoutId="sort-check" initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
-                      ✓
-                    </motion.div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </Dropdown>
+          </WudaoIconButton>
         </div>
       </div>
 
@@ -289,10 +308,10 @@ function TaskCard({
   const isDone = task.status === "done";
 
   return (
-    <div
+    <WudaoCard
       onClick={onSelect}
       className={cn(
-        "apple-card p-5 cursor-pointer group hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 relative overflow-hidden",
+        "group relative cursor-pointer overflow-hidden p-5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]",
         isDone && "opacity-60 bg-system-gray-50/50 dark:bg-system-gray-900/50"
       )}
     >
@@ -309,17 +328,19 @@ function TaskCard({
           </h3>
         </div>
         
-        <button
+        <WudaoIconButton
           onClick={(e) => { e.stopPropagation(); onDeleteClick(); }}
+          tone="ghost"
           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-apple text-system-gray-400 dark:text-system-gray-300 hover:text-apple-red hover:bg-apple-red/10 transition-all"
+          tooltip={t("common.delete")}
+          aria-label={t("common.delete")}
         >
           <Trash2 size={14} />
-        </button>
+        </WudaoIconButton>
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-4">
-        <span className={cn(
-          "px-2 py-0.5 text-[10px] font-bold rounded-apple uppercase tracking-wide",
+        <WudaoChip className={cn(
           task.priority === 0 ? "bg-apple-red/10 text-apple-red" :
           task.priority === 1 ? "bg-apple-orange/10 text-apple-orange" :
           task.priority === 2 ? "bg-apple-yellow/20 text-orange-600 dark:text-apple-yellow" :
@@ -327,7 +348,7 @@ function TaskCard({
           "bg-apple-green/10 text-apple-green"
         )}>
           {t(`priority_labels.${task.priority}`)}
-        </span>
+        </WudaoChip>
       </div>
 
       <div className="flex items-center justify-between pt-3 border-t border-black/5 dark:border-white/10 text-[11px] text-system-gray-400 dark:text-system-gray-300 font-medium">
@@ -350,12 +371,12 @@ function TaskCard({
           <AlertCircle size={32} className="text-apple-red mb-2" />
           <p className="text-sm font-semibold mb-4">{t('tasks.delete_confirm')}</p>
           <div className="flex gap-2 w-full">
-            <button onClick={onDeleteCancel} className="flex-1 apple-btn-secondary py-1.5 text-xs">{t('common.cancel')}</button>
-            <button onClick={onDeleteConfirm} className="flex-1 apple-btn bg-apple-red text-white py-1.5 text-xs">{t('common.delete')}</button>
+            <WudaoButton onPress={onDeleteCancel} tone="secondary" className="flex-1 py-1.5 text-xs">{t('common.cancel')}</WudaoButton>
+            <WudaoButton onPress={onDeleteConfirm} tone="danger" className="flex-1 py-1.5 text-xs">{t('common.delete')}</WudaoButton>
           </div>
         </div>
       )}
-    </div>
+    </WudaoCard>
   );
 }
 
@@ -406,26 +427,36 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   }, [create, onCreated, parsedTask, selectedProviderId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={submitting ? undefined : onClose}>
-      <div
-        className="bg-white dark:bg-background-dark-secondary rounded-apple-2xl shadow-apple-lg w-full max-w-lg overflow-hidden border border-black/5 dark:border-white/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-6 py-4 apple-glass border-b flex items-center justify-between">
+    <WudaoModal
+      isOpen
+      isDismissable={!submitting}
+      isKeyboardDismissDisabled={submitting}
+      onOpenChange={(open) => {
+        if (!open && !submitting) onClose();
+      }}
+      dialogClassName="w-full max-w-lg"
+    >
+        <WudaoModalHeader>
           <h3 className="text-lg font-bold">{t('tasks.new_task')}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-system-gray-400 hover:text-system-gray-600 dark:hover:text-system-gray-200">
+          <WudaoIconButton
+            onPress={onClose}
+            tone="ghost"
+            className="h-8 w-8 rounded-full text-system-gray-400 hover:text-system-gray-600 dark:hover:text-system-gray-200"
+            tooltip={t("common.close")}
+            aria-label={t("common.close")}
+          >
             <X size={18} />
-          </button>
-        </div>
+          </WudaoIconButton>
+        </WudaoModalHeader>
 
-        <div className="p-6">
+        <WudaoModalBody>
           {submitting ? (
             <LoadingAnimation />
           ) : (
             <>
               {!parsedTask ? (
                 <div className="space-y-4">
-                  <textarea
+                  <WudaoTextArea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onCompositionStart={() => {
@@ -436,7 +467,7 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
                     }}
                     placeholder={t('tasks.placeholder_title')}
                     rows={4}
-                    className="apple-input w-full resize-none text-[15px]"
+                    className="w-full resize-none text-[15px]"
                     autoFocus
                     onKeyDown={(e) => {
                       if (!shouldSubmitOnEnter(e, isInputComposingRef.current)) return;
@@ -454,10 +485,10 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
                 <div className="space-y-5">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300 mb-1.5 block">{t('settings.name')}</label>
-                    <input
+                    <WudaoInput
                       value={parsedTask.title}
                       onChange={(e) => setParsedTask((current) => current ? { ...current, title: e.target.value } : current)}
-                      className="apple-input w-full font-medium"
+                      className="w-full font-medium"
                       autoFocus
                     />
                   </div>
@@ -466,18 +497,19 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
                     <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300 mb-1.5 block">{t('tasks.type')}</label>
                     <div className="flex flex-wrap gap-2">
                       {TASK_TYPES.map((type) => (
-                        <button
+                        <WudaoButton
                           key={type}
-                          onClick={() => setParsedTask((current) => current ? { ...current, type } : current)}
+                          onPress={() => setParsedTask((current) => current ? { ...current, type } : current)}
+                          tone="plain"
                           className={cn(
-                            "px-3 py-1.5 text-sm rounded-apple-lg border transition-all duration-200",
+                            "h-auto min-h-0 rounded-apple-lg border px-3 py-1.5 text-sm transition-all duration-200",
                             parsedTask.type === type
                               ? "bg-apple-blue border-apple-blue text-white shadow-apple-sm"
                               : "border-system-gray-200 dark:border-system-gray-700 bg-transparent text-system-gray-500 dark:text-system-gray-400 hover:border-system-gray-400"
                           )}
                         >
                           {t(`task_types.${type}`)}
-                        </button>
+                        </WudaoButton>
                       ))}
                     </div>
                   </div>
@@ -499,25 +531,25 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
 
               {error && <p className="text-xs text-apple-red mt-4 flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
 
-              <div className="flex gap-3 justify-end mt-8">
+              <WudaoModalFooter className="mt-8 border-t-0 bg-transparent p-0">
                 {parsedTask ? (
-                  <button onClick={() => setParsedTask(null)} className="apple-btn-secondary">{t('common.back')}</button>
+                  <WudaoButton onPress={() => setParsedTask(null)} tone="secondary">{t('common.back')}</WudaoButton>
                 ) : (
-                  <button onClick={onClose} className="apple-btn-secondary">{t('common.cancel')}</button>
+                  <WudaoButton onPress={onClose} tone="secondary">{t('common.cancel')}</WudaoButton>
                 )}
-                <button
-                  onClick={() => void (parsedTask ? handleCreate() : handleParse())}
+                <WudaoButton
+                  onPress={() => void (parsedTask ? handleCreate() : handleParse())}
                   disabled={parsedTask ? !parsedTask.title.trim() : !input.trim()}
-                  className="apple-btn-primary min-w-[120px]"
+                  tone="primary"
+                  className="min-w-[120px]"
                 >
                   {parsedTask ? t('tasks.new_task') : t('tasks.analyze')}
-                </button>
-              </div>
+                </WudaoButton>
+              </WudaoModalFooter>
             </>
           )}
-        </div>
-      </div>
-    </div>
+        </WudaoModalBody>
+    </WudaoModal>
   );
 }
 
@@ -539,13 +571,14 @@ export function ProviderSelector({ providers, selectedProviderId, onSelect }: Pr
           const isSelected = selectedProviderId === p.id;
 
           return (
-          <button
+          <WudaoButton
             key={p.id}
             type="button"
-            onClick={() => onSelect(p.id)}
+            onPress={() => onSelect(p.id)}
             aria-pressed={isSelected}
+            tone="plain"
             className={cn(
-              "p-2.5 text-left rounded-apple-lg border transition-all duration-200 group relative",
+              "relative flex h-auto min-h-0 w-full flex-col items-stretch justify-start rounded-apple-lg border p-2.5 text-left transition-all duration-200 group",
               isSelected
                 ? "bg-apple-blue/10 border-apple-blue ring-1 ring-apple-blue dark:ring-apple-blue/50 z-10"
                 : "border-system-gray-200 dark:border-white/15 bg-white/50 dark:bg-white/5 hover:border-system-gray-400 dark:hover:border-white/30"
@@ -575,7 +608,7 @@ export function ProviderSelector({ providers, selectedProviderId, onSelect }: Pr
               "text-[10px] truncate transition-colors",
               isSelected ? "text-apple-blue/70 dark:text-apple-blue/80" : "text-system-gray-400 dark:text-system-gray-300"
             )}>{p.model || p.id}</div>
-          </button>
+          </WudaoButton>
         )})}
       </div>
     </div>

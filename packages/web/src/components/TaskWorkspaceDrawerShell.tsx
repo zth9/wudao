@@ -3,6 +3,7 @@ import { X, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
 import { TaskWorkspacePanelHeader } from "./TaskWorkspacePanelHeader";
+import { WudaoIconButton } from "./ui/heroui";
 
 interface Props {
   title: string;
@@ -44,15 +45,16 @@ export function TaskWorkspaceDrawerShell({
           <>
             {headerActions}
             {onClose && (
-              <button
+              <WudaoIconButton
                 type="button"
-                onClick={onClose}
-                className="rounded-apple-lg p-1.5 text-system-gray-400 transition-colors hover:bg-black/5 hover:text-apple-blue dark:hover:bg-white/5"
-                title={t("common.close")}
+                onPress={onClose}
+                tone="ghost"
+                className="h-8 w-8 rounded-apple-lg text-system-gray-400 hover:text-apple-blue"
+                tooltip={t("common.close")}
                 aria-label={t("common.close")}
               >
                 <X size={16} />
-              </button>
+              </WudaoIconButton>
             )}
           </>
         )}

@@ -15,6 +15,7 @@ import { zhCN, enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../utils/cn";
+import { WudaoButton, WudaoIconButton } from "../ui/heroui";
 
 interface Props {
   selectedDate: Date | null;
@@ -44,18 +45,24 @@ export function CalendarPopup({ selectedDate, onChange, onClose, className }: Pr
           {format(currentMonth, "MMMM yyyy", { locale })}
         </h3>
         <div className="flex gap-1">
-          <button 
-            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            className="p-1.5 rounded-apple-lg hover:bg-black/5 dark:hover:bg-white/10 text-system-gray-400 transition-colors"
+          <WudaoIconButton
+            onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            tone="ghost"
+            className="h-8 w-8 rounded-apple-lg p-1.5 text-system-gray-400 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+            tooltip={t("calendar.previous_month")}
+            aria-label={t("calendar.previous_month")}
           >
             <ChevronLeft size={16} />
-          </button>
-          <button 
-            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            className="p-1.5 rounded-apple-lg hover:bg-black/5 dark:hover:bg-white/10 text-system-gray-400 transition-colors"
+          </WudaoIconButton>
+          <WudaoIconButton
+            onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            tone="ghost"
+            className="h-8 w-8 rounded-apple-lg p-1.5 text-system-gray-400 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+            tooltip={t("calendar.next_month")}
+            aria-label={t("calendar.next_month")}
           >
             <ChevronRight size={16} />
-          </button>
+          </WudaoIconButton>
         </div>
       </div>
 
@@ -76,14 +83,15 @@ export function CalendarPopup({ selectedDate, onChange, onClose, className }: Pr
           const isToday = isSameDay(day, new Date());
 
           return (
-            <button
+            <WudaoButton
               key={i}
-              onClick={() => {
+              onPress={() => {
                 onChange(day);
                 onClose();
               }}
+              tone="plain"
               className={cn(
-                "h-8 rounded-apple-lg text-xs font-bold transition-all relative flex items-center justify-center",
+                "relative flex h-8 min-h-0 w-8 items-center justify-center rounded-apple-lg text-xs font-bold transition-all",
                 !isCurrentMonth && "opacity-20",
                 isSelected 
                   ? "bg-apple-blue text-white shadow-apple-sm" 
@@ -94,34 +102,36 @@ export function CalendarPopup({ selectedDate, onChange, onClose, className }: Pr
               {isToday && !isSelected && (
                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-apple-blue" />
               )}
-            </button>
+            </WudaoButton>
           );
         })}
       </div>
 
       {/* Quick Select Today */}
       <div className="mt-4 pt-3 border-t border-black/5 dark:border-white/10 flex flex-col gap-1">
-         <button 
-           onClick={() => {
+         <WudaoButton
+           onPress={() => {
              const today = new Date();
              onChange(today);
              onClose();
            }}
+           tone="plain"
            className="w-full py-1.5 text-[10px] font-black text-apple-blue uppercase tracking-[0.2em] hover:bg-apple-blue/5 rounded-apple-lg transition-colors"
          >
            {t('common.today')}
-         </button>
+         </WudaoButton>
 
          {selectedDate && (
-           <button
-             onClick={() => {
+           <WudaoButton
+             onPress={() => {
                onChange(null);
                onClose();
              }}
+             tone="plain"
              className="w-full py-1.5 text-[10px] font-black text-apple-red uppercase tracking-[0.2em] hover:bg-apple-red/5 rounded-apple-lg transition-colors"
            >
              {t('tasks.clear_due_date')}
-           </button>
+           </WudaoButton>
          )}
       </div>
     </div>

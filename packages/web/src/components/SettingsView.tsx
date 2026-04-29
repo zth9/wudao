@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, Check, X, Shield, Globe, Cpu, Loader2, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Globe, Cpu, Loader2, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
+import {
+  WudaoButton,
+  WudaoCard,
+  WudaoCheckbox,
+  WudaoIconButton,
+  WudaoInput,
+  WudaoModal,
+  WudaoModalBody,
+  WudaoModalFooter,
+  WudaoModalHeader,
+  WudaoTextArea,
+} from "./ui/heroui";
 
 const EMPTY_FORM = {
   name: "",
@@ -24,34 +36,22 @@ interface DefaultProviderToggleProps {
 
 export function DefaultProviderToggle({ checked, label, onChange }: DefaultProviderToggleProps) {
   return (
-    <label
+    <WudaoCheckbox
       className={cn(
         "flex items-center gap-3 rounded-apple-xl border px-3 py-3 transition-all cursor-pointer group",
         checked
           ? "border-apple-blue/20 bg-apple-blue/10 dark:border-apple-blue/30 dark:bg-apple-blue/15"
           : "border-black/5 bg-system-gray-50/90 hover:bg-black/5 dark:border-white/12 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]",
       )}
+      controlClassName={checked ? "shadow-apple-sm" : undefined}
+      indicatorClassName="[&>svg]:h-3.5 [&>svg]:w-3.5"
+      isSelected={checked}
+      onChange={onChange}
     >
-      <div
-        className={cn(
-          "flex h-5 w-5 items-center justify-center rounded-apple transition-all",
-          checked
-            ? "bg-apple-blue text-white shadow-apple-sm"
-            : "border-2 border-system-gray-300 bg-white dark:border-white/35 dark:bg-white/[0.03]",
-        )}
-      >
-        {checked ? <Check size={14} /> : null}
-      </div>
-      <input
-        type="checkbox"
-        className="hidden"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
       <span className="text-sm font-semibold text-system-gray-700 transition-colors group-hover:text-apple-blue dark:text-system-gray-100">
         {label}
       </span>
-    </label>
+    </WudaoCheckbox>
   );
 }
 
@@ -208,7 +208,7 @@ export default function SettingsView() {
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* User Profile Section */}
-          <section className="apple-card overflow-hidden">
+          <WudaoCard className="overflow-hidden">
              <div className="px-6 py-4 border-b border-black/5 dark:border-white/10 flex items-center gap-2 bg-white/50 dark:bg-black/40">
                 <SettingsIcon size={16} className="text-apple-blue" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-system-gray-500 dark:text-system-gray-400">{t('settings.user_profile')}</h2>
@@ -223,31 +223,34 @@ export default function SettingsView() {
                      accept="image/*"
                      onChange={handleFileChange}
                    />
-                   <div 
-                     onClick={() => fileInputRef.current?.click()}
-                     className="w-24 h-24 rounded-full bg-apple-blue/10 border-4 border-white dark:border-system-gray-800 shadow-apple-lg flex items-center justify-center text-4xl overflow-hidden relative group cursor-pointer"
+                   <WudaoButton
+                     onPress={() => fileInputRef.current?.click()}
+                     tone="plain"
+                     className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-apple-blue/10 p-0 text-4xl shadow-apple-lg dark:border-system-gray-800"
+                     aria-label={t("common.avatar")}
                    >
                       {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
-                        <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                        <img src={user.avatar} alt={t("common.avatar")} className="w-full h-full object-cover" />
                       ) : (
                         <span>{user.avatar || "👨‍💻"}</span>
                       )}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                          {uploading ? <Loader2 size={24} className="text-white animate-spin" /> : <Plus size={24} className="text-white" />}
                       </div>
-                   </div>
+                   </WudaoButton>
                    <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
                       {defaultAvatars.map(av => (
-                        <button
+                        <WudaoButton
                           key={av}
-                          onClick={() => setUser({ avatar: av })}
+                          onPress={() => setUser({ avatar: av })}
+                          tone="plain"
                           className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center text-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all border",
+                            "flex h-8 min-h-0 w-8 items-center justify-center rounded-full border text-lg transition-all hover:bg-black/5 dark:hover:bg-white/5",
                             user.avatar === av ? "border-apple-blue bg-apple-blue/10" : "border-transparent"
                           )}
                         >
                           {av}
-                        </button>
+                        </WudaoButton>
                       ))}
                    </div>
                 </div>
@@ -256,8 +259,8 @@ export default function SettingsView() {
                 <div className="flex-1 space-y-4 w-full">
                    <div className="space-y-1.5">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-system-gray-500 dark:text-system-gray-400 px-1">{t('settings.nickname')}</label>
-                      <input
-                        className="apple-input w-full font-bold text-lg px-4 py-2"
+                      <WudaoInput
+                        className="w-full px-4 py-2 text-lg font-bold"
                         placeholder="Your Nickname"
                         value={user.nickname}
                         onChange={(e) => setUser({ nickname: e.target.value })}
@@ -265,8 +268,8 @@ export default function SettingsView() {
                    </div>
                    <div className="space-y-1.5">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-system-gray-500 dark:text-system-gray-400 px-1">{t('settings.avatar_url')}</label>
-                      <input
-                        className="apple-input w-full text-xs font-medium px-4 py-2"
+                      <WudaoInput
+                        className="w-full px-4 py-2 text-xs font-medium"
                         placeholder="https://example.com/avatar.png"
                         value={user.avatar && user.avatar.startsWith('http') ? user.avatar : ""}
                         onChange={(e) => setUser({ avatar: e.target.value })}
@@ -274,21 +277,22 @@ export default function SettingsView() {
                    </div>
                 </div>
              </div>
-          </section>
+          </WudaoCard>
 
-          <section className="apple-card overflow-hidden">
+          <WudaoCard className="overflow-hidden">
             <div className="px-6 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between bg-white/50 dark:bg-black/40">
               <div className="flex items-center gap-2">
                 <Cpu size={16} className="text-apple-blue" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-system-gray-500 dark:text-system-gray-400">{t('settings.model_providers')}</h2>
               </div>
-              <button
-                onClick={openCreate}
-                className="apple-btn-primary py-1 px-3 text-xs flex items-center gap-1.5 shadow-sm"
+              <WudaoButton
+                onPress={openCreate}
+                tone="primary"
+                className="flex items-center gap-1.5 px-3 py-1 text-xs shadow-sm"
               >
                 <Plus size={14} />
                 <span>{t('settings.add_provider')}</span>
-              </button>
+              </WudaoButton>
             </div>
 
             <div className="divide-y divide-black/5 dark:divide-white/5">
@@ -346,35 +350,47 @@ export default function SettingsView() {
                       </div>
 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleMove(index, -1)}
+                        <WudaoIconButton
+                          onPress={() => void handleMove(index, -1)}
                           disabled={index === 0 || reordering}
-                          className="p-1.5 rounded-apple text-system-gray-400 dark:text-system-gray-300 hover:text-foreground dark:hover:text-foreground-dark disabled:opacity-30"
+                          tone="ghost"
+                          className="h-8 w-8 text-system-gray-400 hover:text-foreground dark:text-system-gray-300 dark:hover:text-foreground-dark"
+                          tooltip={t("common.move_up")}
+                          aria-label={t("common.move_up")}
                         >
                           <ChevronUp size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleMove(index, 1)}
+                        </WudaoIconButton>
+                        <WudaoIconButton
+                          onPress={() => void handleMove(index, 1)}
                           disabled={index === providers.length - 1 || reordering}
-                          className="p-1.5 rounded-apple text-system-gray-400 dark:text-system-gray-300 hover:text-foreground dark:hover:text-foreground-dark disabled:opacity-30"
+                          tone="ghost"
+                          className="h-8 w-8 text-system-gray-400 hover:text-foreground dark:text-system-gray-300 dark:hover:text-foreground-dark"
+                          tooltip={t("common.move_down")}
+                          aria-label={t("common.move_down")}
                         >
                           <ChevronDown size={16} />
-                        </button>
+                        </WudaoIconButton>
                         <div className="w-[1px] h-4 bg-black/5 dark:bg-white/5 mx-1" />
-                        <button
-                          onClick={() => openEdit(p)}
-                          className="p-1.5 rounded-apple text-system-gray-400 dark:text-system-gray-300 hover:text-apple-blue transition-colors"
+                        <WudaoIconButton
+                          onPress={() => openEdit(p)}
+                          tone="ghost"
+                          className="h-8 w-8 text-system-gray-400 hover:text-apple-blue dark:text-system-gray-300"
+                          tooltip={t("common.edit")}
+                          aria-label={t("common.edit")}
                         >
                           <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => {
+                        </WudaoIconButton>
+                        <WudaoIconButton
+                          onPress={() => {
                             void remove(p.id);
                           }}
-                          className="p-1.5 rounded-apple text-system-gray-400 dark:text-system-gray-300 hover:text-apple-red transition-colors"
+                          tone="ghost"
+                          className="h-8 w-8 text-system-gray-400 hover:text-apple-red dark:text-system-gray-300"
+                          tooltip={t("common.delete")}
+                          aria-label={t("common.delete")}
                         >
                           <Trash2 size={16} />
-                        </button>
+                        </WudaoIconButton>
                       </div>
                     </motion.div>
                     );
@@ -382,7 +398,7 @@ export default function SettingsView() {
                 </div>
               )}
             </div>
-          </section>
+          </WudaoCard>
 
           <footer className="text-center py-8 opacity-30">
              <div className="w-1 bg-system-gray-200 dark:bg-system-gray-700 h-6 mb-4 rounded-full mx-auto" />
@@ -391,30 +407,21 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {dialogOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
-               onClick={closeDialog} 
-             />
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-lg bg-white dark:bg-background-dark-secondary rounded-apple-2xl shadow-apple-lg overflow-hidden border border-black/5 dark:border-white/10"
-             >
-                <div className="px-6 py-4 apple-glass border-b flex items-center justify-between">
+      <WudaoModal
+        isOpen={dialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+        dialogClassName="w-full max-w-lg"
+      >
+                <WudaoModalHeader>
                    <h3 className="text-lg font-bold">{editingId ? t('settings.edit_provider') : t('settings.new_provider')}</h3>
-                   <button onClick={closeDialog} className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                   <WudaoIconButton onPress={closeDialog} tone="ghost" className="h-8 w-8" tooltip={t("common.close")} aria-label={t("common.close")}>
                       <X size={18} />
-                   </button>
-                </div>
+                   </WudaoIconButton>
+                </WudaoModalHeader>
 
-                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <WudaoModalBody className="max-h-[70vh] space-y-4 overflow-y-auto">
                    {error && (
                       <div className="rounded-apple-lg border border-apple-red/20 bg-apple-red/10 px-4 py-3 text-sm text-apple-red dark:border-apple-red/30 dark:bg-apple-red/15">
                          <div className="flex items-start gap-2">
@@ -428,8 +435,8 @@ export default function SettingsView() {
                       <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300">{t('settings.name')}</label>
-                            <input
-                              className="apple-input w-full font-medium"
+                            <WudaoInput
+                              className="w-full font-medium"
                               placeholder="Ollama Local"
                               value={form.name}
                               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -437,8 +444,8 @@ export default function SettingsView() {
                          </div>
                          <div className="space-y-1.5">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300">{t('settings.model_id')}</label>
-                            <input
-                              className="apple-input w-full font-medium"
+                            <WudaoInput
+                              className="w-full font-medium"
                               placeholder="qwen2.5"
                               value={form.model}
                               onChange={(e) => setForm({ ...form, model: e.target.value })}
@@ -448,8 +455,8 @@ export default function SettingsView() {
 
                       <div className="space-y-1.5">
                          <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300">{t('settings.endpoint_url')}</label>
-                         <input
-                           className="apple-input w-full tabular-nums"
+                         <WudaoInput
+                           className="w-full tabular-nums"
                            placeholder="http://localhost:11434"
                            value={form.endpoint}
                            onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
@@ -458,8 +465,8 @@ export default function SettingsView() {
 
                       <div className="space-y-1.5">
                          <label className="text-[10px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300">{t('settings.api_key')}</label>
-                         <input
-                           className="apple-input w-full"
+                         <WudaoInput
+                           className="w-full"
                            placeholder="••••••••••••"
                            type="password"
                            value={form.api_key}
@@ -474,8 +481,8 @@ export default function SettingsView() {
                          </div>
                          <div className="space-y-1.5">
                             <label className="text-[9px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300">{t('settings.usage_auth_token')}</label>
-                            <input
-                              className="apple-input w-full text-xs"
+                            <WudaoInput
+                              className="w-full text-xs"
                               placeholder="JWT Token or similar"
                               type="password"
                               value={form.usage_auth_token}
@@ -484,8 +491,8 @@ export default function SettingsView() {
                          </div>
                          <div className="space-y-1.5">
                             <label className="text-[9px] font-bold uppercase tracking-wider text-system-gray-400 dark:text-system-gray-300">{t('settings.usage_cookie')}</label>
-                            <textarea
-                              className="apple-input w-full text-xs min-h-[60px] resize-none"
+                            <WudaoTextArea
+                              className="min-h-[60px] w-full resize-none text-xs"
                               placeholder="Full cookie string..."
                               value={form.usage_cookie}
                               onChange={(e) => setForm({ ...form, usage_cookie: e.target.value })}
@@ -499,25 +506,23 @@ export default function SettingsView() {
                         onChange={(checked) => setForm({ ...form, is_default: checked ? 1 : 0 })}
                       />
                    </div>
-                </div>
+                </WudaoModalBody>
 
-                <div className="p-6 border-t border-black/5 dark:border-white/10 flex gap-3 justify-end bg-system-gray-50/50 dark:bg-black/40">
+                <WudaoModalFooter>
                    {hasChanges && (
-                      <button onClick={handleCancelChanges} className="apple-btn-secondary px-6">{t('settings.discard')}</button>
+                      <WudaoButton onPress={handleCancelChanges} tone="secondary" className="px-6">{t('settings.discard')}</WudaoButton>
                    )}
-                   <button
-                     onClick={handleSave}
+                   <WudaoButton
+                     onPress={() => void handleSave()}
                      disabled={!canSave || saving}
-                     className="apple-btn-primary px-8 shadow-apple-sm min-w-[120px] inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                     tone="primary"
+                     className="inline-flex min-w-[120px] items-center justify-center gap-2 px-8 shadow-apple-sm"
                    >
                      {saving ? <Loader2 size={16} className="animate-spin" /> : null}
                      {saving ? t('common.loading') : editingId ? t('common.update') : t('common.save')}
-                   </button>
-                </div>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                   </WudaoButton>
+                </WudaoModalFooter>
+      </WudaoModal>
     </div>
   );
 }

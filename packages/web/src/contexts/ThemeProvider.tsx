@@ -19,12 +19,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
         root.classList.remove("light", "dark");
         root.classList.add(resolvedTheme);
+        root.dataset.theme = resolvedTheme;
 
         return () => clearTimeout(timer);
       } else {
         // First render, just apply (it should already be applied by inline script but let's be safe)
         root.classList.remove("light", "dark");
         root.classList.add(resolvedTheme);
+        root.dataset.theme = resolvedTheme;
         isFirstRender.current = false;
       }
     };

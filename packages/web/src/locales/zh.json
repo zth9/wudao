@@ -35,6 +35,8 @@
     "refresh": "刷新",
     "launch": "启动",
     "rename": "重命名",
+    "move_up": "上移",
+    "move_down": "下移",
     "user": "用户",
     "avatar": "头像",
     "stop_generation": "停止生成",
@@ -127,7 +129,9 @@
       "四",
       "五",
       "六"
-    ]
+    ],
+    "previous_month": "上个月",
+    "next_month": "下个月"
   },
   "settings": {
     "preferences": "偏好设置",

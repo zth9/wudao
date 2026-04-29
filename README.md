@@ -40,7 +40,7 @@ flowchart TD
 ## 技术栈
 
 - **Monorepo**：pnpm workspace
-- **前端**：Vite 6 + React 19 + TypeScript 5 + Tailwind CSS + zustand + i18next + lucide-react + framer-motion + xterm.js
+- **前端**：Vite 6 + React 19 + TypeScript 5 + Tailwind CSS v4 + HeroUI v3 + zustand + i18next + lucide-react + framer-motion + xterm.js
 - **后端**：FastAPI + sqlite3 + SSE + WebSocket + Python PTY + httpx + claude-agent-sdk
 - **测试**：前端 Vitest；后端 pytest + FastAPI `TestClient`
 - **运行时**：Node.js 22+、Python 3.12+，Python 依赖与命令默认通过 `uv` 驱动
