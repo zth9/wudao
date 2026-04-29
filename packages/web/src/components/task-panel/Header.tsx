@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { Task } from "../../services/api";
 import { tasks as tasksApi } from "../../services/api";
-import { 
-  ArrowLeft, 
-  ChevronDown, 
-  Trash2, 
-  FolderOpen, 
-  CheckCircle2, 
-  RotateCcw, 
-  AlertCircle, 
+import {
+  ArrowLeft,
+  ChevronDown,
+  Trash2,
+  FolderOpen,
+  CheckCircle2,
+  RotateCcw,
+  AlertCircle,
   Box,
   TrendingUp,
   Zap,
@@ -16,13 +16,14 @@ import {
   LayoutGrid,
   TerminalSquare
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { formatLocalizedDateInDefaultTimeZone } from "../../utils/time";
 import { cn } from "../../utils/cn";
 import { shouldSubmitOnEnter } from "../../utils/ime";
 import { CalendarPopup } from "./CalendarPopup";
 import { TASK_TYPES } from "./constants";
+import { Dropdown } from "../ui/Dropdown";
+import { useDropdownTrigger } from "../ui/useDropdownTrigger";
 
 interface Props {
   task: Task;
@@ -63,9 +64,10 @@ export function Header({
   const { t, i18n } = useTranslation();
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(task.title);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showTypeMenu, setShowTypeMenu] = useState(false);
-  const [showPriorityMenu, setShowPriorityMenu] = useState(false);
+  const typeMenu = useDropdownTrigger();
+  const priorityMenu = useDropdownTrigger();
+  const calendarMenu = useDropdownTrigger();
+  const deleteClickPointRef = useRef({ x: 0, y: 0 });
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleInputComposingRef = useRef(false);
 
@@ -166,7 +168,7 @@ export function Header({
             {/* Task Type Selector */}
             <div className="relative">
               <button
-                onClick={() => setShowTypeMenu(!showTypeMenu)}
+                onClick={typeMenu.onTriggerClick}
                 className="flex items-center gap-1.5 h-8 w-24 px-2 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent"
               >
                 <span className="text-[10px] font-black uppercase tracking-widest text-system-gray-600 dark:text-system-gray-300 truncate flex-1 text-left">
@@ -175,41 +177,29 @@ export function Header({
                 <ChevronDown size={10} className="text-system-gray-400 shrink-0" />
               </button>
 
-              <AnimatePresence>
-                {showTypeMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowTypeMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                      className="absolute left-0 top-full mt-1 apple-dropdown w-24 z-50"
-                    >
-                      {TASK_TYPES.map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => { onUpdate({ type }); setShowTypeMenu(false); }}
-                          className={cn(
-                            "apple-dropdown-item font-bold py-1.5 flex items-center justify-between",
-                            task.type === type
-                              ? "apple-dropdown-item-active"
-                              : "text-system-gray-600 dark:text-system-gray-300"
-                          )}
-                        >
-                          <span className="truncate">{t(`task_types.${type}`)}</span>
-                          {task.type === type && <CheckCircle2 size={10} className="shrink-0" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+              <Dropdown open={typeMenu.open} onClose={typeMenu.close} anchorPoint={typeMenu.anchorPoint} className="left-0 top-full mt-1 w-24">
+                {TASK_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => { onUpdate({ type }); typeMenu.close(); }}
+                    className={cn(
+                      "apple-dropdown-item font-bold py-1.5 flex items-center justify-between",
+                      task.type === type
+                        ? "apple-dropdown-item-active"
+                        : "text-system-gray-600 dark:text-system-gray-300"
+                    )}
+                  >
+                    <span className="truncate">{t(`task_types.${type}`)}</span>
+                    {task.type === type && <CheckCircle2 size={10} className="shrink-0" />}
+                  </button>
+                ))}
+              </Dropdown>
             </div>
 
             {/* Priority Selector */}
             <div className="relative">
               <button
-                onClick={() => setShowPriorityMenu(!showPriorityMenu)}
+                onClick={priorityMenu.onTriggerClick}
                 className="flex items-center gap-1.5 h-8 w-20 px-2 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent"
               >
                 <TrendingUp size={12} className={cn("shrink-0", getPriorityColor(currentPriority))} />
@@ -217,41 +207,29 @@ export function Header({
                 <ChevronDown size={10} className="text-system-gray-400 shrink-0" />
               </button>
 
-              <AnimatePresence>
-                {showPriorityMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowPriorityMenu(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                      className="absolute left-0 top-full mt-1 apple-dropdown w-20 z-50"
-                    >
-                      {priorities.map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => { onUpdate({ priority: p }); setShowPriorityMenu(false); }}
-                          className={cn(
-                            "apple-dropdown-item font-bold py-1.5 flex items-center justify-between",
-                            task.priority === p
-                              ? "apple-dropdown-item-active"
-                              : "text-system-gray-600 dark:text-system-gray-300"
-                          )}
-                        >
-                          <span className={cn(task.priority !== p && getPriorityColor(p))}>P{p}</span>
-                          {task.priority === p && <CheckCircle2 size={10} className="shrink-0" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+              <Dropdown open={priorityMenu.open} onClose={priorityMenu.close} anchorPoint={priorityMenu.anchorPoint} className="left-0 top-full mt-1 w-20">
+                {priorities.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => { onUpdate({ priority: p }); priorityMenu.close(); }}
+                    className={cn(
+                      "apple-dropdown-item font-bold py-1.5 flex items-center justify-between",
+                      task.priority === p
+                        ? "apple-dropdown-item-active"
+                        : "text-system-gray-600 dark:text-system-gray-300"
+                    )}
+                  >
+                    <span className={cn(task.priority !== p && getPriorityColor(p))}>P{p}</span>
+                    {task.priority === p && <CheckCircle2 size={10} className="shrink-0" />}
+                  </button>
+                ))}
+              </Dropdown>
             </div>
 
             {/* Due Date Selector */}
             <div className="relative">
               <button
-                onClick={() => setShowCalendar(!showCalendar)}
+                onClick={calendarMenu.onTriggerClick}
                 className={cn(
                   "flex items-center gap-1.5 h-8 rounded-apple-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-all border border-transparent",
                   task.due_at ? "w-32 px-2" : "w-8 justify-center"
@@ -268,20 +246,14 @@ export function Header({
                   </>
                 )}
               </button>
-              
-              <AnimatePresence>
-                {showCalendar && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowCalendar(false)} />
-                    <CalendarPopup
-                      selectedDate={task.due_at ? new Date(task.due_at) : null}
-                      onChange={(date) => { onUpdate({ due_at: date ? date.toISOString() : null }); setShowCalendar(false); }}
-                      onClose={() => setShowCalendar(false)}
-                      className="absolute left-1/2 top-full mt-1 z-50 origin-top"
-                    />
-                  </>
-                )}
-              </AnimatePresence>
+
+              <Dropdown open={calendarMenu.open} onClose={calendarMenu.close} anchorPoint={calendarMenu.anchorPoint} className="left-1/2 top-full mt-1">
+                <CalendarPopup
+                  selectedDate={task.due_at ? new Date(task.due_at) : null}
+                  onChange={(date) => { onUpdate({ due_at: date ? date.toISOString() : null }); calendarMenu.close(); }}
+                  onClose={calendarMenu.close}
+                />
+              </Dropdown>
             </div>
           </div>
         </div>
@@ -353,33 +325,24 @@ export function Header({
 
         <div className="relative">
           <button
-            onClick={onDeleteClick}
+            onClick={(e) => {
+              deleteClickPointRef.current = { x: e.clientX, y: e.clientY };
+              onDeleteClick();
+            }}
             className="p-2 rounded-full hover:bg-apple-red/10 text-system-gray-400 hover:text-apple-red transition-colors"
             title={t('common.delete')}
           >
             <Trash2 size={16} />
           </button>
 
-          <AnimatePresence>
-            {showDeleteConfirm && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={onDeleteCancel} />
-                <motion.div 
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute right-0 top-full mt-2 apple-dropdown p-4 w-64 text-center"
-                >
-                  <AlertCircle size={32} className="text-apple-red mx-auto mb-2" />
-                  <p className="text-sm font-bold mb-4">{t('tasks.delete_confirm')}</p>
-                  <div className="flex gap-2">
-                    <button onClick={onDeleteCancel} className="apple-dropdown-item bg-black/5 dark:bg-white/5 py-1.5 justify-center">{t('common.cancel')}</button>
-                    <button onClick={onDeleteConfirm} className="apple-dropdown-item apple-dropdown-item-active py-1.5 justify-center">{t('common.delete')}</button>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          <Dropdown open={showDeleteConfirm} onClose={onDeleteCancel} anchorPoint={deleteClickPointRef.current} className="right-0 top-full mt-2 p-4 w-64 text-center">
+            <AlertCircle size={32} className="text-apple-red mx-auto mb-2" />
+            <p className="text-sm font-bold mb-4">{t('tasks.delete_confirm')}</p>
+            <div className="flex gap-2">
+              <button onClick={onDeleteCancel} className="apple-dropdown-item bg-black/5 dark:bg-white/5 py-1.5 justify-center">{t('common.cancel')}</button>
+              <button onClick={onDeleteConfirm} className="apple-dropdown-item apple-dropdown-item-active py-1.5 justify-center">{t('common.delete')}</button>
+            </div>
+          </Dropdown>
         </div>
       </div>
     </header>

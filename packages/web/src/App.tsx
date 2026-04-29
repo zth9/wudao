@@ -8,10 +8,9 @@ import {
   Sun,
   Moon,
   Monitor,
-  Languages,
   type LucideIcon,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSettingsStore } from "./stores/settingsStore";
 import { WsProvider } from "./contexts/WsContext";
 import { ThemeProvider } from "./contexts/ThemeProvider";
@@ -24,6 +23,8 @@ import {
   type ViewKey,
 } from "./app-route";
 import { LoadingIndicator } from "./components/LoadingIndicator";
+import { Dropdown } from "./components/ui/Dropdown";
+import { useDropdownTrigger } from "./components/ui/useDropdownTrigger";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 const DashboardView = lazy(() => import("./components/DashboardView"));
@@ -43,7 +44,8 @@ function ViewFallback() {
 function AppInner() {
   const { t, i18n } = useTranslation();
   const [route, setRoute] = useState<AppRoute>(() => parseAppRoute(window.location.search));
-  const [hoverTheme, setHoverTheme] = useState(false);
+  const langMenu = useDropdownTrigger();
+  const themeMenu = useDropdownTrigger();
   const lastTaskIdRef = useRef<string | null>(route.taskId);
   const fetchProviders = useSettingsStore((s) => s.fetch);
   const { theme, setTheme, user } = useSettingsStore();
@@ -67,10 +69,15 @@ function AppInner() {
     [t],
   );
 
-  const toggleLanguage = () => {
-    const nextLng = i18n.language.startsWith("zh") ? "en" : "zh";
-    void i18n.changeLanguage(nextLng);
-  };
+  const languageItems = useMemo(
+    () => [
+      { key: "zh", label: "中文" },
+      { key: "en", label: "English" },
+    ],
+    [],
+  );
+
+  const currentThemeIcon = themeItems.find((item) => item.key === theme)?.icon ?? Monitor;
 
   useEffect(() => {
     fetchProviders();
@@ -131,9 +138,6 @@ function AppInner() {
 
   const activeView = route.view;
   const activeTaskId = route.taskId;
-  const languageSwitchTitle = i18n.language.startsWith("zh")
-    ? t("common.switch_to_english")
-    : t("common.switch_to_chinese");
   const userDisplayName = user.nickname || t("common.user");
 
   return (
@@ -176,66 +180,68 @@ function AppInner() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <button
-            onClick={toggleLanguage}
-            className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors"
-            title={languageSwitchTitle}
-          >
-            <Languages size={16} />
-          </button>
-
-          <div
-            className="relative"
-            onMouseEnter={() => setHoverTheme(true)}
-            onMouseLeave={() => setHoverTheme(false)}
-          >
-            <motion.div
-              className="bg-black/5 dark:bg-white/5 p-1 rounded-apple-xl flex items-center justify-center border border-black/5 dark:border-white/10 h-9 overflow-hidden"
-              animate={{
-                width: hoverTheme ? "240px" : "36px",
-                gap: hoverTheme ? "4px" : "0px",
-              }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          {/* Language Switcher */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => { langMenu.onTriggerClick(e); themeMenu.close(); }}
+              className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors text-xs font-bold"
             >
-              {themeItems.map((item) => {
-                const isActive = theme === item.key;
+              {i18n.language.startsWith("zh") ? "中" : "En"}
+            </button>
+
+            <Dropdown open={langMenu.open} onClose={langMenu.close} anchorPoint={langMenu.anchorPoint} className="right-0 top-full mt-1 w-9">
+              {languageItems.map((item) => {
+                const isActive = i18n.language.startsWith(item.key);
                 return (
                   <button
                     key={item.key}
-                    onClick={() => setTheme(item.key as typeof theme)}
+                    onClick={() => { void i18n.changeLanguage(item.key); langMenu.close(); }}
                     className={cn(
-                      "flex items-center justify-center rounded-apple-lg transition-all relative shrink-0",
+                      "apple-dropdown-item font-bold py-1.5 flex items-center justify-center",
                       isActive
-                        ? "text-apple-blue"
-                        : "text-system-gray-400 dark:text-system-gray-300 hover:text-system-gray-600 dark:hover:text-system-gray-200",
-                      hoverTheme ? "px-3 w-auto h-7" : (isActive ? "w-7 h-7" : "w-0 overflow-hidden px-0"),
+                        ? "apple-dropdown-item-active"
+                        : "text-system-gray-600 dark:text-system-gray-300",
                     )}
-                    title={item.label}
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-theme-pill"
-                        className="absolute inset-0 bg-white dark:bg-system-gray-700 shadow-apple-sm rounded-apple-lg -z-0"
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                      />
-                    )}
-                    <item.icon size={13} className="relative z-10 shrink-0" />
-                    <AnimatePresence>
-                      {hoverTheme && (
-                        <motion.span
-                          initial={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          animate={{ opacity: 1, width: "auto", marginLeft: 6 }}
-                          exit={{ opacity: 0, width: 0, marginLeft: 0 }}
-                          className="text-[9px] font-extrabold uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden"
-                        >
-                          {item.label}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
+                    <span className="text-xs">{item.key === "zh" ? "中" : "EN"}</span>
                   </button>
                 );
               })}
-            </motion.div>
+            </Dropdown>
+          </div>
+
+          {/* Theme Switcher */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => { themeMenu.onTriggerClick(e); langMenu.close(); }}
+              className="w-9 h-9 flex items-center justify-center rounded-apple-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-system-gray-500 dark:text-system-gray-400 hover:text-apple-blue transition-colors"
+            >
+              {(() => {
+                const Icon = currentThemeIcon;
+                return <Icon size={16} />;
+              })()}
+            </button>
+
+            <Dropdown open={themeMenu.open} onClose={themeMenu.close} anchorPoint={themeMenu.anchorPoint} className="right-0 top-full mt-1 w-9">
+              {themeItems.map((item) => {
+                const isActive = theme === item.key;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => { setTheme(item.key as typeof theme); themeMenu.close(); }}
+                    className={cn(
+                      "apple-dropdown-item font-bold p-1.5 flex items-center justify-center",
+                      isActive
+                        ? "apple-dropdown-item-active"
+                        : "text-system-gray-600 dark:text-system-gray-300",
+                    )}
+                  >
+                    <Icon size={18} className={isActive ? "text-white" : ""} />
+                  </button>
+                );
+              })}
+            </Dropdown>
           </div>
 
           <div className="flex items-center gap-3 px-2 border-l border-black/5 dark:border-white/10 ml-2 pl-6">

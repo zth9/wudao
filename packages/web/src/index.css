@@ -97,11 +97,11 @@
 
   .apple-dropdown-item {
     @apply w-full text-left px-3 py-2 rounded-apple-lg text-xs transition-all duration-200;
-    @apply hover:bg-black/5 dark:hover:bg-white/5;
+    @apply hover:bg-black/5 dark:hover:bg-white/10;
   }
 
   .apple-dropdown-item-active {
-    @apply bg-apple-blue text-white shadow-apple-sm hover:bg-apple-blue/90;
+    @apply bg-apple-blue text-white shadow-apple-sm hover:bg-apple-blue/90 dark:hover:bg-apple-blue/80;
   }
 }
 

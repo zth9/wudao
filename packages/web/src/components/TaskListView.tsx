@@ -3,14 +3,14 @@ import { useTaskStore } from "../stores/taskStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { formatLocalizedDateInDefaultTimeZone, isBeforeTodayInDefaultTimeZone } from "../utils/time";
 import type { Provider, Task, TaskType } from "../services/api";
-import { 
-  Plus, 
-  Search, 
-  Trash2, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Zap, 
+import {
+  Plus,
+  Search,
+  Trash2,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Zap,
   X,
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
@@ -27,6 +27,8 @@ import {
 } from "./task-panel/constants";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { shouldSubmitOnEnter } from "../utils/ime";
+import { Dropdown } from "./ui/Dropdown";
+import { useDropdownTrigger } from "./ui/useDropdownTrigger";
 
 function RelativeTime({ dateStr }: { dateStr: string }) {
   const { t } = useTranslation();
@@ -70,7 +72,7 @@ export default function TaskListView({ onSelect }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [tab, setTab] = useState<FilterTab>("active");
   const [search, setSearch] = useState("");
-  const [showSortMenu, setShowSortMenu] = useState(false);
+  const sortMenu = useDropdownTrigger();
 
   useEffect(() => {
     void fetchAll(taskSortBy, taskSortOrder);
@@ -166,7 +168,7 @@ export default function TaskListView({ onSelect }: Props) {
 
         <div className="relative flex items-center bg-black/5 dark:bg-white/5 rounded-apple-lg border border-black/5 dark:border-white/10 p-0.5 shrink-0 min-w-[140px]">
           <button
-            onClick={() => setShowSortMenu(!showSortMenu)}
+            onClick={sortMenu.onTriggerClick}
             className="flex-1 flex items-center justify-between gap-2 px-3 py-1 rounded-apple hover:bg-black/5 dark:hover:bg-white/5 transition-all border-r border-black/5 dark:border-white/10"
           >
             <div className="flex items-center gap-2">
@@ -175,7 +177,7 @@ export default function TaskListView({ onSelect }: Props) {
             </div>
             <ChevronDown size={12} className="text-system-gray-400 dark:text-system-gray-300 shrink-0" />
           </button>
-          
+
           <button
             onClick={toggleOrder}
             className="px-2.5 py-1 rounded-apple hover:bg-black/5 dark:hover:bg-white/5 transition-all text-apple-blue flex items-center justify-center shrink-0"
@@ -194,44 +196,32 @@ export default function TaskListView({ onSelect }: Props) {
             </AnimatePresence>
           </button>
 
-          <AnimatePresence>
-            {showSortMenu && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setShowSortMenu(false)} />
-                <motion.div
-                  initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                  className="absolute left-0 right-0 top-full mt-1 apple-dropdown min-w-full z-50"
+          <Dropdown open={sortMenu.open} onClose={sortMenu.close} anchorPoint={sortMenu.anchorPoint} className="left-0 right-0 top-full mt-1 min-w-full">
+            <div className="flex flex-col gap-0.5">
+              {SORT_OPTS.map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    setTaskSortBy(opt.key);
+                    sortMenu.close();
+                  }}
+                  className={cn(
+                    "apple-dropdown-item flex items-center justify-between",
+                    taskSortBy === opt.key
+                      ? "apple-dropdown-item-active"
+                      : "text-system-gray-600 dark:text-system-gray-300"
+                  )}
                 >
-                  <div className="flex flex-col gap-0.5">
-                    {SORT_OPTS.map((opt) => (
-                      <button
-                        key={opt.key}
-                        onClick={() => {
-                          setTaskSortBy(opt.key);
-                          setShowSortMenu(false);
-                        }}
-                        className={cn(
-                          "apple-dropdown-item flex items-center justify-between",
-                          taskSortBy === opt.key
-                            ? "apple-dropdown-item-active"
-                            : "text-system-gray-600 dark:text-system-gray-300"
-                        )}
-                      >
-                        <span className="font-bold tracking-tight">{opt.label}</span>
-                        {taskSortBy === opt.key && (
-                          <motion.div layoutId="sort-check" initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
-                            ✓
-                          </motion.div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+                  <span className="font-bold tracking-tight">{opt.label}</span>
+                  {taskSortBy === opt.key && (
+                    <motion.div layoutId="sort-check" initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
+                      ✓
+                    </motion.div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </Dropdown>
         </div>
       </div>
 

@@ -1,19 +1,18 @@
 import { useState } from "react";
-import { 
-  format, 
-  addMonths, 
-  subMonths, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  isSameMonth, 
+import {
+  format,
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  isSameMonth,
   isSameDay,
-  eachDayOfInterval 
+  eachDayOfInterval
 } from "date-fns";
 import { zhCN, enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../utils/cn";
 
@@ -27,7 +26,7 @@ interface Props {
 export function CalendarPopup({ selectedDate, onChange, onClose, className }: Props) {
   const { t, i18n } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
-  
+
   const locale = i18n.language.startsWith('zh') ? zhCN : enUS;
 
   const days = eachDayOfInterval({
@@ -38,12 +37,7 @@ export function CalendarPopup({ selectedDate, onChange, onClose, className }: Pr
   const dayNames = t('calendar.days', { returnObjects: true }) as string[];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 10, x: "-50%" }}
-      animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
-      exit={{ opacity: 0, scale: 0.95, y: 10, x: "-50%" }}
-      className={cn("apple-dropdown p-4 w-[280px]", className)}
-    >
+    <div className={cn("p-4 w-[280px]", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4 px-1">
         <h3 className="text-sm font-black tracking-tight text-foreground dark:text-white">
@@ -130,6 +124,6 @@ export function CalendarPopup({ selectedDate, onChange, onClose, className }: Pr
            </button>
          )}
       </div>
-    </motion.div>
+    </div>
   );
 }
