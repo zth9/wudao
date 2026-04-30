@@ -156,7 +156,10 @@
     "user_profile": "User Profile",
     "nickname": "Nickname",
     "avatar_url": "Avatar URL",
-    "select_avatar": "Select Avatar"
+    "select_avatar": "Select Avatar",
+    "appearance": "Appearance",
+    "theme_label": "Theme",
+    "language_label": "Language"
   },
   "memories": {
     "kicker": "Memory",

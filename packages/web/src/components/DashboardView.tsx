@@ -185,21 +185,27 @@ export default function DashboardView({ onNavigate }: Props) {
               </div>
             ) : (
               stats.map((stat) => (
-                <Button
+                <div
                   key={stat.id}
-                  variant="ghost"
-                  onPress={() => onNavigate("tasks")}
-                  className="group w-full rounded-xl border border-border bg-surface p-5 text-left shadow-sm transition-all"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onNavigate("tasks")}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onNavigate("tasks"); }}
+                  className="group w-full cursor-pointer rounded-full border border-border bg-surface px-5 py-3 text-left shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={cn("p-2 rounded-lg", stat.bg)}>
-                      <stat.icon size={20} className={stat.color} />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={cn("flex shrink-0 items-center justify-center p-1.5 rounded-full", stat.bg)}>
+                        <stat.icon size={14} className={cn("shrink-0", stat.color)} />
+                      </div>
+                      <p className="text-[11px] font-bold text-muted uppercase tracking-widest truncate">{stat.label}</p>
                     </div>
-                    <ArrowUpRight size={16} className="text-default-foreground group-hover:text-accent transition-colors" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className="text-lg font-black tracking-tight">{stat.value}</p>
+                      <ArrowUpRight size={14} className="text-default-foreground group-hover:text-accent transition-colors" />
+                    </div>
                   </div>
-                  <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{stat.label}</p>
-                  <p className="text-3xl font-black mt-1 tracking-tight">{stat.value}</p>
-                </Button>
+                </div>
               ))
             )}
           </div>

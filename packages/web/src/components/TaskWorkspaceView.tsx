@@ -77,7 +77,7 @@ function DialogFallback({ onCancel }: { onCancel: () => void }) {
       }}
       variant="blur"
     >
-      <Modal.Container size="sm">
+      <Modal.Container placement="center" size="sm">
         <Modal.Dialog className="w-full max-w-md">
           <Modal.Body className="flex flex-col items-center p-8">
             <LoadingIndicator text={t("common.loading")} />

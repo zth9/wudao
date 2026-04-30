@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Globe, Cpu, AlertCircle } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Globe, Cpu, AlertCircle, Sun, Moon, Monitor, Languages } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
@@ -57,19 +57,21 @@ export function DefaultProviderToggle({ checked, label, onChange }: DefaultProvi
 }
 
 export default function SettingsView() {
-  const { t } = useTranslation();
-  const { 
-    providers, 
-    loading, 
+  const { t, i18n } = useTranslation();
+  const {
+    providers,
+    loading,
     error,
     clearError,
-    fetch: fetchProviders, 
-    add: create, 
-    update, 
-    remove, 
+    fetch: fetchProviders,
+    add: create,
+    update,
+    remove,
     reorder,
     user,
-    setUser
+    setUser,
+    theme,
+    setTheme,
   } = useSettingsStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -195,7 +197,7 @@ export default function SettingsView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-background-secondary dark:bg-black/40">
+    <div className="flex-1 flex flex-col min-h-0 bg-background-secondary dark:bg-black">
       <header className="px-8 pt-8 pb-4 shrink-0">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -279,6 +281,75 @@ export default function SettingsView() {
                    </div>
                 </div>
              </div>
+          </Card>
+
+          {/* Appearance Settings */}
+          <Card className="overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+              <Languages size={16} className="text-accent" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.appearance')}</h2>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Theme */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.theme_label')}</label>
+                <div className="flex gap-2">
+                  {[
+                    { key: "light" as const, icon: Sun, label: t("theme.light") },
+                    { key: "dark" as const, icon: Moon, label: t("theme.dark") },
+                    { key: "system" as const, icon: Monitor, label: t("theme.auto") },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const isActive = theme === item.key;
+                    return (
+                      <Button
+                        key={item.key}
+                        variant="ghost"
+                        onPress={() => setTheme(item.key)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl border transition-all",
+                          isActive
+                            ? "border-accent/20 bg-accent/10 text-accent"
+                            : "border-border bg-default text-muted hover:text-foreground hover:border-accent/20",
+                        )}
+                      >
+                        <Icon size={14} />
+                        <span className="text-xs font-bold">{item.label}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Language */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.language_label')}</label>
+                <div className="flex gap-2">
+                  {[
+                    { key: "zh", label: "中文" },
+                    { key: "en", label: "English" },
+                  ].map((item) => {
+                    const activeLang = i18n.language.startsWith("zh") ? "zh" : "en";
+                    const isActive = activeLang === item.key;
+                    return (
+                      <Button
+                        key={item.key}
+                        variant="ghost"
+                        onPress={() => void i18n.changeLanguage(item.key)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl border transition-all",
+                          isActive
+                            ? "border-accent/20 bg-accent/10 text-accent"
+                            : "border-border bg-default text-muted hover:text-foreground hover:border-accent/20",
+                        )}
+                      >
+                        <span className="text-xs font-bold">{item.label}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </Card>
 
           <Card className="overflow-hidden">
@@ -437,16 +508,15 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <Modal
+      <Modal.Backdrop
         isOpen={dialogOpen}
         onOpenChange={(open) => {
           if (!open) closeDialog();
         }}
       >
-        <Modal.Backdrop />
-        <Modal.Container className="w-full max-w-lg">
+        <Modal.Container placement="center" className="w-full max-w-lg">
           <Modal.Dialog>
-            <Modal.Header>
+            <Modal.Header className="flex-row items-center justify-between">
                <h3 className="text-lg font-bold">{editingId ? t('settings.edit_provider') : t('settings.new_provider')}</h3>
                <Tooltip delay={300} closeDelay={0}>
                  <Button isIconOnly variant="ghost" onPress={closeDialog} className="h-8 w-8" aria-label={t("common.close")}>
@@ -459,7 +529,7 @@ export default function SettingsView() {
                </Tooltip>
             </Modal.Header>
 
-            <Modal.Body className="max-h-[70vh] space-y-4 overflow-y-auto">
+            <Modal.Body className="max-h-[70vh] space-y-4 overflow-y-auto px-1 py-1">
                {error && (
                   <div className="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
                      <div className="flex items-start gap-2">
@@ -562,7 +632,7 @@ export default function SettingsView() {
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>
-      </Modal>
+      </Modal.Backdrop>
     </div>
   );
 }

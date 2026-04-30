@@ -39,16 +39,15 @@ export function NewTaskTerminalDialog({
   const [terminalName, setTerminalName] = useState(() => generateTerminalName());
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
       onOpenChange={(open) => {
         if (!open) onCancel();
       }}
     >
-      <Modal.Backdrop />
-      <Modal.Container className="w-full max-w-md" size="sm">
+      <Modal.Container placement="center" scroll="outside" className="w-full max-w-md" size="sm">
         <Modal.Dialog>
-          <Modal.Header className="border-b border-border">
+          <Modal.Header className="flex-row items-center justify-between border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
                 <TerminalIcon size={16} />
@@ -72,7 +71,7 @@ export function NewTaskTerminalDialog({
             </Tooltip>
           </Modal.Header>
 
-          <Modal.Body className="space-y-6">
+          <Modal.Body className="space-y-6 overflow-visible">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles size={14} className="text-accent" />
@@ -120,39 +119,41 @@ export function NewTaskTerminalDialog({
                     aria-pressed={isSelected}
                     variant="ghost"
                     className={cn(
-                      "relative flex h-auto min-h-0 flex-col items-stretch justify-start overflow-visible rounded-xl border px-3 py-2.5 text-left transition-all group",
+                      "relative flex h-16 min-h-0 flex-col items-stretch justify-start overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-all group",
                       isSelected
                         ? "bg-gradient-to-br from-accent to-accent text-white border-transparent ring-1 ring-accent/50 z-10"
                         : "bg-default border-border hover:border-default-foreground text-foreground",
                     )}
                   >
-                    <div className="relative z-10 flex items-start justify-between gap-2">
+                    <div className="relative z-10 flex h-5 items-center justify-between gap-2">
                       <div className={cn(
-                        "font-bold text-xs transition-colors min-w-0",
+                        "min-w-0 truncate text-xs font-bold transition-colors",
                         isSelected ? "text-white" : "text-foreground"
                       )}>{provider.name}</div>
-                      {(isSelected || !!provider.is_default) && (
-                        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                          {isSelected && (
-                            <Chip size="sm" variant="primary" color="default" className="text-[9px] font-bold uppercase tracking-wider bg-white/15 text-white border-white/20">
-                              {t("provider_status.selected")}
-                            </Chip>
-                          )}
-                          {!!provider.is_default && (
-                            <Chip
-                              size="sm"
-                              variant={isSelected ? "primary" : "soft"}
-                              color={isSelected ? "default" : "default"}
-                              className={cn(
-                                "text-[9px] font-bold uppercase tracking-wider",
-                                isSelected ? "bg-white/15 text-white border-white/20" : ""
-                              )}
-                            >
-                              {t("provider_status.default")}
-                            </Chip>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex h-5 max-w-[96px] shrink-0 flex-nowrap justify-end gap-1 overflow-hidden">
+                        {(isSelected || !!provider.is_default) && (
+                          <>
+                            {isSelected && (
+                              <Chip size="sm" variant="primary" color="default" className="h-4 min-h-0 bg-white/15 px-1.5 text-[9px] font-bold uppercase tracking-wider text-white border-white/20">
+                                {t("provider_status.selected")}
+                              </Chip>
+                            )}
+                            {!!provider.is_default && (
+                              <Chip
+                                size="sm"
+                                variant={isSelected ? "primary" : "soft"}
+                                color={isSelected ? "default" : "default"}
+                                className={cn(
+                                  "h-4 min-h-0 px-1.5 text-[9px] font-bold uppercase tracking-wider",
+                                  isSelected ? "bg-white/15 text-white border-white/20" : ""
+                                )}
+                              >
+                                {t("provider_status.default")}
+                              </Chip>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className={cn(
                       "text-[10px] mt-0.5 truncate relative z-10 transition-colors",
@@ -225,6 +226,6 @@ export function NewTaskTerminalDialog({
           </Modal.Footer>
         </Modal.Dialog>
       </Modal.Container>
-    </Modal>
+    </Modal.Backdrop>
   );
 }

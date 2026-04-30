@@ -113,9 +113,9 @@ export default function TaskListView({ onSelect }: Props) {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-surface-secondary">
+    <div className="flex-1 flex flex-col min-h-0 bg-surface-secondary dark:bg-black">
       {/* Header */}
-      <header className="h-16 shrink-0 px-8 flex items-center justify-between z-10 bg-overlay/90 border-b border-border">
+      <header className="h-16 shrink-0 px-8 flex items-center justify-between z-10 bg-overlay/90 border-b border-border dark:bg-black">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{t('nav.tasks')}</h1>
           <p className="text-[11px] text-muted font-medium uppercase tracking-wider">
@@ -133,7 +133,7 @@ export default function TaskListView({ onSelect }: Props) {
       </header>
 
       {/* Toolbar */}
-      <div className="px-8 py-4 flex items-center gap-4 bg-surface-secondary border-b border-border">
+      <div className="px-8 py-4 flex items-center gap-4 bg-surface-secondary border-b border-border dark:bg-black">
         <div className="flex bg-default rounded-full p-1 border border-border">
           {TABS.map((ft) => {
             const isActive = tab === ft.key;
@@ -145,7 +145,7 @@ export default function TaskListView({ onSelect }: Props) {
                 className={cn(
                   "relative h-auto min-h-0 rounded-full px-5 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors duration-200 group",
                   isActive
-                    ? "text-accent"
+                    ? "text-white"
                     : "text-muted hover:text-foreground"
                 )}
               >
@@ -434,16 +434,16 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   }, [create, onCreated, parsedTask, selectedProviderId]);
 
   return (
-    <Modal
+    <Modal.Backdrop
       isOpen
+      isDismissable={!submitting}
       onOpenChange={(open) => {
         if (!open && !submitting) onClose();
       }}
     >
-      <Modal.Backdrop isDismissable={!submitting} />
-      <Modal.Container className="w-full max-w-lg">
+      <Modal.Container placement="center" scroll="outside" className="w-full max-w-lg">
         <Modal.Dialog>
-          <Modal.Header>
+          <Modal.Header className="flex-row items-center justify-between">
             <h3 className="text-lg font-bold">{t('tasks.new_task')}</h3>
             <Tooltip delay={300} closeDelay={0}>
               <Button
@@ -462,7 +462,7 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
             </Tooltip>
           </Modal.Header>
 
-          <Modal.Body>
+          <Modal.Body className="overflow-visible">
             {submitting ? (
               <LoadingAnimation />
             ) : (
@@ -480,7 +480,8 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
                       }}
                       placeholder={t('tasks.placeholder_title')}
                       rows={4}
-                      className="w-full resize-none text-[15px]"
+                      variant="secondary"
+                      className="w-full resize-none border border-border bg-default/80 text-[15px] shadow-sm placeholder:text-muted dark:border-white/10 dark:bg-default/70"
                       autoFocus
                       onKeyDown={(e) => {
                         if (!shouldSubmitOnEnter(e, isInputComposingRef.current)) return;
@@ -564,7 +565,7 @@ function CreateTaskDialog({ onClose, onCreated }: { onClose: () => void; onCreat
           </Modal.Body>
         </Modal.Dialog>
       </Modal.Container>
-    </Modal>
+    </Modal.Backdrop>
   );
 }
 
@@ -586,44 +587,46 @@ export function ProviderSelector({ providers, selectedProviderId, onSelect }: Pr
           const isSelected = selectedProviderId === p.id;
 
           return (
-          <Button
-            key={p.id}
-            type="button"
-            onPress={() => onSelect(p.id)}
-            aria-pressed={isSelected}
-            variant="ghost"
-            className={cn(
-              "relative flex h-auto min-h-0 w-full flex-col items-stretch justify-start rounded-lg border p-2.5 text-left transition-all duration-200 group",
-              isSelected
-                ? "bg-accent/10 border-accent ring-1 ring-accent z-10"
-                : "border-border bg-default hover:border-default-foreground"
-            )}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className={cn(
-                "text-xs font-bold transition-colors min-w-0",
-                isSelected ? "text-accent" : "text-foreground"
-              )}>{p.name}</div>
-              {(isSelected || !!p.is_default) && (
-                <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                  {isSelected && (
-                    <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-bold uppercase tracking-wider">
-                      {t("provider_status.selected")}
-                    </Chip>
-                  )}
-                  {!!p.is_default && (
-                    <Chip size="sm" color="default" variant="soft" className="text-[9px] font-bold uppercase tracking-wider">
-                      {t("provider_status.default")}
-                    </Chip>
+            <Button
+              key={p.id}
+              type="button"
+              onPress={() => onSelect(p.id)}
+              aria-pressed={isSelected}
+              variant="ghost"
+              className={cn(
+                "relative flex h-16 min-h-0 w-full flex-col items-stretch justify-start overflow-hidden rounded-lg border p-2.5 text-left transition-all duration-200 group",
+                isSelected
+                  ? "bg-accent/10 border-accent ring-1 ring-accent z-10"
+                  : "border-border bg-default hover:border-default-foreground"
+              )}
+            >
+              <div className="flex h-5 items-center justify-between gap-2">
+                <div className={cn(
+                  "min-w-0 truncate text-xs font-bold transition-colors",
+                  isSelected ? "text-accent" : "text-foreground"
+                )}>{p.name}</div>
+                <div className="flex h-5 max-w-[96px] shrink-0 flex-nowrap justify-end gap-1 overflow-hidden">
+                  {(isSelected || !!p.is_default) && (
+                    <>
+                      {isSelected && (
+                        <Chip size="sm" color="accent" variant="soft" className="h-4 min-h-0 px-1.5 text-[9px] font-bold uppercase tracking-wider">
+                          {t("provider_status.selected")}
+                        </Chip>
+                      )}
+                      {!!p.is_default && (
+                        <Chip size="sm" color="default" variant="soft" className="h-4 min-h-0 px-1.5 text-[9px] font-bold uppercase tracking-wider">
+                          {t("provider_status.default")}
+                        </Chip>
+                      )}
+                    </>
                   )}
                 </div>
-              )}
-            </div>
-            <div className={cn(
-              "text-[10px] truncate transition-colors",
-              isSelected ? "text-accent/70" : "text-muted"
-            )}>{p.model || p.id}</div>
-          </Button>
+              </div>
+              <div className={cn(
+                "mt-0.5 truncate text-[10px] transition-colors",
+                isSelected ? "text-accent/70" : "text-muted"
+              )}>{p.model || p.id}</div>
+            </Button>
         )})}
       </div>
     </div>

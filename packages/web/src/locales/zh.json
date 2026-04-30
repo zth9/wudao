@@ -156,7 +156,10 @@
     "user_profile": "个人资料",
     "nickname": "显示昵称",
     "avatar_url": "头像链接 (URL)",
-    "select_avatar": "选择内置头像"
+    "select_avatar": "选择内置头像",
+    "appearance": "外观",
+    "theme_label": "主题模式",
+    "language_label": "语言"
   },
   "memories": {
     "kicker": "Memory",
