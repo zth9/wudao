@@ -4,17 +4,25 @@
 
 ## 2026-04-29
 
+- **HeroUI v3 全量迁移完成，自定义 UI 组件层已移除**：
+  - 从项目级 `components/ui/heroui.tsx` 包装层全面切到 HeroUI 原生组件直接导入，旧 `components/ui/` 目录已删除
+  - Avatar：App 顶栏、设置页头像选择、任务聊天用户/AI 头像均改用 HeroUI `Avatar` + `Avatar.Image` / `Avatar.Fallback` 复合模式
+  - ProgressBar：Dashboard 用量统计条改用 HeroUI `ProgressBar`，支持 `accent` / `danger` 颜色语义
+  - SearchField：任务列表搜索改用 HeroUI `SearchField`，`placeholder` 放在 `SearchField.Input` 上
+  - Alert：记忆页保存成功/失败、SDK Runner 错误、设置页加载失败均改用 HeroUI `Alert`
+  - Spinner：任务列表加载、设置页保存中、任务聊天回复中改用 HeroUI `Spinner`
+  - Drawer：任务列表抽屉从 framer-motion 切到 HeroUI `Drawer` 复合组件（`Drawer.Backdrop > Drawer.Content > Drawer.Dialog > Drawer.Header / Body`）
+  - Calendar：日历弹层从 date-fns 自定义网格切到 HeroUI `Calendar`，依赖 `@internationalized/date` 做 DateValue 转换
+  - RadioGroup + Radio：终端启动弹窗权限选择改用 HeroUI `RadioGroup` + `Radio.Control > Radio.Indicator` + `Radio.Content`
+  - Chip：任务列表/抽屉优先级与类型标签、SDK Runner 状态标签改用 HeroUI `Chip`
+  - Modal：终端启动弹窗改用 HeroUI `Modal` 复合组件
+  - 设置页 tab 切换改用 HeroUI `Tabs`
+  - 所有硬编码 Tailwind 颜色（`text-red-*`、`text-green-*`、`text-blue-*`、`bg-green-*` 等）已替换为 HeroUI theme token（`text-danger`、`text-success`、`text-accent`、`bg-success` 等）
+  - HeroUI v3 API 适配：`color` 使用 `"default"|"accent"|"success"|"warning"|"danger"`，`variant` 使用 `"primary"|"secondary"|"tertiary"|"soft"`，Alert 仅支持 `color`，Radio 使用独立 import
+  - 测试已更新：`TaskListDrawer.test.ts` 改为 mock HeroUI 组件后验证渲染内容，新增分组展示测试用例
+  - 已完成 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters`、`pnpm --filter web test`（18 个测试文件 / 112 个用例）与 `pnpm --filter web build`
+
 - **前端已接入 HeroUI v3 并完成第一轮界面迁移**：
-  - Web 端新增 HeroUI v3 依赖，并将 Tailwind CSS 升级到 v4，通过官方 Vite 插件构建样式
-  - 现有 Apple glass token 已迁移到 CSS `@theme`，暗黑模式同时写入 `.dark` 与 `data-theme`，保证 HeroUI 组件和原有主题逻辑一致
-  - 新增项目级 HeroUI 包装组件，统一按钮、图标按钮、卡片、输入框、文本域、状态标签和加载 Spinner 的默认外观
-  - Dashboard、任务列表、记忆页、设置页、任务工作台 header / 抽屉、终端启动弹窗、Agent Runner、产物抽屉和任务聊天的一批高频控件已切到 HeroUI 包装层
-  - 本轮进一步补齐 HeroUI Tooltip 包装，App 顶栏、任务列表筛选/排序/新建任务弹窗、任务详情元数据菜单、任务列表抽屉、日历弹层、设置页头像选择、终端卡片和工具卡片操作已继续收敛到项目级 HeroUI 控件
-  - 本轮追加补齐 HeroUI Checkbox 包装与包装层 `ref` 转发，任务详情标题编辑、终端重命名、任务聊天 provider 触发器、设置页头像上传入口和默认供应商开关也已改走项目级 HeroUI 控件
-  - 本轮继续补齐 HeroUI Dropdown / Popover / Modal 包装，App 顶栏语言与主题菜单、任务列表排序菜单、任务详情类型/优先级/日期/删除确认、任务聊天 provider 菜单、新建任务弹窗、设置 provider 弹窗、启动终端弹窗和工作台懒加载弹窗已统一走项目级 HeroUI 浮层
-  - 旧的自研 `components/ui/Dropdown.tsx`、`useDropdownTrigger.ts` 与全局 `apple-dropdown*` 样式已删除，业务组件不再维护点击坐标、遮罩和浮层动画细节
-  - 构建已拆分 `heroui` 与 `react-vendor` chunk，避免 HeroUI 进入主入口后触发大包告警
-  - 已完成 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters`、`pnpm --filter web test` 与 `pnpm --filter web build`
 
 ## 2026-04-28
 

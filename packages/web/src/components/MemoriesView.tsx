@@ -9,6 +9,7 @@ import {
   type WudaoUserMemorySaveResult,
 } from "../services/api";
 import { cn } from "../utils/cn";
+import { Alert } from "@heroui/react/alert";
 import { Button } from "@heroui/react/button";
 import { Card } from "@heroui/react/card";
 import { TextArea } from "@heroui/react/textarea";
@@ -244,14 +245,18 @@ export default function MemoriesView() {
               )}
 
               {userMemoryMessage && (
-                <div className="mt-4 shrink-0 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent">
-                  {userMemoryMessage}
-                </div>
+                <Alert color="accent" className="mt-4 shrink-0">
+                  <Alert.Content>
+                    <Alert.Description>{userMemoryMessage}</Alert.Description>
+                  </Alert.Content>
+                </Alert>
               )}
               {userMemoryWarning && (
-                <div className="mt-4 shrink-0 rounded-xl border border-warning/20 bg-warning/5 px-4 py-3 text-sm text-warning whitespace-pre-wrap break-words">
-                  {userMemoryWarning}
-                </div>
+                <Alert color="warning" className="mt-4 shrink-0">
+                  <Alert.Content>
+                    <Alert.Description className="whitespace-pre-wrap break-words">{userMemoryWarning}</Alert.Description>
+                  </Alert.Content>
+                </Alert>
               )}
             </Card>
           )}
@@ -318,14 +323,18 @@ export default function MemoriesView() {
               )}
 
               {agentMemoryMessage && (
-                <div className="mt-4 shrink-0 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-accent">
-                  {agentMemoryMessage}
-                </div>
+                <Alert color="accent" className="mt-4 shrink-0">
+                  <Alert.Content>
+                    <Alert.Description>{agentMemoryMessage}</Alert.Description>
+                  </Alert.Content>
+                </Alert>
               )}
               {agentMemoryWarning && (
-                <div className="mt-4 shrink-0 rounded-xl border border-warning/20 bg-warning/5 px-4 py-3 text-sm text-warning whitespace-pre-wrap break-words">
-                  {agentMemoryWarning}
-                </div>
+                <Alert color="warning" className="mt-4 shrink-0">
+                  <Alert.Content>
+                    <Alert.Description className="whitespace-pre-wrap break-words">{agentMemoryWarning}</Alert.Description>
+                  </Alert.Content>
+                </Alert>
               )}
             </Card>
           )}

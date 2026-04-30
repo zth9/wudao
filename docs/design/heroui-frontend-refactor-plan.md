@@ -51,10 +51,63 @@
 
 ## 当前进展
 
-- 已完成基础设施迁移与项目级包装层：`Button`、`IconButton`、`Card`、`Input`、`TextArea`、`Checkbox`、`Chip`、`Spinner`、`Tooltip`、`Dropdown`、`Popover`、`Modal`
-- 已删除旧的自研浮层组件 `components/ui/Dropdown.tsx`、`components/ui/useDropdownTrigger.ts` 与全局 `apple-dropdown*` 样式
-- App 顶栏、任务列表排序、任务详情元数据菜单、任务聊天 provider 菜单、日历弹层、删除确认、新建任务弹窗、设置 provider 弹窗、启动终端弹窗和工作台懒加载弹窗已统一到 HeroUI 包装层
-- 仍保留的自定义结构主要是任务工作台右侧固定宽度抽屉、Task Chat 动画/输入测量、xterm 容器和任务列表抽屉；这些区域依赖现有布局测量或动画状态，后续继续按小步迁移
+### 第一阶段：基础设施迁移 ✅ 已完成
+
+- HeroUI v3 (`@heroui/react: 3.0.3`) 与 `@heroui/styles: 3.0.3` 已安装
+- Tailwind CSS v4 (`tailwindcss: ^4.2.4`) 与 `@tailwindcss/vite: 4.2.4` 已配置
+- CSS 已通过 `@import "@heroui/styles"` 集成到 `index.css`
+- `pnpm --filter web build` 可以通过
+
+### 第二阶段：项目级 UI 包装层 ⚠️ 已跳过
+
+- 直接使用 HeroUI 原生组件导入，未创建项目级包装层
+- 旧的自研 UI 组件目录 `components/ui/` 已删除
+
+### 第三阶段：核心页面迁移 ✅ 已完成
+
+- **DashboardView**: 4 处 HeroUI 引用 (Button, Card, Tooltip, ProgressBar)
+- **TaskListView**: 10 处 HeroUI 引用 (Button, Card, Chip, Dropdown, Input, Modal, SearchField, Spinner, TextArea, Tooltip)
+- **MemoriesView**: 4 处 HeroUI 引用 (Alert, Button, Card, TextArea)
+- **SettingsView**: 11 处 HeroUI 引用 (Alert, Avatar, Button, Card, Checkbox, Chip, Input, Modal, Spinner, TextArea, Tooltip)
+
+### 第四阶段：工作台迁移 ✅ 已完成
+
+- **TaskChat**: 5 处 HeroUI 引用
+- **Header (task-panel)**: 5 处 HeroUI 引用 (Button, Input, Dropdown, Popover)
+- **TaskListDrawer**: 4 处 HeroUI 引用 (Drawer, Chip, Tooltip, Button)
+- **TerminalTile**: 3 处 HeroUI 引用 (Button, Input, Tooltip)
+- **SdkRunnerPanel**: 3 处 HeroUI 引用 (Alert, Button, Chip)
+- **TiledTerminalPanel**: 2 处 HeroUI 引用 (Button, Chip)
+- **TaskWorkspaceDrawerShell**: 2 处 HeroUI 引用 (Button, Tooltip)
+- **TaskArtifactsDrawer**: 2 处 HeroUI 引用 (Button, Chip)
+- **CalendarPopup**: 2 处 HeroUI 引用
+- **TaskWorkspaceView**: 1 处 HeroUI 引用 (Modal)
+- **LoadingIndicator**: 1 处 HeroUI 引用 (Spinner)
+- **NewTaskTerminalDialog**: 7 处 HeroUI 引用
+
+### 第五阶段：收口验证 ✅ 已完成
+
+- `pnpm --filter web test` 通过 (18 个测试文件 / 112 个用例)
+- `pnpm --filter web build` 通过
+- `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters` 通过
+
+### 迁移统计
+
+- **组件文件总数**: 21 个
+- **已迁移组件**: 16 个 (76%)
+- **未迁移组件**: 5 个 (其中 3 个保持现状，1 个待迁移，1 个测试文件)
+- **使用的 HeroUI 组件类型**: 19 种
+- **最常用组件**: Button (15处)、Tooltip (9处)、Chip (7处)、Input (5处)
+
+### 未迁移组件
+
+| 组件 | 状态 | 原因 |
+|-----|------|------|
+| `MarkdownContent.tsx` | 保持现状 | 纯 Markdown 渲染，不需要 UI 库 |
+| `TerminalView.tsx` | 保持现状 | xterm.js 专用组件 |
+| `TaskWorkspacePanelHeader.tsx` | 待迁移 | 自定义布局，有特殊高度约束 (49px) |
+| `SettingsView.test.tsx` | 保持现状 | 测试 mock |
+| `NewTaskTerminalDialog.test.tsx` | 保持现状 | 测试 mock |
 
 ## 风险
 

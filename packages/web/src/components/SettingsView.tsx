@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Globe, Cpu, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Globe, Cpu, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
+import { Alert } from "@heroui/react/alert";
+import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
 import { Card } from "@heroui/react/card";
 import { Checkbox } from "@heroui/react/checkbox";
+import { Chip } from "@heroui/react/chip";
 import { Input } from "@heroui/react/input";
 import { Modal } from "@heroui/react/modal";
+import { Spinner } from "@heroui/react/spinner";
 import { TextArea } from "@heroui/react/textarea";
 import { Tooltip } from "@heroui/react/tooltip";
 
@@ -223,31 +227,32 @@ export default function SettingsView() {
                    <Button
                      onPress={() => fileInputRef.current?.click()}
                      variant="ghost"
-                     className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-accent/10 p-0 text-4xl shadow-lg dark:border-surface"
+                     className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
                      aria-label={t("common.avatar")}
                    >
-                      {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
-                        <img src={user.avatar} alt={t("common.avatar")} className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{user.avatar || "👨‍💻"}</span>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                         {uploading ? <Loader2 size={24} className="text-white animate-spin" /> : <Plus size={24} className="text-white" />}
+                      <Avatar size="lg" className="h-24 w-24 text-4xl">
+                        {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
+                          <Avatar.Image src={user.avatar} alt={t("common.avatar")} />
+                        ) : null}
+                        <Avatar.Fallback>{user.avatar || "👨‍💻"}</Avatar.Fallback>
+                      </Avatar>
+                      <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         {uploading ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
                       </div>
                    </Button>
                    <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
                       {defaultAvatars.map(av => (
-                        <Button
+                        <Avatar
                           key={av}
-                          onPress={() => setUser({ avatar: av })}
-                          variant="ghost"
+                          size="sm"
                           className={cn(
-                            "flex h-8 min-h-0 w-8 items-center justify-center rounded-full border text-lg transition-all hover:bg-default",
-                            user.avatar === av ? "border-accent bg-accent/10" : "border-transparent"
+                            "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
+                            user.avatar === av ? "ring-2 ring-accent" : ""
                           )}
+                          onClick={() => setUser({ avatar: av })}
                         >
-                          {av}
-                        </Button>
+                          <Avatar.Fallback>{av}</Avatar.Fallback>
+                        </Avatar>
                       ))}
                    </div>
                 </div>
@@ -294,17 +299,21 @@ export default function SettingsView() {
 
             <div className="divide-y divide-border">
               {error && (
-                <div className="mx-4 mt-4 rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
-                  </div>
+                <div className="mx-4 mt-4">
+                  <Alert color="danger">
+                    <Alert.Indicator>
+                      <AlertCircle size={16} />
+                    </Alert.Indicator>
+                    <Alert.Content>
+                      <Alert.Description>{error}</Alert.Description>
+                    </Alert.Content>
+                  </Alert>
                 </div>
               )}
 
               {loading && (
                  <div className="p-12 text-center text-muted">
-                    <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+                    <Spinner size="sm" className="mx-auto mb-2" />
                     <p className="text-xs font-medium uppercase tracking-widest">{t('settings.loading_providers')}</p>
                  </div>
               )}
@@ -337,7 +346,7 @@ export default function SettingsView() {
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-bold truncate tracking-tight">{p.name}</p>
                             {p.is_default ? (
-                              <span className="px-1.5 py-0.5 rounded-md bg-accent/10 text-accent text-[9px] font-extrabold uppercase tracking-widest">{t('theme.auto')}</span>
+                              <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest">{t('theme.auto')}</Chip>
                             ) : null}
                           </div>
                           <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
@@ -547,7 +556,7 @@ export default function SettingsView() {
                  variant="primary"
                  className="inline-flex min-w-[120px] items-center justify-center gap-2 px-8"
                >
-                 {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+                 {saving ? <Spinner size="sm" /> : null}
                  {saving ? t('common.loading') : editingId ? t('common.update') : t('common.save')}
                </Button>
             </Modal.Footer>

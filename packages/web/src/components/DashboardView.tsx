@@ -19,6 +19,7 @@ import { type ViewKey } from "../app-route";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { Button } from "@heroui/react/button";
 import { Card } from "@heroui/react/card";
+import { ProgressBar } from "@heroui/react/progress-bar";
 import { Tooltip } from "@heroui/react/tooltip";
 
 interface Props {
@@ -251,15 +252,16 @@ export default function DashboardView({ onNavigate }: Props) {
                             </div>
 
                             {item.total && (
-                              <div className="h-2 w-full bg-default rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full transition-all duration-1000",
-                                    (item.used / item.total) > 0.9 ? "bg-danger" : "bg-accent",
-                                  )}
-                                  style={{ width: `${Math.min(100, (item.used / item.total) * 100)}%` }}
-                                />
-                              </div>
+                              <ProgressBar
+                                aria-label={item.label}
+                                value={Math.min(100, (item.used / item.total) * 100)}
+                                color={(item.used / item.total) > 0.9 ? "danger" : "accent"}
+                                className="h-2"
+                              >
+                                <ProgressBar.Track>
+                                  <ProgressBar.Fill />
+                                </ProgressBar.Track>
+                              </ProgressBar>
                             )}
 
                             {item.detail && (

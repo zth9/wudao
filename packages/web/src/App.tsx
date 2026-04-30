@@ -23,6 +23,7 @@ import {
   type ViewKey,
 } from "./app-route";
 import { LoadingIndicator } from "./components/LoadingIndicator";
+import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
 import { Dropdown } from "@heroui/react/dropdown";
 
@@ -267,13 +268,12 @@ function AppInner() {
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold tracking-tight">{userDisplayName}</p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-accent/10 border border-border flex items-center justify-center overflow-hidden shadow-sm group cursor-pointer hover:ring-2 hover:ring-accent/20 transition-all">
+            <Avatar size="sm" className="cursor-pointer hover:ring-2 hover:ring-accent/20 transition-all">
               {((user.avatar && user.avatar.startsWith("/api")) || user.avatar.startsWith("http")) ? (
-                <img src={user.avatar} alt={t("common.avatar")} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-lg leading-none">{user.avatar || "👨‍💻"}</span>
-              )}
-            </div>
+                <Avatar.Image src={user.avatar} alt={t("common.avatar")} />
+              ) : null}
+              <Avatar.Fallback>{user.avatar || "👨‍💻"}</Avatar.Fallback>
+            </Avatar>
           </div>
         </div>
       </header>

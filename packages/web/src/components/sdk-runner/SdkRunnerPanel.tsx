@@ -6,6 +6,7 @@ import { cn } from "../../utils/cn";
 import { shortSdkRunId } from "../../utils/sdk-runner";
 import MarkdownContent from "../MarkdownContent";
 import { TaskWorkspaceDrawerShell } from "../TaskWorkspaceDrawerShell";
+import { Alert } from "@heroui/react/alert";
 import { Button } from "@heroui/react/button";
 import { Chip } from "@heroui/react/chip";
 
@@ -56,8 +57,8 @@ function SdkHeaderActions({ taskId }: { taskId: string }) {
         </Chip>
       )}
       {sdkRunning && (
-        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-green-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-success">
+          <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
           {t("sdkRunner.running")}
         </span>
       )}
@@ -69,8 +70,9 @@ function SdkHeaderActions({ taskId }: { taskId: string }) {
       {activeRun && (activeRun.status === "pending" || activeRun.status === "running") && (
         <Button
           variant="danger"
+          size="sm"
           onPress={() => cancelSdkRun(taskId, activeRun.id)}
-          className="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-red-400 hover:bg-red-400/15"
+          className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
         >
           {t("sdkRunner.cancel")}
         </Button>
@@ -151,7 +153,7 @@ function SdkToolCard({ item }: { item: SdkTimelineItem & { kind: "tool_use" } })
         onPress={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-default transition-colors"
       >
-        <span className="text-blue-400">⚡</span>
+        <span className="text-accent">⚡</span>
         <span className="font-medium">{t("sdkRunner.toolUse")}: {item.toolName}</span>
         <span className="ml-auto opacity-40">{expanded ? "▼" : "▶"}</span>
       </Button>
@@ -169,13 +171,13 @@ function SdkToolResultCard({ item }: { item: SdkTimelineItem & { kind: "tool_res
   const [expanded, setExpanded] = React.useState(false);
 
   return (
-    <div className={`rounded-lg border overflow-hidden ${item.isError ? "border-red-400/30" : "border-border"}`}>
+    <div className={`rounded-lg border overflow-hidden ${item.isError ? "border-danger/30" : "border-border"}`}>
       <Button
         variant="ghost"
         onPress={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-default transition-colors"
       >
-        <span className={item.isError ? "text-red-400" : "text-green-400"}>{item.isError ? "✗" : "✓"}</span>
+        <span className={item.isError ? "text-danger" : "text-success"}>{item.isError ? "✗" : "✓"}</span>
         <span className="font-medium">{t("sdkRunner.toolResult")}</span>
         <span className="ml-auto opacity-40">{expanded ? "▼" : "▶"}</span>
       </Button>
@@ -208,30 +210,30 @@ function SdkApprovalCard({
   const isPending = item.status === "pending";
 
   return (
-    <div className="rounded-lg border-2 border-orange-400/50 bg-orange-400/5 overflow-hidden">
+    <div className="rounded-lg border-2 border-warning/50 bg-warning/5 overflow-hidden">
       <div className="px-3 py-2 flex items-center gap-2 text-xs">
-        <span className="text-orange-400">⚠️</span>
+        <span className="text-warning">⚠️</span>
         <span className="font-medium">{item.toolName}</span>
-        <span className={`ml-auto text-xs ${isPending ? "text-orange-400 animate-pulse" : "opacity-60"}`}>
+        <span className={`ml-auto text-xs ${isPending ? "text-warning animate-pulse" : "opacity-60"}`}>
           {statusLabel}
         </span>
       </div>
-      <pre className="px-3 py-1 text-xs opacity-60 max-h-20 overflow-auto border-t border-orange-400/20">
+      <pre className="px-3 py-1 text-xs opacity-60 max-h-20 overflow-auto border-t border-warning/20">
         {JSON.stringify(item.input, null, 2)}
       </pre>
       {isPending && activeSdkRunId && (
-        <div className="flex gap-2 px-3 py-2 border-t border-orange-400/20">
+        <div className="flex gap-2 px-3 py-2 border-t border-warning/20">
           <Button
             variant="secondary"
             onPress={() => approveSdkAction(taskId, activeSdkRunId, item.approvalId, true)}
-            className="flex-1 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs font-medium hover:bg-green-500/30 transition-colors"
+            className="flex-1 px-3 py-1.5 rounded-lg bg-success/20 text-success text-xs font-medium hover:bg-success/30 transition-colors"
           >
             {t("sdkRunner.approve")}
           </Button>
           <Button
             variant="danger"
             onPress={() => approveSdkAction(taskId, activeSdkRunId, item.approvalId, false)}
-            className="flex-1 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/30 transition-colors"
+            className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
           >
             {t("sdkRunner.deny")}
           </Button>
@@ -288,9 +290,11 @@ function SdkTimeline({ taskId }: { taskId: string }) {
             );
           case "error":
             return (
-              <div key={item.id} className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
-                ❌ {item.message}
-              </div>
+              <Alert key={item.id} color="danger" className="text-xs">
+                <Alert.Content>
+                  <Alert.Description>❌ {item.message}</Alert.Description>
+                </Alert.Content>
+              </Alert>
             );
           case "status_change":
             return (

@@ -13,8 +13,11 @@ import { PERMISSION_MODES } from "../task-panel/constants";
 import { cn } from "../../utils/cn";
 import type { Provider } from "../../services/api";
 import { Button } from "@heroui/react/button";
+import { Chip } from "@heroui/react/chip";
 import { Input } from "@heroui/react/input";
 import { Modal } from "@heroui/react/modal";
+import { Radio } from "@heroui/react/radio";
+import { RadioGroup } from "@heroui/react/radio-group";
 import { Tooltip } from "@heroui/react/tooltip";
 
 interface Props {
@@ -131,19 +134,22 @@ export function NewTaskTerminalDialog({
                       {(isSelected || !!provider.is_default) && (
                         <div className="flex shrink-0 flex-wrap justify-end gap-1">
                           {isSelected && (
-                            <span className="rounded-full border border-white/20 bg-white/15 text-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+                            <Chip size="sm" variant="primary" color="default" className="text-[9px] font-bold uppercase tracking-wider bg-white/15 text-white border-white/20">
                               {t("provider_status.selected")}
-                            </span>
+                            </Chip>
                           )}
                           {!!provider.is_default && (
-                            <span className={cn(
-                              "rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider",
-                              isSelected
-                                ? "border-white/20 bg-white/15 text-white"
-                                : "border-border bg-default text-muted"
-                            )}>
+                            <Chip
+                              size="sm"
+                              variant={isSelected ? "primary" : "soft"}
+                              color={isSelected ? "default" : "default"}
+                              className={cn(
+                                "text-[9px] font-bold uppercase tracking-wider",
+                                isSelected ? "bg-white/15 text-white border-white/20" : ""
+                              )}
+                            >
                               {t("provider_status.default")}
-                            </span>
+                            </Chip>
                           )}
                         </div>
                       )}
@@ -162,40 +168,41 @@ export function NewTaskTerminalDialog({
                 <Shield size={14} className="text-accent" />
                 <label className="text-[11px] font-bold uppercase tracking-widest text-muted">{t("terminal_dialog.permission_label")}</label>
               </div>
-              <div className="space-y-2">
+              <RadioGroup
+                value={selectedMode}
+                onChange={setSelectedMode}
+                aria-label={t("terminal_dialog.permission_label")}
+                className="space-y-2"
+              >
                 {PERMISSION_MODES.map((mode) => (
-                  <Button
+                  <Radio
                     key={mode.value}
-                    onPress={() => setSelectedMode(mode.value)}
-                    variant="ghost"
+                    value={mode.value}
                     className={cn(
-                      "w-full px-4 py-3 rounded-xl border transition-all text-left flex items-center justify-between group",
+                      "w-full px-4 py-3 rounded-xl border transition-all text-left",
                       selectedMode === mode.value
-                        ? "bg-accent/10 border-accent/30 text-accent"
-                        : "bg-default border-border hover:bg-default/80 text-foreground",
+                        ? "bg-accent/10 border-accent/30"
+                        : "bg-default border-border hover:bg-default/80",
                     )}
                   >
-                    <div className="min-w-0">
-                      <div className={cn(
-                        "font-bold text-xs",
-                        selectedMode === mode.value ? "text-accent" : "text-foreground"
-                      )}>{t(mode.labelKey)}</div>
-                      <div className={cn(
-                        "text-[10px] mt-0.5 leading-relaxed",
-                        selectedMode === mode.value ? "text-accent/70" : "text-muted",
-                      )}>{t(mode.descKey)}</div>
-                    </div>
-                    <div className={cn(
-                      "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all",
-                      selectedMode === mode.value
-                        ? "border-accent bg-accent"
-                        : "border-default-foreground",
-                    )}>
-                      {selectedMode === mode.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </Button>
+                    <Radio.Control>
+                      <Radio.Indicator />
+                    </Radio.Control>
+                    <Radio.Content>
+                      <div className="min-w-0">
+                        <div className={cn(
+                          "font-bold text-xs",
+                          selectedMode === mode.value ? "text-accent" : "text-foreground"
+                        )}>{t(mode.labelKey)}</div>
+                        <div className={cn(
+                          "text-[10px] mt-0.5 leading-relaxed",
+                          selectedMode === mode.value ? "text-accent/70" : "text-muted",
+                        )}>{t(mode.descKey)}</div>
+                      </div>
+                    </Radio.Content>
+                  </Radio>
                 ))}
-              </div>
+              </RadioGroup>
             </div>
           </Modal.Body>
 

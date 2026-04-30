@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useTranslation } from "react-i18next";
 import {
   Send,
-  Loader2,
   FileCode,
   Sparkles,
   Bot,
@@ -18,8 +17,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
 import { Dropdown } from "@heroui/react/dropdown";
+import { Spinner } from "@heroui/react/spinner";
 import { Tooltip } from "@heroui/react/tooltip";
 import { useSettingsStore } from "../../stores/settingsStore";
 import MarkdownContent from "../MarkdownContent";
@@ -262,9 +263,9 @@ export function resolveTaskChatBottomFadeVisibilityClass(autoScrollEnabled: bool
 function TaskChatReplyingIndicator() {
   return (
     <div data-replying-indicator="true" className="flex gap-3">
-      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-border mt-1 overflow-hidden bg-surface text-accent">
-        <Bot size={14} />
-      </div>
+      <Avatar size="sm" className="mt-1 shrink-0">
+        <Avatar.Fallback><Bot size={14} /></Avatar.Fallback>
+      </Avatar>
       <div className="max-w-[85%] rounded-xl border border-border bg-surface/80 backdrop-blur-md px-4 py-3 text-foreground shadow-md">
         <div className="flex items-center gap-1.5" aria-hidden="true">
           <span className="h-2 w-2 rounded-full bg-accent animate-pulse [animation-delay:0ms]" />
@@ -611,7 +612,7 @@ export function TaskChat({
             const cardHeader = (
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]">
                 {item.kind === "error" ? (
-                  <AlertCircle size={14} className="text-red-500" />
+                  <AlertCircle size={14} className="text-danger" />
                 ) : ToolIcon ? (
                   <ToolIcon size={14} className="text-accent" />
                 ) : (
@@ -630,7 +631,7 @@ export function TaskChat({
                 )}
                 {isRunningToolCall && (
                   <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
-                    <Loader2 size={11} className="animate-spin" />
+                    <Spinner size="sm" className="[&>div]:w-3 [&>div]:h-3" />
                     <span>{t("tasks.tool_running")}</span>
                   </span>
                 )}
@@ -657,7 +658,7 @@ export function TaskChat({
                     <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.input)}</pre>
                     {isRunningToolCall && (
                       <div className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-accent">
-                        <Loader2 size={12} className="animate-spin" />
+                        <Spinner size="sm" className="[&>div]:w-3 [&>div]:h-3" />
                         <span>{t("tasks.tool_running_detail")}</span>
                       </div>
                     )}
@@ -695,21 +696,18 @@ export function TaskChat({
                   isUser ? "flex-row-reverse" : "flex-row"
                 )}
               >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border border-border mt-1 overflow-hidden bg-surface text-accent">
+                <Avatar size="sm" className="mt-1 shrink-0">
                   {isUser ? (
-                    user.avatar ? (
-                      (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
-                        <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-base leading-none select-none">{user.avatar}</span>
-                      )
-                    ) : (
-                      <User size={14} />
-                    )
+                    <>
+                      {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
+                        <Avatar.Image src={user.avatar} alt="avatar" />
+                      ) : null}
+                      <Avatar.Fallback>{user.avatar || <User size={14} />}</Avatar.Fallback>
+                    </>
                   ) : (
-                    <Bot size={14} />
+                    <Avatar.Fallback><Bot size={14} /></Avatar.Fallback>
                   )}
-                </div>
+                </Avatar>
 
                 {item.kind === "user_text" || item.kind === "assistant_text" ? (
                   <div className={cn(
@@ -724,7 +722,7 @@ export function TaskChat({
                   <div className={cn(
                     "max-w-[85%] rounded-xl border shadow-md overflow-hidden backdrop-blur-md",
                     item.kind === "error"
-                      ? "border-red-400/30 bg-red-50/80 text-red-900 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-100"
+                      ? "border-danger/30 bg-danger/10 text-danger"
                       : "border-border bg-surface/80 text-foreground"
                   )}>
                     {isCollapsibleToolItem ? (
@@ -857,7 +855,7 @@ export function TaskChat({
                 )}
               >
                 {generatingDocs ? (
-                  <Loader2 size={12} className="animate-spin" />
+                  <Spinner size="sm" className="[&>div]:w-3 [&>div]:h-3" />
                 ) : (
                   <FileCode size={12} />
                 )}

@@ -10,7 +10,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Zap,
   X,
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
@@ -33,6 +32,8 @@ import { Chip } from "@heroui/react/chip";
 import { Dropdown } from "@heroui/react/dropdown";
 import { Input } from "@heroui/react/input";
 import { Modal } from "@heroui/react/modal";
+import { SearchField } from "@heroui/react/search-field";
+import { Spinner } from "@heroui/react/spinner";
 import { TextArea } from "@heroui/react/textarea";
 import { Tooltip } from "@heroui/react/tooltip";
 
@@ -164,14 +165,19 @@ export default function TaskListView({ onSelect }: Props) {
           })}
         </div>
 
-        <div className="flex-1 relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <Input
+        <div className="flex-1">
+          <SearchField
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('common.search')}
-            className="w-full pl-9 pr-4 py-1.5 text-sm"
-          />
+            onChange={setSearch}
+            aria-label={t('common.search')}
+            className="w-full"
+          >
+            <SearchField.Group>
+              <SearchField.SearchIcon className="text-muted" />
+              <SearchField.Input className="py-1.5 text-sm" placeholder={t('common.search')} />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
         </div>
 
         <div className="relative flex items-center bg-default rounded-lg border border-border p-0.5 shrink-0 min-w-[140px]">
@@ -337,13 +343,17 @@ function TaskCard({
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-4">
-        <Chip className={cn(
-          task.priority === 0 ? "bg-danger/10 text-danger" :
-          task.priority === 1 ? "bg-warning/10 text-warning" :
-          task.priority === 2 ? "bg-warning/20 text-warning" :
-          task.priority === 3 ? "bg-accent/10 text-accent" :
-          "bg-success/10 text-success"
-        )}>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={
+            task.priority === 0 ? "danger" :
+            task.priority === 1 ? "warning" :
+            task.priority === 2 ? "warning" :
+            task.priority === 3 ? "accent" :
+            "success"
+          }
+        >
           {t(`priority_labels.${task.priority}`)}
         </Chip>
       </div>
@@ -597,14 +607,14 @@ export function ProviderSelector({ providers, selectedProviderId, onSelect }: Pr
               {(isSelected || !!p.is_default) && (
                 <div className="flex shrink-0 flex-wrap justify-end gap-1">
                   {isSelected && (
-                    <span className="rounded-full border border-accent/20 bg-accent/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent">
+                    <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-bold uppercase tracking-wider">
                       {t("provider_status.selected")}
-                    </span>
+                    </Chip>
                   )}
                   {!!p.is_default && (
-                    <span className="rounded-full border border-border bg-default px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted">
+                    <Chip size="sm" color="default" variant="soft" className="text-[9px] font-bold uppercase tracking-wider">
                       {t("provider_status.default")}
-                    </span>
+                    </Chip>
                   )}
                 </div>
               )}
@@ -624,12 +634,7 @@ function LoadingAnimation() {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12">
-      <div className="relative w-16 h-16 mb-6">
-        <div className="absolute inset-0 rounded-full border-4 border-accent/10 border-t-accent animate-spin" />
-        <div className="absolute inset-0 flex items-center justify-center">
-           <Zap size={24} className="text-accent animate-pulse" />
-        </div>
-      </div>
+      <Spinner size="lg" className="mb-6" color="accent" />
       <p className="text-sm font-medium text-muted animate-pulse">{t('tasks.analyzing')}</p>
     </div>
   );
