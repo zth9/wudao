@@ -16,14 +16,13 @@
   - `src/stores/taskStore.ts`：任务列表、任务详情、Agentic Chat timeline 与 SSE
   - `src/stores/terminalStore.ts`：终端 WebSocket、会话状态与任务关联
   - `src/stores/sdkRunnerStore.ts`：Claude Code Runner runs、事件订阅与时间线
-  - `src/stores/taskWorkspaceStore.ts`：按任务持久化右侧抽屉开关与宽度
+  - `src/stores/taskWorkspaceStore.ts`：按任务持久化右侧终端 / Agent Runner 抽屉开关与宽度
   - `src/stores/settingsStore.ts`：Provider、主题、语言、排序偏好与用户信息
 - 主要组件：
   - `src/components/TaskWorkspaceView.tsx`：任务工作台总装
   - `src/components/task-panel/TaskChat.tsx`：Agentic Chat 渲染与发送
   - `src/components/TiledTerminalPanel.tsx`、`TerminalView.tsx`、`TerminalTile.tsx`：终端区域
   - `src/components/sdk-runner/SdkRunnerPanel.tsx`：Agent Runner 面板
-  - `src/components/TaskArtifactsDrawer.tsx`：`AGENTS.md` 产物抽屉
   - `src/components/MarkdownContent.tsx`：Markdown 渲染
 - 国际化资源：`src/locales/zh.json`、`src/locales/en.json`
 
@@ -40,7 +39,7 @@
 2. 代码中禁止硬编码可见中/英文文案，所有文案走 `t()` 与 `locales/*.json`。
 3. 默认使用 `LoadingIndicator` 与稳定壳层占位；不要恢复全站 pulse Skeleton 体系。
 4. 高度、宽度、位置变化优先用 CSS transition 与明确尺寸约束；谨慎使用 Framer Motion `layout`，避免文字和图标形变。
-5. 任务工作台右侧终端、Agent Runner、产物是同一套固定宽度抽屉模型，改布局时同步维护 `task-workspace-layout.ts` 与测试。
+5. 任务工作台右侧终端、Agent Runner 是同一套固定宽度抽屉模型，改布局时同步维护 `task-workspace-layout.ts` 与测试。
 6. Agentic Chat 的结构化消息统一经过 `utils/agent-timeline.ts` 映射；不要重新引入旧版普通聊天渲染链路。
 7. Store 测试优先 mock `services/api.ts`，直接控制 zustand 初始状态，避免依赖真实后端。
 8. 涉及终端和 Runner 的 UI 变更，要考虑 SSE/WebSocket 断连、重连、历史回放和任务切换清理。
@@ -52,7 +51,7 @@
 - 常规测试：`pnpm --filter web test`
 - 构建验证：`pnpm --filter web build`
 - 严格类型与未使用代码检查：`pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters`
-- 涉及关键交互时，手动走通任务创建、Agentic Chat、终端开关、Agent Runner 展示、产物抽屉、设置保存等主流程
+- 涉及关键交互时，手动走通任务创建、Agentic Chat、终端开关、Agent Runner 展示、设置保存等主流程
 
 ## 文档回写
 

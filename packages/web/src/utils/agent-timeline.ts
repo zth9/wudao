@@ -15,7 +15,6 @@ export type AgentTimelineItem =
   | (AgentTimelineBase & { kind: "tool_call"; toolName: string; input: unknown; sdkRunId?: string | null; message?: string })
   | (AgentTimelineBase & { kind: "tool_result"; toolName: string; output: unknown })
   | (AgentTimelineBase & { kind: "approval"; toolName: string; input: unknown })
-  | (AgentTimelineBase & { kind: "artifact"; path: string; summary: string })
   | (AgentTimelineBase & { kind: "error"; content: string });
 
 export interface ChatMessage {
@@ -89,15 +88,6 @@ function mapAgentMessageToTimelineItem(message: AgentMessage): AgentTimelineItem
       kind: "approval",
       toolName: String(content.toolName || "tool"),
       input: content.input ?? {},
-      status,
-    };
-  }
-  if (message.kind === "artifact") {
-    return {
-      id: message.id,
-      kind: "artifact",
-      path: String(content.path || ""),
-      summary: String(content.summary || ""),
       status,
     };
   }

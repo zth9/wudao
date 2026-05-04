@@ -210,30 +210,6 @@ def _build_failed_tool_result(
     )
 
 
-def _extract_artifact_updates(output: Any) -> list[dict[str, str]]:
-    if not isinstance(output, dict):
-        return []
-
-    raw_updates = output.get("artifactsUpdated")
-    if not isinstance(raw_updates, list):
-        return []
-
-    artifact_updates: list[dict[str, str]] = []
-    for raw_item in raw_updates:
-        if not isinstance(raw_item, dict):
-            continue
-        path = str(raw_item.get("path") or "").strip()
-        if not path:
-            continue
-        artifact_updates.append(
-            {
-                "path": path,
-                "summary": str(raw_item.get("summary") or "").strip(),
-            }
-        )
-    return artifact_updates
-
-
 async def next_agent_step(
     provider_id: str,
     *,
@@ -254,6 +230,7 @@ async def next_agent_step(
 async def _process_tool_execution(
     task_id: str,
     run_id: str,
+    provider_id: str,
     tool_name: str,
     tool_input: dict[str, Any],
     tool_transcript: list[dict[str, Any]],
@@ -288,6 +265,7 @@ async def _process_tool_execution(
             tool_name,
             tool_input,
             agent_run_id=run_id,
+            provider_id=provider_id,
             on_started=handle_tool_progress,
         )
     )
@@ -344,18 +322,6 @@ async def _process_tool_execution(
     yield {"type": "message.completed", "item": result_item}
     yield {"type": "tool.completed", "item": result_item}
 
-    for artifact in _extract_artifact_updates(result_item["content_json"]["output"]):
-        artifact_item = append_agent_message(
-            task_id,
-            run_id,
-            role="assistant",
-            kind="artifact",
-            status="completed",
-            content_json=artifact,
-        )
-        yield {"type": "message.completed", "item": artifact_item}
-        yield {"type": "artifact.updated", **artifact}
-
     tool_transcript.extend([
         {"type": "tool_call", "toolName": tool_name, "input": tool_input},
         {"type": "tool_result", "toolName": tool_name, "output": result_item["content_json"]["output"]},
@@ -365,11 +331,19 @@ async def _process_tool_execution(
 async def _execute_tool_call_sequence(
     task_id: str,
     run_id: str,
+    provider_id: str,
     tool_calls: list[NormalizedToolCall],
     tool_transcript: list[dict[str, Any]],
 ) -> AsyncGenerator[dict[str, Any], None]:
     for tool_name, tool_input in tool_calls:
-        async for event in _process_tool_execution(task_id, run_id, tool_name, tool_input, tool_transcript):
+        async for event in _process_tool_execution(
+            task_id,
+            run_id,
+            provider_id,
+            tool_name,
+            tool_input,
+            tool_transcript,
+        ):
             yield event
             if event["type"] == "run.failed":
                 return
@@ -421,7 +395,7 @@ async def run_agent_loop(
                 yield {"type": "message.completed", "item": assistant_item}
 
             step_failed = False
-            async for event in _execute_tool_call_sequence(task_id, run_id, tool_calls, tool_transcript):
+            async for event in _execute_tool_call_sequence(task_id, run_id, provider_id, tool_calls, tool_transcript):
                 yield event
                 if event["type"] == "run.failed":
                     step_failed = True

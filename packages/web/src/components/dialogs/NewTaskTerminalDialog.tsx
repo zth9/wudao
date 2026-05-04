@@ -12,6 +12,7 @@ import { generateTerminalName } from "../../stores/terminalStore";
 import { PERMISSION_MODES } from "../task-panel/constants";
 import { cn } from "../../utils/cn";
 import type { Provider } from "../../services/api";
+import { ProviderIcon } from "../ProviderIcon";
 import { Button } from "@heroui/react/button";
 import { Chip } from "@heroui/react/chip";
 import { Input } from "@heroui/react/input";
@@ -126,10 +127,13 @@ export function NewTaskTerminalDialog({
                     )}
                   >
                     <div className="relative z-10 flex h-5 items-center justify-between gap-2">
-                      <div className={cn(
-                        "min-w-0 truncate text-xs font-bold transition-colors",
-                        isSelected ? "text-white" : "text-foreground"
-                      )}>{provider.name}</div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <ProviderIcon providerId={provider.id} size={14} className="shrink-0" />
+                        <div className={cn(
+                          "min-w-0 truncate text-xs font-bold transition-colors",
+                          isSelected ? "text-white" : "text-foreground"
+                        )}>{provider.name}</div>
+                      </div>
                       <div className="flex h-5 max-w-[96px] shrink-0 flex-nowrap justify-end gap-1 overflow-hidden">
                         {(isSelected || !!provider.is_default) && (
                           <>

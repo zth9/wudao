@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Globe, Cpu, AlertCircle, Sun, Moon, Monitor, Languages } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot } from "lucide-react";
+import { ProviderIcon } from "./ProviderIcon";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
@@ -70,6 +71,8 @@ export default function SettingsView() {
     reorder,
     user,
     setUser,
+    assistant,
+    setAssistant,
     theme,
     setTheme,
   } = useSettingsStore();
@@ -79,10 +82,13 @@ export default function SettingsView() {
   const [reordering, setReordering] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingAssistant, setUploadingAssistant] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const assistantFileInputRef = useRef<HTMLInputElement>(null);
 
   // Default avatar options
   const defaultAvatars = ["👨‍💻", "👩‍💻", "🤖", "🐱", "🐶", "🦊", "🦁", "🐧", "🎨", "🚀"];
+  const defaultAssistantAvatars = ["🤖", "🧠", "💡", "🔮", "⚡", "🌟", "🎯", "🚀", "💎", "🎨"];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -106,6 +112,31 @@ export default function SettingsView() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleAssistantFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAssistant(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const resp = await fetch("/api/profile/assistant-avatar", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await resp.json();
+      if (data.url) {
+        setAssistant({ avatar: data.url });
+      }
+    } catch {
+      // Assistant avatar upload is optional; keep the settings form usable on failure.
+    } finally {
+      setUploadingAssistant(false);
+      if (assistantFileInputRef.current) assistantFileInputRef.current.value = "";
     }
   };
 
@@ -283,6 +314,70 @@ export default function SettingsView() {
              </div>
           </Card>
 
+          {/* Assistant Profile Section */}
+          <Card className="overflow-hidden">
+             <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+                <Bot size={16} className="text-accent" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.assistant_profile')}</h2>
+             </div>
+             <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
+                {/* Assistant Avatar Preview & Selection */}
+                <div className="flex flex-col items-center gap-4 shrink-0">
+                   <input
+                     ref={assistantFileInputRef}
+                     type="file"
+                     className="hidden"
+                     accept="image/*"
+                     onChange={handleAssistantFileChange}
+                   />
+                   <Button
+                     onPress={() => assistantFileInputRef.current?.click()}
+                     variant="ghost"
+                     className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
+                     aria-label={t("settings.assistant_avatar")}
+                   >
+                      <Avatar size="lg" className="h-24 w-24 text-4xl">
+                        {assistant.avatar && (assistant.avatar.includes('/') || assistant.avatar.includes('\\') || assistant.avatar.startsWith('http') || assistant.avatar.startsWith('file:') || assistant.avatar.startsWith('data:')) ? (
+                          <Avatar.Image src={assistant.avatar} alt={t("settings.assistant_avatar")} />
+                        ) : null}
+                        <Avatar.Fallback>{assistant.avatar || "🤖"}</Avatar.Fallback>
+                      </Avatar>
+                      <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         {uploadingAssistant ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
+                      </div>
+                   </Button>
+                   <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
+                      {defaultAssistantAvatars.map(av => (
+                        <Avatar
+                          key={av}
+                          size="sm"
+                          className={cn(
+                            "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
+                            assistant.avatar === av ? "ring-2 ring-accent" : ""
+                          )}
+                          onClick={() => setAssistant({ avatar: av })}
+                        >
+                          <Avatar.Fallback>{av}</Avatar.Fallback>
+                        </Avatar>
+                      ))}
+                   </div>
+                </div>
+
+                {/* Assistant Avatar URL Field */}
+                <div className="flex-1 space-y-4 w-full">
+                   <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.assistant_avatar_url')}</label>
+                      <Input
+                        className="w-full"
+                        placeholder="https://example.com/assistant-avatar.png"
+                        value={assistant.avatar && assistant.avatar.startsWith('http') ? assistant.avatar : ""}
+                        onChange={(e) => setAssistant({ avatar: e.target.value })}
+                      />
+                   </div>
+                </div>
+             </div>
+          </Card>
+
           {/* Appearance Settings */}
           <Card className="overflow-hidden">
             <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
@@ -411,7 +506,7 @@ export default function SettingsView() {
                           "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
                           p.is_default ? "bg-accent" : "bg-default"
                         )}>
-                           <Globe size={20} />
+                           <ProviderIcon providerId={p.id} size={20} />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">

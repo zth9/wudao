@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   RotateCcw,
   AlertCircle,
-  Box,
   TrendingUp,
   Zap,
   Clock,
@@ -38,8 +37,6 @@ interface Props {
   onDeleteClick: () => void;
   onDeleteCancel: () => void;
   onDeleteConfirm: () => void;
-  artifactsOpen?: boolean;
-  onToggleArtifacts?: () => void;
   terminalOpen?: boolean;
   onToggleTerminal?: () => void;
   sdkRunnerOpen?: boolean;
@@ -56,8 +53,6 @@ export function Header({
   onDeleteClick,
   onDeleteCancel,
   onDeleteConfirm,
-  artifactsOpen,
-  onToggleArtifacts,
   terminalOpen = true,
   onToggleTerminal,
   sdkRunnerOpen = false,
@@ -308,20 +303,6 @@ export function Header({
           aria-label={t('sdkRunner.title')}
         >
           <Zap size={16} />
-        </IconButton>
-
-        <IconButton
-          onPress={onToggleArtifacts}
-          className={cn(
-            "rounded-full transition-colors",
-            artifactsOpen
-              ? "bg-accent/10 text-accent"
-              : "hover:bg-default text-muted"
-          )}
-          tooltip={t('tasks.artifacts')}
-          aria-label={t('tasks.artifacts')}
-        >
-          <Box size={16} />
         </IconButton>
 
         <IconButton

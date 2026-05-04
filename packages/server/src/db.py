@@ -138,7 +138,6 @@ class DatabaseManager:
               type TEXT NOT NULL CHECK (type IN ('feature','bugfix','investigation','exploration','refactor','learning')),
               status TEXT NOT NULL DEFAULT 'execution' CHECK (status IN ('execution','done')),
               context TEXT,
-              agent_doc TEXT,
               chat_messages TEXT NOT NULL DEFAULT '[]',
               status_log TEXT NOT NULL DEFAULT '[]',
               session_ids TEXT NOT NULL DEFAULT '[]',
@@ -174,7 +173,7 @@ class DatabaseManager:
               run_id TEXT NOT NULL REFERENCES task_agent_runs(id) ON DELETE CASCADE,
               seq INTEGER NOT NULL,
               role TEXT NOT NULL CHECK (role IN ('system','user','assistant','tool')),
-              kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','artifact','error')),
+              kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','error')),
               status TEXT NOT NULL DEFAULT 'completed'
                 CHECK (status IN ('streaming','completed','failed','waiting_approval')),
               content_json TEXT NOT NULL DEFAULT '{}',
@@ -341,7 +340,11 @@ class DatabaseManager:
                     source_columns = self._table_columns_from_connection(conn, "task_agent_messages")
                     seq_expr = "seq" if "seq" in source_columns else "rowid"
                     role_expr = "role" if "role" in source_columns else "'assistant'"
-                    kind_expr = "kind" if "kind" in source_columns else "'text'"
+                    kind_expr = (
+                        "CASE WHEN kind IN ('text','tool_call','tool_result','approval','error') THEN kind ELSE 'text' END"
+                        if "kind" in source_columns
+                        else "'text'"
+                    )
                     status_expr = "status" if "status" in source_columns else "'completed'"
                     content_json_expr = "COALESCE(content_json, '{}')" if "content_json" in source_columns else "'{}'"
                     created_at_expr = "created_at" if "created_at" in source_columns else "datetime('now')"
@@ -356,7 +359,7 @@ class DatabaseManager:
                           run_id TEXT NOT NULL REFERENCES task_agent_runs(id) ON DELETE CASCADE,
                           seq INTEGER NOT NULL,
                           role TEXT NOT NULL CHECK (role IN ('system','user','assistant','tool')),
-                          kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','artifact','error','trace')),
+                          kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','error')),
                           status TEXT NOT NULL DEFAULT 'completed'
                             CHECK (status IN ('streaming','completed','failed','waiting_approval')),
                           content_json TEXT NOT NULL DEFAULT '{}',
@@ -561,7 +564,6 @@ class DatabaseManager:
             "type",
             "status",
             "context",
-            "agent_doc",
             "chat_messages",
             "status_log",
             "session_ids",
@@ -608,7 +610,6 @@ class DatabaseManager:
         source_provider_id = "provider_id" if "provider_id" in columns else "NULL"
         source_created_at = "created_at" if "created_at" in columns else "datetime('now')"
         source_updated_at = "updated_at" if "updated_at" in columns else "datetime('now')"
-        source_agent_doc = "agent_doc" if "agent_doc" in columns else "NULL"
         source_context = "context" if "context" in columns else "NULL"
 
         self.executescript(
@@ -620,7 +621,6 @@ class DatabaseManager:
               type TEXT NOT NULL CHECK (type IN ('feature','bugfix','investigation','exploration','refactor','learning')),
               status TEXT NOT NULL DEFAULT 'execution' CHECK (status IN ('execution','done')),
               context TEXT,
-              agent_doc TEXT,
               chat_messages TEXT NOT NULL DEFAULT '[]',
               status_log TEXT NOT NULL DEFAULT '[]',
               session_ids TEXT NOT NULL DEFAULT '[]',
@@ -633,7 +633,7 @@ class DatabaseManager:
               updated_at TEXT DEFAULT (datetime('now'))
             );
             INSERT INTO tasks (
-              id, title, type, status, context, agent_doc, chat_messages, status_log,
+              id, title, type, status, context, chat_messages, status_log,
               session_ids, session_names, session_providers, priority, due_at,
               provider_id, created_at, updated_at
             )
@@ -643,7 +643,6 @@ class DatabaseManager:
               type,
               CASE WHEN status = 'done' THEN 'done' ELSE 'execution' END,
               {source_context},
-              {source_agent_doc},
               {source_chat_messages},
               {source_status_log},
               {source_session_ids},

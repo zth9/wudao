@@ -79,8 +79,6 @@
     "scroll_to_bottom": "回到底部并恢复自动滚动",
     "agent_chat": "Agentic 聊天",
     "loading_task": "加载任务中...",
-    "generate_agents": "生成 AGENTS.md",
-    "update_agents": "更新 AGENTS.md",
     "tool_call_label": "工具调用",
     "tool_result_label": "工具结果",
     "tool_message_label": "工具执行",
@@ -92,10 +90,8 @@
     "tool_running_detail": "正在等待工具执行完成...",
     "open_sdk_runner": "打开 Agent Runner",
     "approval_label": "待审批",
-    "artifact_updated_label": "产物更新",
     "error_label": "运行错误",
     "terminal": "终端",
-    "artifacts": "产物",
     "parse_failed": "识别任务失败",
     "create_failed": "创建任务失败",
     "initial_chat": {
@@ -103,7 +99,7 @@
       "title_line": "标题：{{value}}",
       "type_line": "类型：{{value}}",
       "context_line": "初步意图：{{value}}",
-      "prompt": "请先理解任务，并通过对话逐步补齐生成产物所需的信息。"
+      "prompt": "请先理解任务，并通过对话逐步补齐目标、范围、环境和执行约束。"
     }
   },
   "calendar": {
@@ -157,6 +153,10 @@
     "nickname": "显示昵称",
     "avatar_url": "头像链接 (URL)",
     "select_avatar": "选择内置头像",
+    "assistant_profile": "助手形象",
+    "assistant_avatar": "助手头像",
+    "assistant_avatar_url": "助手头像链接 (URL)",
+    "select_assistant_avatar": "选择助手头像",
     "appearance": "外观",
     "theme_label": "主题模式",
     "language_label": "语言"
@@ -231,20 +231,11 @@
     "due_at": "截止日期",
     "created_at": "创建时间"
   },
-  "artifacts": {
-    "title": "产物",
-    "description": "任务目标、约束和执行提示",
-    "ready": "已生成",
-    "pending": "待生成",
-    "empty_title": "还没有生成 AGENTS.md",
-    "empty_desc": "可在左侧 AI 对话栏点击生成"
-  },
   "terminal": {
     "rename": "重命名",
     "close": "关闭终端",
     "process_exit": "进程已退出，代码: {{code}}",
-    "error_prefix": "错误",
-    "initial_prompt": "请先阅读当前目录中的 AGENTS.md，了解目标与约束后再开始执行。"
+    "error_prefix": "错误"
   },
   "terminal_dialog": {
     "title": "启动工作台",

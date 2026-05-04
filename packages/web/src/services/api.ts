@@ -97,7 +97,6 @@ export interface Task {
   type: TaskType;
   status: TaskStatus;
   context: string | null;
-  agent_doc: string | null;
   chat_messages: string | null;
   session_ids: string;
   session_names: string;
@@ -111,7 +110,7 @@ export interface Task {
 
 export type AgentRunStatus = "running" | "waiting_approval" | "completed" | "failed" | "cancelled";
 export type AgentMessageRole = "system" | "user" | "assistant" | "tool";
-export type AgentMessageKind = "text" | "tool_call" | "tool_result" | "approval" | "artifact" | "error";
+export type AgentMessageKind = "text" | "tool_call" | "tool_result" | "approval" | "error";
 export type AgentMessageStatus = "streaming" | "completed" | "failed" | "waiting_approval";
 
 export interface AgentRun {
@@ -149,8 +148,7 @@ export type AgentChatEvent =
   | { type: "message.delta"; itemId: string; delta: string }
   | { type: "message.completed"; item: AgentMessage }
   | { type: "run.completed"; runId: string }
-  | { type: "run.failed"; runId?: string; error: string }
-  | { type: "artifact.updated"; path: string; summary?: string };
+  | { type: "run.failed"; runId?: string; error: string };
 
 export interface TaskListResponse {
   items: Task[];
@@ -173,7 +171,7 @@ export interface TaskListParams {
   limit?: number;
 }
 
-type TaskUpdatePayload = Partial<Pick<Task, "title" | "type" | "status" | "context" | "agent_doc" | "priority" | "due_at" | "provider_id">>;
+type TaskUpdatePayload = Partial<Pick<Task, "title" | "type" | "status" | "context" | "priority" | "due_at" | "provider_id">>;
 
 export const tasks = {
   stats: () => request<TaskStatsSummary>("/tasks/stats"),
@@ -202,8 +200,6 @@ export const tasks = {
     request<{ ok: boolean; closedSessions?: number }>(`/tasks/${id}`, { method: "DELETE" }),
   parse: (input: string, providerId?: string) =>
     request<{ title: string; type: TaskType; context: string }>("/tasks/parse", { method: "POST", body: JSON.stringify({ input, providerId }) }),
-  generateDocs: (id: string, providerId?: string) =>
-    request<Task>(`/tasks/${id}/generate-docs`, { method: "POST", body: JSON.stringify({ providerId }) }),
   openWorkspace: (id: string) =>
     request<{ ok: boolean }>(`/tasks/${id}/open-workspace`, { method: "POST" }),
   getAgentChatThread: (id: string) =>

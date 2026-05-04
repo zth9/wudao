@@ -6,10 +6,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ..paths import WORKSPACE_DIR
-from ..task_claude_md import write_task_claude_md
-from ..task_service import is_valid_task_id, persist_task_agent_doc
+from ..task_service import is_valid_task_id
 
-TASK_CONTEXT_FILE = "AGENTS.md"
 MAX_LIST_ENTRIES = 200
 MAX_READ_BYTES = 256 * 1024
 MAX_READ_CHARS = 12_000
@@ -75,29 +73,6 @@ def _to_workspace_relative_path(task_id: str, target: Path) -> str:
         return "."
     rendered = relative.as_posix()
     return rendered or "."
-
-
-def _build_artifact_update(path: str) -> dict[str, str] | None:
-    if path != TASK_CONTEXT_FILE:
-        return None
-    return {
-        "path": TASK_CONTEXT_FILE,
-        "summary": "已同步 AGENTS.md 主产物",
-    }
-
-
-def _sync_task_context_artifact(task_id: str, relative_path: str, *, content: str | None = None) -> dict[str, str] | None:
-    artifact = _build_artifact_update(relative_path)
-    if artifact is None:
-        return None
-
-    ws_dir = _workspace_root(task_id)
-    write_task_claude_md(ws_dir)
-
-    if content is None:
-        content = (ws_dir / TASK_CONTEXT_FILE).read_text(encoding="utf-8")
-    persist_task_agent_doc(task_id, content, write_workspace=False)
-    return artifact
 
 
 def _read_text_file(path: Path) -> str:
@@ -271,17 +246,12 @@ def write_workspace_file(
     except OSError as exc:
         raise RuntimeError(f"failed to write file: {exc}") from exc
 
-    relative_path = _to_workspace_relative_path(task_id, target)
-    artifact = _sync_task_context_artifact(task_id, relative_path, content=content)
-
     result = {
         "path": _to_workspace_relative_path(task_id, target),
         "created": not existed,
         "bytesWritten": len(content.encode("utf-8")),
         "lineCount": len(content.splitlines()),
     }
-    if artifact is not None:
-        result["artifactsUpdated"] = [artifact]
     return result
 
 
@@ -358,44 +328,12 @@ def apply_workspace_patch(task_id: str, patch_text: Any) -> dict[str, Any]:
     if applied.returncode != 0:
         raise RuntimeError((applied.stderr or applied.stdout or "failed to apply patch").strip())
 
-    artifact_updates = [
-        artifact
-        for artifact in (
-            _sync_task_context_artifact(task_id, relative_path)
-            for relative_path in touched_paths
-        )
-        if artifact is not None
-    ]
-
     result = {
         "paths": touched_paths,
         "pathCount": len(touched_paths),
         "created": [path for path in touched_paths if not preexisting_paths.get(path, False)],
     }
-    if artifact_updates:
-        result["artifactsUpdated"] = artifact_updates
     return result
-
-
-def read_task_context(
-    raw_target_task_id: Any,
-    *,
-    start_line: int | None = None,
-    end_line: int | None = None,
-) -> dict[str, Any]:
-    target_task_id = _require_task_id(str(raw_target_task_id or ""))
-    context_path = resolve_task_workspace_path(target_task_id, TASK_CONTEXT_FILE)
-    if not context_path.exists() or not context_path.is_file():
-        raise RuntimeError("task context not found")
-
-    text = _read_text_file(context_path)
-
-    sliced = _slice_text_content(text, start_line=start_line, end_line=end_line)
-    return {
-        "taskId": target_task_id,
-        "path": TASK_CONTEXT_FILE,
-        **sliced,
-    }
 
 
 async def workspace_list_tool(
@@ -456,21 +394,6 @@ async def workspace_apply_patch_tool(
 ) -> dict[str, Any]:
     del agent_run_id
     return apply_workspace_patch(task_id, input_data.get("patch"))
-
-
-async def task_read_context_tool(
-    task_id: str,
-    input_data: dict[str, Any],
-    *,
-    agent_run_id: str | None = None,
-) -> dict[str, Any]:
-    del task_id
-    del agent_run_id
-    return read_task_context(
-        input_data.get("taskId"),
-        start_line=int(input_data["startLine"]) if input_data.get("startLine") is not None else None,
-        end_line=int(input_data["endLine"]) if input_data.get("endLine") is not None else None,
-    )
 
 
 def workspace_tools_prompt_schema() -> list[dict[str, Any]]:
@@ -539,20 +462,5 @@ def workspace_tools_prompt_schema() -> list[dict[str, Any]]:
                 "additionalProperties": False,
             },
         },
-        {
-            "name": "task_read_context",
-            "description": "按任务 ID 读取该任务的主上下文 AGENTS.md，可按行截断。",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "taskId": {"type": "string", "description": "目标任务 ID"},
-                    "startLine": {"type": "integer", "minimum": 1},
-                    "endLine": {"type": "integer", "minimum": 1},
-                },
-                "required": ["taskId"],
-                "additionalProperties": False,
-            },
-        },
     ]
-
 

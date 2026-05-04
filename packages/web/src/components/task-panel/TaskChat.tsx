@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ProviderIcon } from "../ProviderIcon";
 import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
 import { Dropdown } from "@heroui/react/dropdown";
@@ -218,9 +219,6 @@ interface Props {
   taskProviderId: string | null;
   items: AgentTimelineItem[];
   streaming: boolean;
-  agentDoc: string | null;
-  generatingDocs: boolean;
-  onGenerateDocs: () => void;
   onSend: (message: string, providerId?: string) => void;
   onProviderChange: (providerId: string) => void;
   onAbort: () => void;
@@ -260,13 +258,16 @@ export function resolveTaskChatBottomFadeVisibilityClass(autoScrollEnabled: bool
     : "opacity-100 transition-none";
 }
 
-function TaskChatReplyingIndicator() {
+function TaskChatReplyingIndicator({ assistantAvatar }: { assistantAvatar: string }) {
   return (
     <div data-replying-indicator="true" className="flex gap-3">
       <Avatar size="sm" className="mt-1 shrink-0">
-        <Avatar.Fallback><Bot size={14} /></Avatar.Fallback>
+        {assistantAvatar && (assistantAvatar.includes('/') || assistantAvatar.includes('\\') || assistantAvatar.startsWith('http') || assistantAvatar.startsWith('file:') || assistantAvatar.startsWith('data:')) ? (
+          <Avatar.Image src={assistantAvatar} alt="assistant" />
+        ) : null}
+        <Avatar.Fallback>{assistantAvatar || <Bot size={14} />}</Avatar.Fallback>
       </Avatar>
-      <div className="max-w-[85%] rounded-xl border border-border bg-surface/80 backdrop-blur-md px-4 py-3 text-foreground shadow-md">
+      <div className="my-[5px] max-w-[85%] rounded-xl border border-border bg-surface/80 backdrop-blur-md px-4 py-3 text-foreground shadow-md">
         <div className="flex items-center gap-1.5" aria-hidden="true">
           <span className="h-2 w-2 rounded-full bg-accent animate-pulse [animation-delay:0ms]" />
           <span className="h-2 w-2 rounded-full bg-accent animate-pulse [animation-delay:150ms]" />
@@ -446,9 +447,6 @@ export function TaskChat({
   taskProviderId,
   items,
   streaming,
-  agentDoc,
-  generatingDocs,
-  onGenerateDocs,
   onSend,
   onProviderChange,
   onAbort,
@@ -470,6 +468,7 @@ export function TaskChat({
   const [scrollButtonShatterCycle, setScrollButtonShatterCycle] = useState(0);
   const providers = useSettingsStore(state => state.providers);
   const user = useSettingsStore(state => state.user);
+  const assistant = useSettingsStore(state => state.assistant);
   const currentProvider = providers.find((p) => p.id === taskProviderId) || providers.find((p) => p.is_default) || providers[0];
   const showScrollToBottom = shouldShowTaskChatScrollButton(autoScrollEnabled, items.length);
   const renderScrollToBottomButton = showScrollToBottom || scrollButtonShattering;
@@ -531,7 +530,7 @@ export function TaskChat({
   }, [input]);
 
   const handleSend = () => {
-    if (!input.trim() || streaming || generatingDocs) return;
+    if (!input.trim() || streaming) return;
     setAutoScrollMode(true);
     onSend(input.trim(), currentProvider?.id);
     setInput("");
@@ -623,7 +622,6 @@ export function TaskChat({
                   {item.kind === "tool_call" && t("tasks.tool_call_label")}
                   {item.kind === "tool_result" && t("tasks.tool_result_label")}
                   {item.kind === "approval" && t("tasks.approval_label")}
-                  {item.kind === "artifact" && t("tasks.artifact_updated_label")}
                   {item.kind === "error" && t("tasks.error_label")}
                 </span>
                 {"toolName" in item && (
@@ -676,12 +674,6 @@ export function TaskChat({
                     <pre className="text-[12px] leading-relaxed whitespace-pre-wrap break-all font-mono">{formatStructuredValue(item.input)}</pre>
                   </div>
                 )}
-                {item.kind === "artifact" && (
-                  <div className="text-[13px] leading-relaxed">
-                    <div className="font-semibold">{item.path}</div>
-                    <div className="mt-1 text-muted">{item.summary}</div>
-                  </div>
-                )}
                 {item.kind === "error" && (
                   <div className="text-[13px] leading-relaxed">{item.content}</div>
                 )}
@@ -705,22 +697,30 @@ export function TaskChat({
                       <Avatar.Fallback>{user.avatar || <User size={14} />}</Avatar.Fallback>
                     </>
                   ) : (
-                    <Avatar.Fallback><Bot size={14} /></Avatar.Fallback>
+                    <>
+                      {assistant.avatar && (assistant.avatar.includes('/') || assistant.avatar.includes('\\') || assistant.avatar.startsWith('http') || assistant.avatar.startsWith('file:') || assistant.avatar.startsWith('data:')) ? (
+                        <Avatar.Image src={assistant.avatar} alt="assistant" />
+                      ) : null}
+                      <Avatar.Fallback>{assistant.avatar || <Bot size={14} />}</Avatar.Fallback>
+                    </>
                   )}
                 </Avatar>
 
                 {item.kind === "user_text" || item.kind === "assistant_text" ? (
                   <div className={cn(
-                    "max-w-[85%] px-4 py-2.5 rounded-xl text-[14px] leading-relaxed shadow-md transition-all backdrop-blur-md",
+                    "my-[5px] max-w-[85%] px-4 py-2.5 rounded-xl text-[14px] leading-relaxed shadow-md transition-all backdrop-blur-md",
                     item.kind === "user_text"
-                      ? "bg-[#95EC69]/90 text-foreground dark:bg-[#3EB575]/90 selection:bg-black/10 selection:text-black"
-                      : "bg-surface/80 text-foreground border border-border selection:bg-black/10 selection:text-black dark:selection:bg-white/20 dark:selection:text-white"
+                      ? "bg-[#95EC69]/90 text-foreground dark:bg-[#6ACE92]/90 dark:text-black selection:bg-black/10 selection:text-black"
+                      : "bg-surface/80 text-foreground border border-border selection:bg-black/10 selection:text-black dark:bg-[#2F2F30] dark:selection:bg-white/20 dark:selection:text-white"
                   )}>
-                    <MarkdownContent content={item.content} />
+                    <MarkdownContent
+                      content={item.content}
+                      className={item.kind === "user_text" ? "whitespace-pre-wrap" : undefined}
+                    />
                   </div>
                 ) : (
                   <div className={cn(
-                    "max-w-[85%] rounded-xl border shadow-md overflow-hidden backdrop-blur-md",
+                    "my-[5px] max-w-[85%] rounded-xl border shadow-md overflow-hidden backdrop-blur-md",
                     item.kind === "error"
                       ? "border-danger/30 bg-danger/10 text-danger"
                       : "border-border bg-surface/80 text-foreground"
@@ -750,7 +750,7 @@ export function TaskChat({
             );
           })}
 
-          {showReplyingIndicator && <TaskChatReplyingIndicator />}
+          {showReplyingIndicator && <TaskChatReplyingIndicator assistantAvatar={assistant.avatar} />}
         </div>
 
         <div
@@ -806,6 +806,7 @@ export function TaskChat({
                     variant="ghost"
                     type="button"
                   >
+                    {currentProvider && <ProviderIcon providerId={currentProvider.id} size={14} className="shrink-0" />}
                     <span className="text-[10px] font-bold text-muted uppercase">{currentProvider?.name}</span>
                     <ChevronDown size={12} className="text-muted" />
                   </Button>
@@ -835,32 +836,17 @@ export function TaskChat({
                             : "text-muted"
                         )}
                       >
-                        <div className="font-bold">{p.name}</div>
-                        <div className={cn("text-[9px] truncate opacity-60", p.id === currentProvider?.id ? "text-white" : "text-muted")}>{p.model || p.id}</div>
+                        <ProviderIcon providerId={p.id} size={16} className="shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-bold">{p.name}</div>
+                          <div className={cn("text-[9px] truncate opacity-60", p.id === currentProvider?.id ? "text-white" : "text-muted")}>{p.model || p.id}</div>
+                        </div>
                       </Dropdown.Item>
                     ))}
                   </Dropdown.Menu>
                 </Dropdown.Popover>
               </Dropdown>
 
-              <div className="w-[1px] h-4 bg-default mx-1" />
-
-              <Button
-                onPress={onGenerateDocs}
-                isDisabled={generatingDocs || streaming}
-                variant="secondary"
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
-                  agentDoc && "text-success border-success/20"
-                )}
-              >
-                {generatingDocs ? (
-                  <Spinner size="sm" className="[&>div]:w-3 [&>div]:h-3" />
-                ) : (
-                  <FileCode size={12} />
-                )}
-                {agentDoc ? t("tasks.update_agents") : t("tasks.generate_agents")}
-              </Button>
             </div>
 
             <div className="flex items-end gap-2">
@@ -920,7 +906,7 @@ export function TaskChat({
                     <Button
                       isIconOnly
                       onPress={handleSend}
-                      isDisabled={!input.trim() || generatingDocs}
+                      isDisabled={!input.trim()}
                       variant={input.trim() ? "primary" : "secondary"}
                       className={cn(
                         "p-2 rounded-lg transition-all shadow-sm flex items-center justify-center h-[38px] w-[38px]",

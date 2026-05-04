@@ -177,10 +177,10 @@ def test_agent_chat_run_executes_read_only_tools_and_persists_timeline(tmp_path,
     assert thread["messages"][3]["content_json"]["output"]["entries"][0]["path"] == "README.md"
 
 
-def test_agent_chat_run_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path, monkeypatch):
+def test_agent_chat_run_emits_only_tool_events_for_workspace_write(tmp_path, monkeypatch):
     app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
-    task_id = create_task(client, "同步主产物")
+    task_id = create_task(client, "普通 workspace 写入")
     workspace_root = Path(tmp_path) / "home" / "workspace" / task_id
     workspace_root.mkdir(parents=True, exist_ok=True)
 
@@ -189,9 +189,9 @@ def test_agent_chat_run_syncs_agents_artifact_when_write_tool_updates_agents_md(
             {
                 "type": "tool_call",
                 "toolName": "workspace_write_file",
-                "input": {"path": "AGENTS.md", "content": "# Done\n同步完成\n"},
+                "input": {"path": "notes.md", "content": "# Done\n同步完成\n"},
             },
-            {"type": "assistant_text", "content": "主产物已同步"},
+            {"type": "assistant_text", "content": "文件已写入"},
         ]
     )
 
@@ -203,7 +203,7 @@ def test_agent_chat_run_syncs_agents_artifact_when_write_tool_updates_agents_md(
     payloads = start_run_and_collect_events(
         client,
         task_id,
-        {"message": "更新 AGENTS", "providerId": "claude"},
+        {"message": "写入文件", "providerId": "claude"},
     )
     assert [payload["type"] for payload in payloads] == [
         "run.started",
@@ -214,25 +214,14 @@ def test_agent_chat_run_syncs_agents_artifact_when_write_tool_updates_agents_md(
         "message.completed",
         "message.completed",
         "tool.completed",
-        "message.completed",
-        "artifact.updated",
         "message.delta",
         "message.completed",
         "run.completed",
     ]
     assert payloads[6]["item"]["kind"] == "tool_result"
-    assert payloads[8]["item"]["kind"] == "artifact"
-    assert payloads[9] == {
-        "type": "artifact.updated",
-        "path": "AGENTS.md",
-        "summary": "已同步 AGENTS.md 主产物",
-    }
-
-    fetched = client.get(f"/api/tasks/{task_id}").json()
-    assert fetched["agent_doc"] == "# Done\n同步完成\n"
 
     thread = client.get(f"/api/tasks/{task_id}/agent-chat/thread").json()
-    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "artifact", "text"]
+    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "text"]
 
 
 def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, monkeypatch):
@@ -246,14 +235,14 @@ def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, mon
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            return {"type": "tool_call", "toolName": "task_read_context", "input": {"taskId": "current"}}
+            return {"type": "tool_call", "toolName": "removed_context_tool", "input": {"taskId": "current"}}
 
         assert tool_transcript == [
-            {"type": "tool_call", "toolName": "task_read_context", "input": {"taskId": "current"}},
+            {"type": "tool_call", "toolName": "removed_context_tool", "input": {"taskId": "current"}},
             {
                 "type": "tool_result",
-                "toolName": "task_read_context",
-                "output": {"ok": False, "error": "task_id is invalid"},
+                "toolName": "removed_context_tool",
+                "output": {"ok": False, "error": "unknown tool: removed_context_tool"},
             },
         ]
         return {"type": "assistant_text", "content": "先告诉我这个报错的出现环境和复现步骤。"}
@@ -274,8 +263,8 @@ def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, mon
     assert payloads[5]["item"]["kind"] == "tool_result"
     assert payloads[5]["item"]["status"] == "failed"
     assert payloads[5]["item"]["content_json"] == {
-        "toolName": "task_read_context",
-        "output": {"ok": False, "error": "task_id is invalid"},
+        "toolName": "removed_context_tool",
+        "output": {"ok": False, "error": "unknown tool: removed_context_tool"},
     }
     assert payloads[-1] == {"type": "run.completed", "runId": payloads[0]["runId"]}
     assert all(payload["type"] != "run.failed" for payload in payloads)
@@ -297,6 +286,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
 
     async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         nonlocal step_count
+        assert provider_id == "openai"
         step_count += 1
         if step_count == 1:
             return {
@@ -337,9 +327,10 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
         ]
         return {"type": "assistant_text", "content": "当前时间是 Sun Mar 22 09:00:00 CST 2026。"}
 
-    async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, on_started=None):
+    async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, provider_id=None, on_started=None):
         assert tool_name == "invoke_claude_code_runner"
         assert input_data == {"prompt": "获取当前时间"}
+        assert provider_id == "openai"
         if on_started is not None:
             await on_started(
                 {
@@ -380,7 +371,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
     payloads = start_run_and_collect_events(
         client,
         task_id,
-        {"message": "现在几点", "providerId": "claude"},
+        {"message": "现在几点", "providerId": "openai"},
     )
 
     payload_types = [payload["type"] for payload in payloads]

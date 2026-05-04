@@ -22,7 +22,6 @@ from .memories import (
 )
 from .path_guard import resolve_allowed_open_path
 from .paths import PROFILE_DIR, WORKSPACE_DIR, ensure_runtime_dirs
-from .task_claude_md import write_task_claude_md
 from .task_helpers import (
     DUE_AT_NULL_SORT_KEY,
     InvalidInputError,
@@ -45,7 +44,6 @@ from .task_sdk_runner import register_sdk_runner_routes
 from .task_service import (
     append_status_log,
     error_message,
-    generate_and_persist_task_docs,
     get_task_by_id,
     get_task_stats_summary,
     link_task_session,
@@ -298,6 +296,37 @@ def create_app() -> FastAPI:
         path.write_bytes(content)
         return {"ok": True, "url": f"/api/profile/avatar?t={int(Path(path).stat().st_mtime_ns)}"}
 
+    async def _get_current_assistant_avatar_file() -> Path | None:
+        for file in PROFILE_DIR.iterdir():
+            if file.name.startswith("assistant-avatar."):
+                return file
+        return None
+
+    @app.get("/api/profile/assistant-avatar")
+    async def get_assistant_avatar() -> Response:
+        avatar_path = await _get_current_assistant_avatar_file()
+        if not avatar_path or not avatar_path.exists():
+            raise HTTPException(status_code=404, detail="Not Found")
+        ext = avatar_path.suffix.lower()
+        content_type = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+        }.get(ext, "application/octet-stream")
+        return Response(content=avatar_path.read_bytes(), media_type=content_type, headers={"Cache-Control": "no-cache"})
+
+    @app.post("/api/profile/assistant-avatar")
+    async def upload_assistant_avatar(file: UploadFile = File(...)) -> dict[str, Any]:
+        for existing in PROFILE_DIR.iterdir():
+            if existing.name.startswith("assistant-avatar."):
+                existing.unlink(missing_ok=True)
+        ext = Path(file.filename or "assistant-avatar.png").suffix or ".png"
+        path = PROFILE_DIR / f"assistant-avatar{ext}"
+        content = await file.read()
+        path.write_bytes(content)
+        return {"ok": True, "url": f"/api/profile/assistant-avatar?t={int(Path(path).stat().st_mtime_ns)}"}
+
     @app.get("/api/contexts/user-memory")
     async def get_user_memory() -> dict[str, Any]:
         return read_wudao_user_memory()
@@ -460,7 +489,7 @@ def create_app() -> FastAPI:
             cursor = db.execute(
                 """
                 UPDATE tasks
-                SET title = ?, type = ?, status = ?, context = ?, agent_doc = ?, priority = ?, due_at = ?, provider_id = ?, status_log = ?, updated_at = datetime('now')
+                SET title = ?, type = ?, status = ?, context = ?, priority = ?, due_at = ?, provider_id = ?, status_log = ?, updated_at = datetime('now')
                 WHERE id = ? AND status = ?
                 """,
                 (
@@ -468,7 +497,6 @@ def create_app() -> FastAPI:
                     body.get("type", existing["type"]),
                     new_status,
                     body["context"] if "context" in body else existing.get("context"),
-                    body["agent_doc"] if "agent_doc" in body else existing.get("agent_doc"),
                     priority if priority is not None else existing.get("priority"),
                     due_at,
                     body["provider_id"] if "provider_id" in body else existing.get("provider_id"),
@@ -525,23 +553,8 @@ def create_app() -> FastAPI:
     async def open_workspace(task_id: str) -> JSONResponse:
         ws_dir = WORKSPACE_DIR / task_id
         ws_dir.mkdir(parents=True, exist_ok=True)
-        task = get_task_by_id(task_id)
-        if task and isinstance(task.get("agent_doc"), str) and task["agent_doc"].strip():
-            (ws_dir / "AGENTS.md").write_text(task["agent_doc"], encoding="utf-8")
-            write_task_claude_md(ws_dir)
         subprocess.Popen(["open", str(ws_dir)])
         return JSONResponse({"ok": True})
-
-    @app.post("/api/tasks/{task_id}/generate-docs")
-    async def generate_docs(task_id: str, request: Request) -> JSONResponse:
-        body = await request.json()
-        try:
-            return JSONResponse(await generate_and_persist_task_docs(task_id, body.get("providerId")))
-        except Exception as exc:
-            if error_message(exc) == "Task not found":
-                return JSONResponse({"error": "Task not found"}, status_code=404)
-            llm_status = _llm_error_status(exc if isinstance(exc, Exception) else Exception(str(exc)))
-            return JSONResponse({"error": f"生成文档失败: {error_message(exc)}"}, status_code=llm_status or 500)
 
     @app.post("/api/tasks/{task_id}/chat")
     async def task_chat(task_id: str, request: Request) -> Response:

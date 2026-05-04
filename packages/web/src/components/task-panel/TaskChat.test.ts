@@ -22,10 +22,12 @@ vi.mock("../../stores/settingsStore", () => ({
   useSettingsStore: (selector: (state: {
     providers: Array<{ id: string; name: string; is_default?: boolean }>;
     user: { avatar: string; nickname: string };
+    assistant: { avatar: string };
   }) => unknown) =>
     selector({
       providers: [{ id: "provider-1", name: "Claude", is_default: true }],
       user: { avatar: "", nickname: "Tian" },
+      assistant: { avatar: "" },
     }),
 }));
 
@@ -48,9 +50,6 @@ describe("TaskChat", () => {
           { id: "assistant-1", kind: "assistant_text", content: "AI 消息", status: "completed", streaming: false },
         ],
         streaming: false,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -59,8 +58,30 @@ describe("TaskChat", () => {
 
     expect(html).toContain("bg-background dark:bg-background-secondary");
     expect(html).toContain("rounded-xl");
-    expect(html).toContain("bg-[#95EC69]/90 text-foreground dark:bg-[#3EB575]/90");
+    expect(html).toContain("my-[5px]");
+    expect(html).toContain("bg-[#95EC69]/90 text-foreground dark:bg-[#6ACE92]/90 dark:text-black");
     expect(html).toContain("bg-surface/80 text-foreground border border-border");
+    expect(html).toContain("dark:bg-[#2F2F30]");
+  });
+
+  it("保留用户多行输入在消息气泡中的换行", () => {
+    const html = renderToStaticMarkup(
+      createElement(TaskChat, {
+        taskId: "2026-03-10-1",
+        taskProviderId: "provider-1",
+        items: [
+          { id: "user-1", kind: "user_text", content: "第一行\n第二行", status: "completed" },
+          { id: "assistant-1", kind: "assistant_text", content: "AI 消息", status: "completed", streaming: false },
+        ],
+        streaming: false,
+        onSend: () => undefined,
+        onProviderChange: () => undefined,
+        onAbort: () => undefined,
+      })
+    );
+
+    expect(html).toMatch(/whitespace-pre-wrap[^>]*><p class="my-2">第一行\n第二行<\/p>/);
+    expect(html).toContain("第一行\n第二行");
   });
 
   it("让标题行继续贴边，并把输入区渲染成带外边距的圆角浮层", () => {
@@ -70,9 +91,6 @@ describe("TaskChat", () => {
         taskProviderId: "provider-1",
         items: [],
         streaming: false,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -109,12 +127,9 @@ describe("TaskChat", () => {
         taskProviderId: "provider-1",
         items: [
           { id: "tool-call", kind: "tool_call", toolName: "workspace_list", input: { path: "." }, status: "completed" },
-          { id: "tool-result", kind: "tool_result", toolName: "workspace_list", output: { entries: ["AGENTS.md"] }, status: "completed" },
+          { id: "tool-result", kind: "tool_result", toolName: "workspace_list", output: { entries: ["README.md"] }, status: "completed" },
         ],
         streaming: false,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -124,6 +139,7 @@ describe("TaskChat", () => {
     expect(html).toContain("tasks.tool_message_label");
     expect(html).toContain('data-tool-collapsible="true"');
     expect(html).toContain('data-tool-kind="tool_exchange"');
+    expect(html).toContain("my-[5px]");
     expect(html).toContain('data-tool-default-collapsed="true"');
     expect(html).toContain('data-tool-expanded="false"');
     expect(html).toContain('data-tool-animated-panel="true"');
@@ -132,7 +148,7 @@ describe("TaskChat", () => {
     expect(html).toContain("tasks.expand_tool");
     expect(html).toContain("tasks.collapse_tool");
     expect(html).toContain("workspace_list");
-    expect(html).toContain("AGENTS.md");
+    expect(html).toContain("README.md");
   });
 
   it("为 invoke_claude_code_runner 工具结果提供打开对应 Agent Runner 的入口", () => {
@@ -145,9 +161,6 @@ describe("TaskChat", () => {
           { id: "tool-result", kind: "tool_result", toolName: "invoke_claude_code_runner", output: { ok: true, sdk_run_id: "sdk-run-12345678" }, status: "completed" },
         ],
         streaming: false,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -176,9 +189,6 @@ describe("TaskChat", () => {
           },
         ],
         streaming: true,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -202,9 +212,6 @@ describe("TaskChat", () => {
           { id: "user-1", kind: "user_text", content: "用户消息", status: "completed" },
         ],
         streaming: true,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -212,6 +219,7 @@ describe("TaskChat", () => {
     );
 
     expect(html).toContain('data-replying-indicator="true"');
+    expect(html).toContain("my-[5px]");
     expect(html).toContain("animate-pulse");
   });
 
@@ -225,9 +233,6 @@ describe("TaskChat", () => {
           { id: "assistant-1", kind: "assistant_text", content: "AI 正在回复", status: "streaming", streaming: true },
         ],
         streaming: true,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,
@@ -245,12 +250,9 @@ describe("TaskChat", () => {
         items: [
           { id: "user-1", kind: "user_text", content: "用户消息", status: "completed" },
           { id: "tool-call-1", kind: "tool_call", toolName: "workspace_list", input: { path: "." }, status: "completed" },
-          { id: "tool-result-1", kind: "tool_result", toolName: "workspace_list", output: { entries: ["AGENTS.md"] }, status: "completed" },
+          { id: "tool-result-1", kind: "tool_result", toolName: "workspace_list", output: { entries: ["README.md"] }, status: "completed" },
         ],
         streaming: true,
-        agentDoc: null,
-        generatingDocs: false,
-        onGenerateDocs: () => undefined,
         onSend: () => undefined,
         onProviderChange: () => undefined,
         onAbort: () => undefined,

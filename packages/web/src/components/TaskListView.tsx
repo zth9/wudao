@@ -17,6 +17,7 @@ import {
   SlidersHorizontal
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ProviderIcon } from "./ProviderIcon";
 import { useTranslation } from "react-i18next";
 import { cn } from "../utils/cn";
 import {
@@ -601,10 +602,13 @@ export function ProviderSelector({ providers, selectedProviderId, onSelect }: Pr
               )}
             >
               <div className="flex h-5 items-center justify-between gap-2">
-                <div className={cn(
-                  "min-w-0 truncate text-xs font-bold transition-colors",
-                  isSelected ? "text-accent" : "text-foreground"
-                )}>{p.name}</div>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <ProviderIcon providerId={p.id} size={14} className="shrink-0" />
+                  <div className={cn(
+                    "min-w-0 truncate text-xs font-bold transition-colors",
+                    isSelected ? "text-accent" : "text-foreground"
+                  )}>{p.name}</div>
+                </div>
                 <div className="flex h-5 max-w-[96px] shrink-0 flex-nowrap justify-end gap-1 overflow-hidden">
                   {(isSelected || !!p.is_default) && (
                     <>

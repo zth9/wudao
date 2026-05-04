@@ -10,7 +10,6 @@ const {
   mockLinkSession,
   mockDelete,
   mockParse,
-  mockGenerateDocs,
   mockStreamTaskAgentRun,
   mockAgentAbortController,
   mockRemoveByTaskId,
@@ -33,7 +32,6 @@ const {
     mockLinkSession: vi.fn(),
     mockDelete: vi.fn(),
     mockParse: vi.fn(),
-    mockGenerateDocs: vi.fn(),
     mockStreamTaskAgentRun: vi.fn((_tid: string, _msg: string, onEvent: any, onError: any) => {
       agentCallbacks.onEvent = onEvent;
       agentCallbacks.onError = onError;
@@ -58,7 +56,6 @@ vi.mock("../services/api", () => ({
     linkSession: mockLinkSession,
     delete: mockDelete,
     parse: mockParse,
-    generateDocs: mockGenerateDocs,
     openWorkspace: vi.fn(),
     streamTaskAgentRun: mockStreamTaskAgentRun,
   },
@@ -96,7 +93,6 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
   type: "feature",
   status: "execution",
   context: null,
-  agent_doc: null,
   chat_messages: null,
   session_ids: "[]",
   session_names: "{}",
@@ -318,7 +314,7 @@ describe("fetchOne", () => {
           role: "assistant",
           kind: "tool_result",
           status: "completed",
-          content_json: { toolName: "workspace_list", output: { entries: ["AGENTS.md"] } },
+          content_json: { toolName: "workspace_list", output: { entries: ["README.md"] } },
           created_at: "2026-02-26T00:00:00Z",
           updated_at: "2026-02-26T00:00:00Z",
         },
@@ -332,7 +328,7 @@ describe("fetchOne", () => {
         id: "msg-tool",
         kind: "tool_result",
         toolName: "workspace_list",
-        output: { entries: ["AGENTS.md"] },
+        output: { entries: ["README.md"] },
         status: "completed",
       },
     ]);
@@ -408,38 +404,6 @@ describe("parse", () => {
     mockParse.mockRejectedValue(new Error("boom"));
     await expect(useTaskStore.getState().parse("hello")).rejects.toThrow("boom");
     expect(useTaskStore.getState().generating).toBe(false);
-  });
-});
-
-describe("generateDocs", () => {
-  it("sets generating=true during call", async () => {
-    let genDuringCall = false;
-    mockGenerateDocs.mockImplementation(() => {
-      genDuringCall = useTaskStore.getState().generating;
-      return Promise.resolve(makeTask({ agent_doc: "doc" }));
-    });
-    await useTaskStore.getState().generateDocs("2026-02-26-1");
-    expect(genDuringCall).toBe(true);
-    expect(useTaskStore.getState().generating).toBe(false);
-  });
-
-  it("merges generated docs into currentTask and matching list item", async () => {
-    const original = makeTask({ agent_doc: null });
-    useTaskStore.setState({ currentTask: original, tasks: [original] });
-    mockGenerateDocs.mockResolvedValue({ agent_doc: "NEW" });
-    mockList.mockResolvedValue(pagedResponse([makeTask({ agent_doc: "NEW" })]));
-
-    await useTaskStore.getState().generateDocs("2026-02-26-1");
-
-    expect(useTaskStore.getState().currentTask).toEqual(makeTask({ agent_doc: "NEW" }));
-    expect(useTaskStore.getState().tasks[0].agent_doc).toBe("NEW");
-  });
-
-  it("refreshes task list after doc generation", async () => {
-    mockGenerateDocs.mockResolvedValue(makeTask({ agent_doc: "doc" }));
-    mockList.mockResolvedValue(pagedResponse([]));
-    await useTaskStore.getState().generateDocs("2026-02-26-1");
-    expect(mockList).toHaveBeenCalled();
   });
 });
 

@@ -79,8 +79,6 @@
     "scroll_to_bottom": "Jump to bottom and resume auto-scroll",
     "agent_chat": "Agent Chat",
     "loading_task": "Loading task...",
-    "generate_agents": "Generate AGENTS.md",
-    "update_agents": "Update AGENTS.md",
     "tool_call_label": "Tool Call",
     "tool_result_label": "Tool Result",
     "tool_message_label": "Tool Execution",
@@ -92,10 +90,8 @@
     "tool_running_detail": "Waiting for the tool to finish...",
     "open_sdk_runner": "Open Agent Runner",
     "approval_label": "Approval",
-    "artifact_updated_label": "Artifact Updated",
     "error_label": "Run Error",
     "terminal": "Terminal",
-    "artifacts": "Artifacts",
     "parse_failed": "Failed to identify task",
     "create_failed": "Failed to create task",
     "initial_chat": {
@@ -103,7 +99,7 @@
       "title_line": "Title: {{value}}",
       "type_line": "Type: {{value}}",
       "context_line": "Initial Intent: {{value}}",
-      "prompt": "Please first understand the task, and use the conversation to gradually fill in the information needed to generate the artifact."
+      "prompt": "Please first understand the task and use the conversation to clarify goals, scope, environment, and execution constraints."
     }
   },
   "calendar": {
@@ -157,6 +153,10 @@
     "nickname": "Nickname",
     "avatar_url": "Avatar URL",
     "select_avatar": "Select Avatar",
+    "assistant_profile": "Assistant Profile",
+    "assistant_avatar": "Assistant Avatar",
+    "assistant_avatar_url": "Assistant Avatar URL",
+    "select_assistant_avatar": "Select Assistant Avatar",
     "appearance": "Appearance",
     "theme_label": "Theme",
     "language_label": "Language"
@@ -231,20 +231,11 @@
     "due_at": "Due Date",
     "created_at": "Created"
   },
-  "artifacts": {
-    "title": "Artifacts",
-    "description": "Task goals, constraints, and execution hints",
-    "ready": "Ready",
-    "pending": "Pending",
-    "empty_title": "AGENTS.md has not been generated yet",
-    "empty_desc": "Generate it from the AI chat panel on the left"
-  },
   "terminal": {
     "rename": "Rename",
     "close": "Close Terminal",
     "process_exit": "Process exited, code: {{code}}",
-    "error_prefix": "Error",
-    "initial_prompt": "Please read AGENTS.md in the current directory first, then start working with the goals and constraints in mind."
+    "error_prefix": "Error"
   },
   "terminal_dialog": {
     "title": "Launch Workspace",

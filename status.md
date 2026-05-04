@@ -8,8 +8,10 @@
 
 当前能力基线：
 
+- **Agent Runner 现已跟随 Agentic Chat 当前选择的 provider 配置**：当模型在任务聊天中选择某个 provider 后，`invoke_claude_code_runner` 会把该 provider 继续传入 SDK Runner；Claude Agent SDK 子进程会使用 provider 的 `model` 和转换后的 `ANTHROPIC_BASE_URL`，自定义 base 会把 provider `api_key` 注入为 `ANTHROPIC_AUTH_TOKEN`，官方 Anthropic base 则注入为 `ANTHROPIC_API_KEY`，避免 API retry 时回落到默认 Anthropic 接口或默认账号；已补充服务端回归测试覆盖 provider 透传与 SDK 环境变量注入
+- **任务级 `AGENTS.md` 产物链路已下线**：产品内不再提供“生成 / 更新 `AGENTS.md`”按钮、产物抽屉、`POST /api/tasks/{task_id}/generate-docs`、`task_read_context` 跨任务主上下文工具，也不再维护历史任务文档字段或生成 `CLAUDE.md` / `GEMINI.md` 兼容软链；任务聊天与终端上下文后续将通过 MCP 打通
 - **前端已完成 HeroUI v3 全量迁移，自定义 UI 组件层已移除**：Web 端已从项目级 `components/ui/heroui.tsx` 包装层全面切到 HeroUI 原生组件直接导入；本轮完成的替换包括：Avatar（App 顶栏、设置页、任务聊天）、ProgressBar（Dashboard 用量）、SearchField（任务列表搜索）、Alert（记忆页、SDK Runner、设置页）、Spinner（任务列表、设置页、任务聊天 loading）、Drawer（任务列表抽屉）、Calendar（日历弹层，依赖 `@internationalized/date`）、RadioGroup + Radio（终端权限选择）、Chip（任务列表/抽屉优先级与类型标签、SDK Runner 状态标签）、Tooltip（全局关闭/刷新按钮）、Modal（终端启动弹窗）、Tabs（设置页 tab 切换）。旧 `components/ui/` 目录已删除，所有硬编码颜色（`text-red-*`、`text-green-*`、`text-blue-*`、`bg-green-*` 等）已替换为 HeroUI theme token（`text-danger`、`text-success`、`text-accent`、`bg-success` 等）。HeroUI v3 API 适配要点：`color` 使用 `"default"|"accent"|"success"|"warning"|"danger"`（非 "primary"），`variant` 使用 `"primary"|"secondary"|"tertiary"|"soft"`（非 "flat"/"solid"），Alert 仅支持 `color` 无 `variant`，SearchField 的 `placeholder` 需放在 `SearchField.Input` 上，Radio 使用独立 import 的 `Radio.Control > Radio.Indicator` + `Radio.Content` 复合模式。当前已完成 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters`、`pnpm --filter web test`（18 个测试文件 / 112 个用例）与 `pnpm --filter web build`
-- **协作文档与 README 已按当前代码重新对齐**：根 `AGENTS.md`、`README.md`、`packages/web/AGENTS.md`、`packages/server/AGENTS.md` 与 `scripts/AGENTS.md` 已同步到当前 `FastAPI + React` 实现；文档入口已移除不存在的设计/Review 文档引用，并补齐 Agent Runtime、Claude Code Runner、右侧三抽屉工作台、任务 workspace、全局记忆、本地 `uv` 与脚本入口等真实代码口径
+- **协作文档与 README 已按当前代码重新对齐**：根 `AGENTS.md`、`README.md`、`packages/web/AGENTS.md`、`packages/server/AGENTS.md` 与 `scripts/AGENTS.md` 已同步到当前 `FastAPI + React` 实现；文档入口已移除不存在的设计/Review 文档引用，并补齐 Agent Runtime、Claude Code Runner、右侧双抽屉工作台、任务 workspace、全局记忆、本地 `uv` 与脚本入口等真实代码口径
 - **后端风险盘点口径已改为以当前代码与测试为准**：当前仓库未保留 `docs/reviews/backend-review-2026-04-28.md` 文件，后续不再把它作为入口文档引用；本轮 `pnpm test` 确认服务端 pytest 当前为 111 个用例通过，仍需关注默认 Provider 可被清空、删除任务时 SDK Runner 取消竞态、SDK Runner 历史 SSE 终态重复发送等风险
 - **前端死代码与旧代码已按 Review 建议顺序清理完成**：前端当前已修复 `tsc --noEmit` 失败项，并可通过 `pnpm --filter web exec tsc --noEmit --noUnusedLocals --noUnusedParameters`；旧版普通任务聊天发送链路已删除，`chat_messages` 仅保留为 Agent timeline 历史展示 fallback；`taskStore` 已复用 `utils/agent-timeline.ts` 的统一映射逻辑；同时清理了未用 import/参数、重复 `TASK_TYPES`、明显旧 i18n key、无引用 CSS 类和生产路径调试日志。本轮已完成 `pnpm --filter web test`（18 个测试文件 / 111 个用例）与 `pnpm --filter web build`
 - **Agent Chat 运行时表外键现已支持启动期自修复**：针对历史数据库里 `task_agent_runs`、`task_agent_messages`、`task_sdk_runs`、`task_items` 仍引用已删除的 `tasks_legacy_migration` 表、导致任务聊天发送消息直接返回 `HTTP 500` 的问题，后端现在会在启动时自动重建这些运行时表到正确的 `tasks` 外键上，并保留已有 run/message/sdk/event 数据；本地开发服务已验证 `POST /api/tasks/{task_id}/agent-chat/runs` 恢复返回 `200`
@@ -21,9 +23,9 @@
 - **`pnpm install` 已自动同步服务端 Python 环境**：根目录安装链路现会自动执行 `uv sync --project packages/server --locked --all-groups`；同时把 `uv` 缓存固定到仓库 `workspace/uv-cache`，减少首次启动遗漏 Python 依赖的问题
 - **默认 provider seed 已收缩为最小元数据**：后端 `db.py` 新初始化数据库时仍会预置 provider 行，但仓库内不再硬编码 `api_key`、`endpoint` 或 `model`；这些配置统一留在 `providers` 表里由用户自行填写，现有数据库中的 provider 配置也不会在启动时被自动改写，并已补充服务端回归测试
 - **记忆页编辑框已改为整窗高度**：记忆页中的用户记忆与 Agent 记忆编辑模块现会直接占满视图剩余空间，编辑框本身吃满整张卡片，不再停留在约 80% 高度并把页面撑出额外滚动条；由于高度已固定，右下角的 textarea 拖拽手柄也已移除
-- **记忆系统已彻底移除 OpenViking 依赖**：后端已删除 OpenViking bridge / worker、启动期 warmup 与 `/api/contexts/status`、`/api/contexts/memories` 接口；前端记忆页现只保留 `用户记忆 / Agent 记忆` 两个本地编辑模块；用户记忆与 Agent 记忆继续从 `~/.wudao/profile/*.md` 注入到任务解析、`AGENTS.md` 生成、legacy chat 与 Agent Chat
+- **记忆系统已彻底移除 OpenViking 依赖**：后端已删除 OpenViking bridge / worker、启动期 warmup 与 `/api/contexts/status`、`/api/contexts/memories` 接口；前端记忆页现只保留 `用户记忆 / Agent 记忆` 两个本地编辑模块；用户记忆与 Agent 记忆继续从 `~/.wudao/profile/*.md` 注入到任务解析、legacy chat 与 Agent Chat
 - **默认模型供应商持久化已修复**：设置页把某个供应商设为默认后，服务重启不再被数据库初始化强行改回 Claude；后端当前只会在“默认值缺失”或“出现多个默认值”时做一次兜底归一化，并已补上 `tests/test_app.py` 的重启回归测试
-- **全体文档已按当前代码设计重新对齐**：`README.md`、任务工作台、Agentic Chat、记忆系统、后端 Python 重构、TDD 与前端规范文档已统一到当前 `FastAPI + React` 实现、结构化 Agent timeline、`AGENTS.md` 主产物模型与 `LoadingIndicator` 加载基线，减少继续参考旧 Hono / Skeleton / `app.request()` 口径的风险
+- **全体文档已按当前代码设计重新对齐**：`README.md`、任务工作台、Agentic Chat、记忆系统、后端 Python 重构、TDD 与前端规范文档已统一到当前 `FastAPI + React` 实现、结构化 Agent timeline、MCP 上下文方向与 `LoadingIndicator` 加载基线，减少继续参考旧 Hono / Skeleton / `app.request()` 口径的风险
 - **后端运行时已切换到 Python**：`packages/server` 已由 FastAPI + sqlite3 + Python PTY 接管，默认开发/测试脚本改为 `uv` 驱动；原 TypeScript 服务端源码已移除，前端继续复用既有 `/api`、SSE 与 `/ws/terminal` 协议
 - **文档主线已按当前实现收口**：根文档、任务工作台、上下文注入与 Agentic Chat 设计已统一到 `packages/server/src/*.py`、`packages/server/tests/` 与 `P0-P4` 优先级模型，避免继续沿用 Hono / TS 路径与“紧急度”旧口径
 - **Agentic Chat 持久化底座已起步**：后端已新增 `task_agent_runs`、`task_agent_messages` 两张表及 `agent_runtime/thread_store.py` 基础查询服务，先为后续 typed SSE、结构化时间线和审批流提供可恢复的 run/message 存储层
@@ -31,7 +33,6 @@
 - **Agentic Chat 一期只读工具已落地**：后端已新增 `agent_runtime/model_adapter.py`、`agent_runtime/runner.py`、`workspace_tools.py`、`terminal_tools.py` 与 `tool_registry.py`；当前支持 `workspace_list`、`workspace_read_file`、`workspace_search_text` 与 `terminal_snapshot` 四个只读工具，并把 `tool_call` / `tool_result` 持久化进结构化线程
 - **Agentic Chat 前端结构化时间线已接通**：前端 `taskStore` 与 `TaskChat` 已切到 `/api/tasks/{task_id}/agent-chat/thread` 和 typed SSE，可渲染工具调用卡片、工具结果卡片与运行错误；当模型未稳定产出结构化工具响应时，现会降级为普通 assistant 文本，而不是直接中断当前 run
 - **Agentic Chat 写工具已接通**：后端 `workspace_tools.py` 已补上 `workspace_write_file` 与 `workspace_apply_patch`，当前可直接在 task workspace 内写新文件、覆盖现有文本文件或应用 unified diff patch，默认不走审批
-- **Agentic Chat 已支持跨任务读取主上下文**：后端已新增 `task_read_context` 工具，可按任务 ID 直接读取目标任务 workspace 下的 `AGENTS.md`，当前只开放主产物读取，不开放跨任务任意文件访问
 - **工具卡片已支持折叠**：前端 `TaskChat` 中的工具调用 / 工具结果卡片现已改为可折叠详情，默认展开，收起后仍保留工具名与类型摘要，便于在长时间线里快速浏览
 - **工具调用与结果已合并显示**：当前任务聊天里，相邻的 `tool_call` 与 `tool_result` 会合并为同一个工具消息框，默认收起；展开后可同时查看输入与输出，减少长时间线里的重复占位
 - **工具卡片展开现已带平滑动画**：任务聊天中的工具调用 / 工具结果卡片从默认收起状态展开时，详情区现会以平滑高度过渡展开，不再瞬时跳开；同时继续避免 `layout` 缩放带来的文字与图标形变
@@ -41,7 +42,7 @@
 - **`pnpm dev` 已可被 `Ctrl+C` 正常终止**：根目录开发入口已改为 `scripts/dev.sh` 统一拉起前后端，并负责转发 `INT / TERM / HUP`；现在在手动中断时会优雅停掉前后端，不再落成 `ELIFECYCLE 129`
 - **工具调用解析兼容已补强**：`agent_runtime/model_adapter.py` 现已兼容解析 `minimax:tool_call` + `<invoke>` / `<parameter>`、顶层单个 JSON tool call、“多行多个 JSON tool call”，以及写文件场景下常见的 `path + content` 顶层 payload / `tool + path + content` 顶层 payload；同一轮模型回复里的多次工具调用也会顺序执行，不再只吃第一条
 - **工具调用 JSON 包络重复输出已兼容**：当模型异常输出多个连续的 `{"assistant_text": "...", "tool_calls": [...]}` JSON 包络，甚至重复输出完全相同的包络时，后端现会按包逐个提取 `assistant_text` 与嵌套 `tool_calls`，并对完全重复的工具调用做去重；这类回复不再原样泄漏到聊天区，而会正常进入工具执行链路
-- **Agentic Chat 首轮策略与工具容错已补强**：运行时 system prompt 现已明确要求首轮默认先通过对话补齐目标、范围、环境和复现信息，而不是为了“先了解情况”就读取当前 workspace；同时，`task_read_context` 这类工具的常见误用（例如把 `current` 当成 `taskId`、目标上下文不存在）现会回流为失败的 `tool_result` 继续提供给模型决策，不再立刻把整轮 run 标成 failed
+- **Agentic Chat 首轮策略与工具容错已补强**：运行时 system prompt 现已明确要求首轮默认先通过对话补齐目标、范围、环境和复现信息，而不是为了“先了解情况”就读取当前 workspace；未知工具或工具参数错误会回流为失败的 `tool_result` 继续提供给模型决策，不再立刻把整轮 run 标成 failed
 - **Agent Runner 面板一期已落地**：后端新增 `sdk_runner/` 模块（sdk_store / sdk_adapter / sdk_runner / sdk_approval / sdk_tools），封装 Claude Agent SDK 的 `query()` 调用，提供 SSE 实时事件流、权限审批（10 分钟超时自动拒绝）、进程注册表管理；前端新增 `SdkRunnerPanel` 面板与终端并列展示，Agent 在对话中通过 `invoke_sdk_runner` 工具触发 SDK 执行，执行过程（文件读写、Bash 命令、测试结果）在面板中实时可视化；Agent Runner 面板通过头部 ⚡ 按钮开关，Agent 启动 SDK run 时自动展开
 - **Agent Runner 面板现已补齐自动接线与任务重进恢复**：前端 `taskStore` 现会在 Agent Chat 收到 `invoke_sdk_runner` 的 `tool_result` 且返回 `sdk_run_id` 时，立即刷新 SDK runs 并订阅对应 SSE 事件流，自动展开 Agent Runner 面板；重新进入任务页时，也会从结构化 Agent thread 中恢复最近一次 SDK run 并回放持久化事件，修复“`task_sdk_runs` / `task_sdk_events` 里已有记录，但页面没有对应 Agent Runner 展示”的问题，并已补充前端回归测试
 - **Agent Runner 工具结果现已实时回传**：服务端 `sdk_adapter.py` 现已按当前 `claude_agent_sdk` 的真实消息结构兼容 `UserMessage.parent_tool_use_id / tool_use_result / ToolResultBlock`，Runner 面板在工具执行过程中也能实时收到 `sdk.tool_result`，不再只停在 `tool_use` 卡片上像是对话卡住；前端同时补上结构化结果格式化，避免对象型结果被渲染成 `[object Object]`
@@ -53,18 +54,17 @@
 - **同一任务的 Agent Runner 并发限制已移除**：服务端当前不再阻止同一任务同时存在多条 active SDK runs；`start_sdk_run()` 会为每次调用独立创建 `task_sdk_runs` 记录和后台 asyncio 任务，取消、历史回放与事件订阅继续按 `sdk_run_id` 精确命中对应 run，并已补充服务端回归测试
 - **Agent Runner 结果渲染已切到 Markdown**：前端 `SdkRunnerPanel` 当前会把 SDK 的最终文本结果和工具结果交给 `MarkdownContent` 渲染，不再一律按纯文本 `pre` 展示；标题、列表、代码块、表格与链接都能在面板内按 Markdown 样式显示，并已补充前端回归测试
 - **Agent Runner 工具名已切到具名 runner，并补齐 runner_type 落库**：Agent Runtime 当前对模型暴露的 SDK 调用工具已从通用 `invoke_sdk_runner` 收敛为 `invoke_claude_code_runner`，同时 `task_sdk_runs` 新增并回填了 `runner_type` 字段，当前显式记录为 `claude_code`；旧 `invoke_sdk_runner` 继续作为兼容别名保留，避免历史线程和旧模型输出直接失效，并已补充前后端回归测试
-- **任务详情右侧布局现已改为按任务记忆的独立抽屉**：新任务首次进入详情页时，默认只显示左侧聊天区；`终端 / Agent Runner / 产物` 三块现已改为彼此独立的右侧抽屉，可分别开关并在同一任务内记忆上次状态。重新进入该任务时，会恢复你上次留下的终端开关、Agent Runner 开关、产物抽屉开关，以及聊天区 / 产物抽屉宽度；同时修复了“终端关闭、只打开 Agent Runner 时面板不显示”的布局问题
-- **右侧三个抽屉现已统一为与聊天框一致的 header 壳层**：任务终端、Agent Runner 与产物抽屉当前都改成了与左侧 Agentic 聊天一致的独立顶部 header，header 高度、底色、描边与整体表面色已对齐；终端原先分散在顶部的标题与操作区已收敛进统一壳层，产物和 Agent Runner 也补上了同风格的顶部关闭入口，切换不同抽屉时不再出现高度和颜色跳变
-- **任务详情 header 高度现已统一固定为 49px，并修复 Agent Runner 无法滚动**：左侧 Agentic 聊天 header 与右侧三个抽屉 header 当前都已统一收口到固定 `49px` 高度；抽屉内容区改为独立滚动层后，Agent Runner 时间线恢复正常纵向滚动，不会再卡在顶部
+- **任务详情右侧布局现已改为按任务记忆的独立抽屉**：新任务首次进入详情页时，默认只显示左侧聊天区；`终端 / Agent Runner` 两块是彼此独立的右侧抽屉，可分别开关并在同一任务内记忆上次状态。重新进入该任务时，会恢复你上次留下的终端开关、Agent Runner 开关与对应宽度；同时修复了“终端关闭、只打开 Agent Runner 时面板不显示”的布局问题
+- **右侧两个抽屉现已统一为与聊天框一致的 header 壳层**：任务终端与 Agent Runner 当前都改成了与左侧 Agentic 聊天一致的独立顶部 header，header 高度、底色、描边与整体表面色已对齐；终端原先分散在顶部的标题与操作区已收敛进统一壳层，切换不同抽屉时不再出现高度和颜色跳变
+- **任务详情 header 高度现已统一固定为 49px，并修复 Agent Runner 无法滚动**：左侧 Agentic 聊天 header 与右侧两个抽屉 header 当前都已统一收口到固定 `49px` 高度；抽屉内容区改为独立滚动层后，Agent Runner 时间线恢复正常纵向滚动，不会再卡在顶部
 - **统一 header 已改为大小写敏感，Agent Runner 图标不再与聊天重复**：任务详情里共用的 header 组件现已移除强制大写样式，标题会按原始文案显示；同时，Agent Runner 的 header 图标已从和 Agentic 聊天相同的 `Bot` 改为独立的执行态图标，避免两个面板视觉上看起来像同一个入口
-- **Agent Runner 现已支持拖拽改宽，所有抽屉宽度都会记住**：任务详情右侧 `Agent Runner` 左边框现在和产物抽屉一样支持拖拽改宽；改动后的 Agent Runner 宽度会和聊天区分栏宽度、产物抽屉宽度一起按任务持久化到浏览器本地缓存里，重新进入同一任务时会恢复上次的抽屉宽度
-- **右侧三抽屉现已统一成同一套固定宽度布局模型**：任务终端不再作为特殊的 `flex-1` 中间区处理，而是和 Agent Runner、产物一起收敛为三个固定宽度的右侧抽屉；它们当前共享同一套显示、关闭、拖拽改宽和宽度约束逻辑，聊天区宽度统一由右侧已打开抽屉的总宽度反推，修复了拖 Agent Runner 时瞬间撑满并把产物挤出屏幕的问题
+- **Agent Runner 现已支持拖拽改宽，抽屉宽度会记住**：任务详情右侧 `Agent Runner` 左边框支持拖拽改宽；改动后的 Agent Runner 宽度会和终端宽度一起按任务持久化到浏览器本地缓存里，重新进入同一任务时会恢复上次的抽屉宽度
+- **右侧双抽屉现已统一成同一套固定宽度布局模型**：任务终端不再作为特殊的 `flex-1` 中间区处理，而是和 Agent Runner 一起收敛为两个固定宽度的右侧抽屉；它们当前共享同一套显示、关闭、拖拽改宽和宽度约束逻辑，聊天区宽度统一由右侧已打开抽屉的总宽度反推
 - **Agent 开始执行 Agent Runner 时现会自动展开并切到对应 run**：任务聊天在收到 `invoke_claude_code_runner` 的工具结果且返回 `sdk_run_id` 后，前端当前会立即把当前任务的 Agent Runner 抽屉设为打开，并切换订阅到这条对应 run 的事件流；用户不再需要先手动点开右侧抽屉或再点一次工具卡片，才能看到 Agent 刚启动的执行过程
 
-- 已具备自然语言建任务、规划对话、`AGENTS.md` 产物生成、任务级 workspace、多终端执行与会话恢复
+- 已具备自然语言建任务、规划对话、任务级 workspace、多终端执行与会话恢复
 - 创建任务并进入详情页后，现已恢复自动发起首轮规划对话；首轮请求会自动组装任务标题、类型与初步意图作为任务信息发送给大模型
-- 已支持在任务 workspace 中同时维护 `CLAUDE.md` 与 `GEMINI.md` 两个指向 `AGENTS.md` 的兼容软链，便于不同 CLI 共享同一份任务产物
-- **任务详情页深度重构**：引入单行全局横向菜单栏，整合返回、任务名/ID、优先级/截止时间及核心操作按钮（标记完成、打开目录、删除、产物开关）
+- **任务详情页深度重构**：引入单行全局横向菜单栏，整合返回、任务名/ID、优先级/截止时间及核心操作按钮（标记完成、打开目录、删除、终端与 Agent Runner 开关）
 - **元数据选择器优化**：所有选择器采用对齐的紧凑胶囊样式，默认仅显示选中 Label，点击弹出实色菜单；当前优先级与任务列表、抽屉展示已统一到 P0-P4 五级模型
 - **弹窗模型供应商状态已补齐**：新建任务弹窗与启动工作台弹窗中的模型供应商卡片，现已直接显示“已选 / 默认”状态徽标；在多个供应商并存时，选择当前模型与识别默认供应商更直观
 - **设置页默认供应商切换暗黑模式已提亮**：设置页里“设为默认供应商”在未选中时，现已补上更明确的深色背景、浅色文字与描边；暗黑模式下无需 hover 也能清楚识别该开关
@@ -77,13 +77,10 @@
 - **Agentic 聊天标题行与输入区已改为毛玻璃**：任务工作台中，Agentic 聊天顶部标题条与底部输入区现已切到 `apple-glass` 风格；输入区同时补上半透明玻璃托盘与玻璃输入框，整体层次更接近全站现有的 Apple glass 视觉
 - **任务聊天回复中提示已补齐**：发送消息后，如果模型首条 assistant 文本或工具消息尚未到达，聊天区现会先显示一个临时“正在回复”气泡；真正的流式内容开始后，该提示会自动消失，不再出现回复空窗
 - **布局与交互升级**：移除侧边栏折叠，采用固定的左聊天右终端分栏，中间支持无形变拖拽占比；聊天窗口精准固定标题与输入框，仅滚动消息区域
-- **任务工作台产物拖拽修复**：修复了仅开启产物栏、关闭终端时，拖动产物栏左边框会视觉上变成右边框移动的问题；现在拖拽过程中聊天区会同步收缩/扩展，左侧分割线反馈与最终结果保持一致
-- **任务工作台终端关闭抖动修复**：修复同时打开终端和产物栏时，终端关闭到最后消失瞬间产物栏会向左抖一下的问题；现在终端关闭后的聊天区宽度计算会连同产物栏左侧 1px 分割线一起计入，避免最终落位时再次被挤压
-- **任务工作台终端关闭动画收口**：终端区在关闭时已不再保留退出占位动画，而是直接从布局中退场，避免终端内部最后一帧的 reflow 把右侧产物栏再次顶偏
-- **任务工作台终端退出动画收口**：终端区域在关闭时现已立即脱离 flex 布局，仅保留淡出效果；终端分割线也改为即时移除，避免退出动画最后一帧继续占位，引发产物栏抖动
+- **任务工作台终端关闭动画收口**：终端区在关闭时已不再保留退出占位动画，而是直接从布局中退场，避免终端内部最后一帧的 reflow 影响右侧抽屉布局
+- **任务工作台终端退出动画收口**：终端区域在关闭时现已立即脱离 flex 布局，仅保留淡出；终端分割线也改为即时移除，避免退出动画最后一帧仍参与布局
 - **任务列表抽屉首帧定位修复**：修复强制刷新后在任务详情页首次打开任务列表抽屉时，加载态会先闪到屏幕最右侧、待资源加载完才跳回左侧的问题；现在抽屉的加载态与正式内容都固定从左侧进入，首帧位置一致
-- **产物栏默认宽度调整**：加宽了任务工作台产物栏的默认展开宽度，减少首次打开时的横向换行和滚动，查看 `AGENTS.md` 更顺手
-- **暗黑模式分隔线 hover 修复**：修复任务工作台中终端/产物分隔线在暗黑模式下悬停时不显示蓝色高亮的问题；现在日间与暗黑模式的拖拽提示保持一致
+- **暗黑模式分隔线 hover 修复**：修复任务工作台中右侧抽屉分隔线在暗黑模式下悬停时不显示蓝色高亮的问题；现在日间与暗黑模式的拖拽提示保持一致
 - **终端 resize 稳定性修复**：修复 Claude Code、Codex 与 Gemini CLI 在任务终端中因窗口 resize 触发过多或抖动尺寸同步，进而出现串行/降级输出的问题；前端现已过滤无效尺寸并去掉重复上报，后端仅在真实尺寸变化时更新 PTY，并补发 `SIGWINCH`
 - **终端 resize 收尾同步补强**：前端在每次 `fit()` 完成后，现会基于最终的 `cols/rows` 再执行一次去重后的收尾同步，减少拖拽分栏或窗口 resize 结束时遗漏最后一次终端尺寸上报、导致后端停留在旧尺寸的概率
 - **终端重命名刷新恢复修复**：修复了任务详情页中终端重命名后刷新页面，会被 websocket 会话恢复链路用默认名（如 `Anthropic dc6355`）回写覆盖的问题；现在仅在新建终端首次绑定任务时持久化终端名，刷新恢复只补会话关联与 provider，不再篡改已保存名称
@@ -92,7 +89,7 @@
 - **终端关联去重补强**：修复了 Codex 一类固定 session provider 在先拿到 runtime session id、后拿到真实 `cliSessionId` 时，会把同一个终端以两个不同 id 重复关联到任务的问题；现在真实 `cliSessionId` 回填后会替换旧 runtime id，而不是继续追加
 - **终端输出缓冲稳定性修复**：服务端 PTY 输出现已改为增量 UTF-8 解码，并在终端历史快照达到上限时避开 ANSI 控制序列边界进行裁剪，降低长时间输出、重新 attach 或组件重挂载时出现 `[B` 一类控制序列残片和串行显示的概率
 - **任务终端恢复与清理修复**：修复 Codex 终端恢复时会因无效 id 自动退化到 `resume --last`、进而在后台反复拉起高 CPU `codex` 进程的问题；后端现已对无效恢复直接报错，并在关闭终端、删除任务和应用 shutdown 时按整个进程组回收 PTY 子进程。同时修复了 Codex 新建终端后任务未关联、以及历史恢复报 `Session not found or no longer recoverable` 的问题：后端会在创建后直接从 `~/.codex/sessions/*.jsonl` 解析真实 Codex session id 回传前端；Gemini 也会在 live session 同步阶段从 `~/.gemini/tmp/**/chats/session-*.json` 解析真实会话 id。前端在页面刷新或 WebSocket 重连后，会像 Claude 一样基于 `/ws/terminal list` 的 live session 更新已有终端并回写任务关联，让 Codex 与 Gemini 的刷新恢复逻辑尽量与 Claude 保持一致；若仍未拿到真实可恢复 id，则继续避免持久化不可恢复的后端运行时 session ID
-- **UI 细节与暗黑模式**：全站暗黑模式对比度修复；操作按钮改为紧凑图标样式；悬浮组件（下拉框、日期选择）切换为实色背景以保证文字阅读；已补做主要页面暗黑模式审计，并修复“新建任务”弹窗、产物抽屉与设置页排序按钮中的低对比度文本问题
+- **UI 细节与暗黑模式**：全站暗黑模式对比度修复；操作按钮改为紧凑图标样式；悬浮组件（下拉框、日期选择）切换为实色背景以保证文字阅读；已补做主要页面暗黑模式审计，并修复“新建任务”弹窗与设置页排序按钮中的低对比度文本问题
 - **输入体验修复**：修复新建任务、任务聊天、任务标题编辑与终端重命名输入框在中文输入法组合输入时，按回车选词会直接触发提交/确认的问题；现已统一识别 IME 组合态，避免误发送
 - **聊天体验修复**：创建任务后自动首聊时，任务信息现会立即显示在对话区；已移除流式响应期间冗余的三点加载消息，并修复了流式输出时聊天区被强制锁定到底部、无法手动滚动查看历史的问题
 - **聊天自动滚动交互优化**：发送消息后聊天区现在会恢复自动滚动；只有用户手动上滑离开底部时才会退出自动滚动，并显示一个“回到底部”下箭头按钮，点击后可立即跳回底部并重新进入自动跟随
@@ -109,10 +106,10 @@
   - **任务抽屉优先级展示修复**：修复任务详情页左侧任务列表抽屉未显示优先级标签的问题；抽屉中的任务项现已完整展示 `P0-P4` 五级优先级，并与主列表保持一致的颜色语义
 - **稳定性与适配优化**：修复了 Kimi 用量获取 401 错误，优化了身份验证 token 的提取优先级逻辑，增加了对 JWT 备选字段名的解析支持并模拟了浏览器 User-Agent，提升了与 Kimi 最新 API 的兼容性
 - **本地全局记忆已收口**：顶部导航“记忆”页现只保留 `用户记忆 / Agent 记忆` 两个模块；用户记忆位于 `~/.wudao/profile/user-memory.md`，Agent 记忆位于 `~/.wudao/profile/wudao-agent-memory.md`；两者都会在每次任务对话请求里作为 `system prompt` 注入，并参与任务意图识别
-- **手动生成 `AGENTS.md` 现已接入全局记忆**：任务面板中手动点击“生成 / 更新 `AGENTS.md`”时，后端现也会把用户记忆与 `Wudao Agent` 全局记忆作为 `system prompt` 一并注入，不再只有任务解析、普通聊天与 Agent Chat 会看到这部分长期上下文；同时已补上 `tests/test_task_service.py` 回归测试，防止后续回退
+- **任务级 `AGENTS.md` 手动生成入口已移除**：任务面板不再提供“生成 / 更新 `AGENTS.md`”，后端也不再保留对应文档生成服务；长期上下文继续注入任务解析与 Agent Chat
 - **OpenAI Responses 兼容性修复**：修复了新建任务时选择 OpenAI 供应商会因未正确消费 Responses API 流式 `response.output_text.delta` 事件而导致 `/api/tasks/parse` 返回 500 的问题；同时修复了带 assistant 历史消息的任务对话错误地使用 `input_text` 编码、触发 400 的问题，并保留结构化 `input` 失败时对旧兼容端点的单 `user prompt` 回退；此外，针对启用了 CRS `approved clients` 限制的 OpenAI 兼容网关，后端现会在识别到 `Client not allowed` 403 且允许 `codex_cli` 时，自动切换到 Codex CLI 兼容请求头与 `instructions` 重试，任务意图解析与任务聊天现已能稳定读取并发送 OpenAI Responses 文本消息
 
-- 国际化（i18n）：支持中/英双语切换，任务终端、产物抽屉、任务加载态、仪表盘提示与终端启动弹窗等关键界面文案已完成统一本地化
+- 国际化（i18n）：支持中/英双语切换，任务终端、任务加载态、仪表盘提示与终端启动弹窗等关键界面文案已完成统一本地化
 
 - 工程质量：服务端现已补齐 Python 版 `FastAPI` 入口、SQLite 初始化、任务路由、记忆路由、用量聚合、头像上传、本地路径守卫与 `/ws/terminal` 会话管理；后端自动化测试已迁到 `pytest + TestClient`，前端 `taskStore` 继续保留请求竞态保护与统一任务状态合并逻辑
 - 性能：主导航下的 Dashboard / TaskList / Memories / TaskWorkspace / Settings 已切到按视图懒加载；任务工作台内部进一步拆为 `TaskWorkspaceView` / `TiledTerminalPanel` / `TerminalView` / 抽屉 / 弹窗等独立 chunk，当前主入口约 `453 kB`、记忆页 chunk 约 `10 kB`、工作台主 chunk 约 `225 kB`、终端视图 chunk 约 `367 kB`，生产构建已无大包告警
@@ -124,16 +121,16 @@
 ## 进行中
 
 - [ ] Task 体验持续打磨（交互细节、空状态、恢复引导）
-- [ ] Agentic Chat 二期：artifact sync、run 恢复与更细的 provider/tool 策略
+- [ ] Agentic Chat 二期：run 恢复、更细的 provider/tool 策略，以及通过 MCP 打通任务聊天与终端上下文
 - [ ] Agent Runner 面板：Agent 驱动的 Claude Code SDK 集成，任务工作台右侧实时展示执行过程
-- [ ] 任务详情右侧三抽屉继续打磨（更细的宽度策略、移动端收口、必要时补抽屉内关闭入口）
+- [ ] 任务详情右侧双抽屉继续打磨（更细的宽度策略、移动端收口、必要时补抽屉内关闭入口）
 
 ## 待开始
 
 - [ ] 继续终端模式体验打磨（启动失败提示、更多快捷操作）
 - [ ] Dashboard 扩展：更多服务商用量接入、历史趋势图
 - [ ] 运行时结构化观测（任务事件、执行结果、失败诊断）
-- [ ] Agentic Chat 二期：`AGENTS.md` artifact sync 与 workspace 产物自动刷新
+- [ ] Agentic Chat 二期：MCP 上下文桥接与 workspace 状态同步
 - [ ] Agentic Chat 三期：`web_search`、回放 / 取消 / provider 更细粒度降级
 
 ## 已知问题

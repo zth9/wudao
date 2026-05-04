@@ -20,7 +20,6 @@ from fastapi import WebSocket
 
 from .claude_session_store import has_persisted_claude_session
 from .paths import WORKSPACE_DIR
-from .task_claude_md import generate_task_claude_md
 from .task_service import is_valid_task_id
 from .terminal_utils import (
     build_pty_env,
@@ -719,7 +718,6 @@ class TerminalManager:
                         task_dir = WORKSPACE_DIR / task_id
                         task_dir.mkdir(parents=True, exist_ok=True)
                         cwd = task_dir
-                        generate_task_claude_md(task_id, cwd)
 
                     master_fd, slave_fd = os.openpty()
                     cols = int(message.get("cols") or 120)

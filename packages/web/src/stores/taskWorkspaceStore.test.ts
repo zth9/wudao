@@ -45,45 +45,38 @@ describe("taskWorkspaceStore", () => {
       sdkRunnerWidth: 520,
     });
     useTaskWorkspaceStore.getState().setTaskLayout("task-2", {
-      artifactsOpen: true,
-      artifactsWidth: 520,
+      sdkRunnerOpen: true,
+      sdkRunnerWidth: 520,
     });
 
     expect(readLayout("task-1")).toMatchObject({
       terminalOpen: true,
       terminalWidth: 860,
       sdkRunnerOpen: true,
-      artifactsOpen: false,
       chatPanelWidth: 48,
       sdkRunnerWidth: 520,
-      artifactsWidth: 440,
     });
     expect(readLayout("task-2")).toMatchObject({
       terminalOpen: false,
       terminalWidth: 720,
-      sdkRunnerOpen: false,
-      artifactsOpen: true,
+      sdkRunnerOpen: true,
       chatPanelWidth: 40,
-      sdkRunnerWidth: 420,
-      artifactsWidth: 520,
+      sdkRunnerWidth: 520,
     });
   });
 
   it("toggles only the current task layout without affecting others", () => {
     useTaskWorkspaceStore.getState().toggleTerminal("task-1");
-    useTaskWorkspaceStore.getState().toggleArtifacts("task-1");
     useTaskWorkspaceStore.getState().toggleSdkRunner("task-2");
 
     expect(readLayout("task-1")).toMatchObject({
       terminalOpen: true,
       terminalWidth: 720,
-      artifactsOpen: true,
       sdkRunnerOpen: false,
     });
     expect(readLayout("task-2")).toMatchObject({
       terminalOpen: false,
       terminalWidth: 720,
-      artifactsOpen: false,
       sdkRunnerOpen: true,
     });
   });

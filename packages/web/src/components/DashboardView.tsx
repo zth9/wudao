@@ -4,8 +4,6 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { tasks as tasksApi, usage as usageApi, type ProviderUsage, type TaskStatsSummary } from "../services/api";
 import {
   CheckCircle2,
-  ArrowUpRight,
-  Shield,
   Activity,
   TrendingUp,
   Box,
@@ -14,6 +12,7 @@ import {
   Clock,
   RefreshCw,
 } from "lucide-react";
+import { ProviderIcon } from "./ProviderIcon";
 import { cn } from "../utils/cn";
 import { type ViewKey } from "../app-route";
 import { LoadingIndicator } from "./LoadingIndicator";
@@ -134,7 +133,7 @@ export default function DashboardView({ onNavigate }: Props) {
       { id: "active", label: t("common.active"), value: taskStats.active, icon: Activity, color: "text-accent", bg: "bg-accent/10" },
       { id: "done", label: t("common.done"), value: taskStats.done, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
       { id: "priority", label: `${t("priority_labels.0")}/${t("priority_labels.1")}`, value: taskStats.high_priority, icon: TrendingUp, color: "text-danger", bg: "bg-danger/10" },
-      { id: "all", label: t("common.all"), value: taskStats.all, icon: Box, color: "text-accent", bg: "bg-accent/10" },
+      { id: "all", label: t("common.all"), value: taskStats.all, icon: Box, color: "text-foreground", bg: "bg-default/40" },
     ];
   }, [taskStats, t]);
 
@@ -178,37 +177,36 @@ export default function DashboardView({ onNavigate }: Props) {
 
       <div className="flex-1 px-8 py-6">
         <div className="max-w-6xl mx-auto space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {loadingTaskStats && !hasLoadedTaskStats ? (
-              <div className="col-span-full py-12 flex justify-center">
-                <LoadingIndicator text={t("common.loading")} />
+          {loadingTaskStats && !hasLoadedTaskStats ? (
+            <div className="py-12 flex justify-center">
+              <LoadingIndicator text={t("common.loading")} />
+            </div>
+          ) : (
+            <Card className="w-full overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center gap-2">
+                <Activity size={16} className="text-accent shrink-0" />
+                <h2 className="text-xs font-bold uppercase tracking-widest text-muted">{t("dashboard.overview")}</h2>
               </div>
-            ) : (
-              stats.map((stat) => (
-                <div
-                  key={stat.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onNavigate("tasks")}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onNavigate("tasks"); }}
-                  className="group w-full cursor-pointer rounded-full border border-border bg-surface px-5 py-3 text-left shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={cn("flex shrink-0 items-center justify-center p-1.5 rounded-full", stat.bg)}>
-                        <stat.icon size={14} className={cn("shrink-0", stat.color)} />
+              <Card.Content className="p-0">
+                <div className="grid grid-cols-2 sm:grid-cols-4">
+                  {stats.map((stat) => (
+                    <div
+                      key={stat.id}
+                      className="flex flex-col items-start gap-2 px-5 py-5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn("flex shrink-0 items-center justify-center p-1.5 rounded-full", stat.bg)}>
+                          <stat.icon size={14} className={cn("shrink-0", stat.color)} />
+                        </div>
+                        <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{stat.label}</p>
                       </div>
-                      <p className="text-[11px] font-bold text-muted uppercase tracking-widest truncate">{stat.label}</p>
+                      <p className="text-2xl font-black tracking-tight">{stat.value}</p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <p className="text-lg font-black tracking-tight">{stat.value}</p>
-                      <ArrowUpRight size={14} className="text-default-foreground group-hover:text-accent transition-colors" />
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
+              </Card.Content>
+            </Card>
+          )}
 
           <div className="space-y-8">
             <Card className="min-h-[400px] p-6">
@@ -232,8 +230,8 @@ export default function DashboardView({ onNavigate }: Props) {
                     >
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                            <Shield size={20} />
+                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center overflow-hidden">
+                            <ProviderIcon providerId={usage.provider} size={24} />
                           </div>
                           <div>
                             <p className="text-sm font-bold tracking-tight">{usage.provider}</p>

@@ -41,12 +41,12 @@ def test_workspace_tools_list_read_and_search_inside_task_workspace(tmp_path, mo
     ws_dir = home_dir / "workspace" / task_id
     docs_dir = ws_dir / "docs"
     docs_dir.mkdir(parents=True, exist_ok=True)
-    (ws_dir / "AGENTS.md").write_text("# Task\nhello agent\n", encoding="utf-8")
+    (ws_dir / "README.md").write_text("# Task\nhello agent\n", encoding="utf-8")
     (docs_dir / "notes.txt").write_text("first line\nsecond line\nkeyword\n", encoding="utf-8")
 
     listing = workspace_tools.list_workspace_entries(task_id, ".")
     assert listing["path"] == "."
-    assert [entry["name"] for entry in listing["entries"]] == ["AGENTS.md", "docs"]
+    assert [entry["name"] for entry in listing["entries"]] == ["docs", "README.md"]
 
     content = workspace_tools.read_workspace_file(task_id, "docs/notes.txt", start_line=2, end_line=3)
     assert content["path"] == "docs/notes.txt"
@@ -122,30 +122,6 @@ def test_terminal_snapshot_reads_only_task_owned_live_sessions(tmp_path, monkeyp
         terminal_tools.get_terminal_snapshot(task_id, session_id="runtime-session-2")
 
 
-def test_task_read_context_registered_and_executable(tmp_path, monkeypatch):
-    app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
-    client = TestClient(app_module.app)
-    current_task_id = create_task(client, "当前任务")
-    target_task_id = create_task(client, "目标任务")
-    workspace_root = tmp_path / "home" / "workspace" / target_task_id
-    workspace_root.mkdir(parents=True, exist_ok=True)
-    (workspace_root / "AGENTS.md").write_text("# 目标任务\n约束一\n约束二\n", encoding="utf-8")
-
-    tool_names = [item["name"] for item in tool_registry.serialize_tool_schemas()]
-    assert "task_read_context" in tool_names
-
-    result = asyncio.run(
-        tool_registry.execute_agent_tool(
-            current_task_id,
-            "task_read_context",
-            {"taskId": target_task_id, "startLine": 1, "endLine": 2},
-        )
-    )
-
-    assert result["taskId"] == target_task_id
-    assert result["content"] == "# 目标任务\n约束一"
-
-
 def test_sdk_runner_tool_registry_exposes_runner_specific_tool_name(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
@@ -169,11 +145,12 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
     captured: dict[str, object] = {}
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
         captured["task_id"] = task_id
         captured["prompt"] = prompt
         captured["cwd"] = cwd
         captured["agent_run_id"] = agent_run_id
+        captured["provider_id"] = provider_id
         captured["runner_type"] = runner_type
         captured["system_prompt"] = system_prompt
         if on_finished is not None:
@@ -210,6 +187,7 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
             "invoke_claude_code_runner",
             {"prompt": "请在当前任务 workspace 内执行最小测试"},
             agent_run_id="agent-run-123",
+            provider_id="claude",
         )
     )
 
@@ -224,6 +202,7 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
         "prompt": "请在当前任务 workspace 内执行最小测试",
         "cwd": str(workspace_dir),
         "agent_run_id": "agent-run-123",
+        "provider_id": "claude",
         "runner_type": "claude_code",
         "system_prompt": None,
     }
@@ -239,9 +218,10 @@ def test_legacy_invoke_sdk_runner_alias_still_executes_claude_code_runner(tmp_pa
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
     captured: dict[str, object] = {}
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
         captured["task_id"] = task_id
         captured["prompt"] = prompt
+        captured["provider_id"] = provider_id
         captured["runner_type"] = runner_type
         if on_finished is not None:
             asyncio.get_running_loop().create_task(on_finished({"run_id": "sdk-run-legacy", "status": "completed"}))
@@ -277,6 +257,7 @@ def test_legacy_invoke_sdk_runner_alias_still_executes_claude_code_runner(tmp_pa
     assert result["runner_type"] == "claude_code"
     assert result["status"] == "completed"
     assert captured["runner_type"] == "claude_code"
+    assert captured["provider_id"] is None
 
 
 def test_invoke_claude_code_runner_falls_back_to_last_tool_result_when_final_text_missing(tmp_path, monkeypatch):
@@ -287,7 +268,7 @@ def test_invoke_claude_code_runner_falls_back_to_last_tool_result_when_final_tex
     sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
         if on_finished is not None:
             asyncio.get_running_loop().create_task(on_finished({"run_id": "sdk-run-fallback", "status": "completed"}))
         return {"id": "sdk-run-fallback", "prompt": prompt, "cwd": cwd, "runner_type": runner_type}
@@ -344,7 +325,7 @@ def test_invoke_claude_code_runner_recovers_when_completion_callback_is_missing(
     sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
         run = sdk_store.create_sdk_run(
             task_id,
             prompt=prompt,

@@ -34,12 +34,12 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
     app_module, runner, model_adapter, thread_store, home_dir = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "跑 Agent Runner")
-    (home_dir / "workspace" / task_id / "AGENTS.md").write_text("# Demo\n", encoding="utf-8")
+    (home_dir / "workspace" / task_id / "README.md").write_text("# Demo\n", encoding="utf-8")
 
     steps = iter(
         [
             {"type": "tool_call", "toolName": "workspace_list", "input": {"path": "."}},
-            {"type": "assistant_text", "content": "我已经看到了 AGENTS.md。"},
+            {"type": "assistant_text", "content": "我已经看到了 README。"},
         ]
     )
 
@@ -86,13 +86,13 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
     thread = thread_store.get_task_agent_thread(task_id)
     assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "text"]
     assert thread["messages"][0]["content_json"]["toolName"] == "workspace_list"
-    assert thread["messages"][1]["content_json"]["output"]["entries"][0]["name"] == "AGENTS.md"
-    assert thread["messages"][2]["content_json"]["content"] == "我已经看到了 AGENTS.md。"
+    assert thread["messages"][1]["content_json"]["output"]["entries"][0]["name"] == "README.md"
+    assert thread["messages"][2]["content_json"]["content"] == "我已经看到了 README。"
 
     history = json.loads(client.get(f"/api/tasks/{task_id}").json()["chat_messages"])
     assert history == [
         {"role": "user", "content": "看看 workspace"},
-        {"role": "assistant", "content": "我已经看到了 AGENTS.md。"},
+        {"role": "assistant", "content": "我已经看到了 README。"},
     ]
 
 
@@ -185,10 +185,10 @@ def test_runner_executes_write_tool_and_updates_workspace(tmp_path, monkeypatch)
     assert history[-1] == {"role": "assistant", "content": "我已经写好了 docs/plan.md。"}
 
 
-def test_runner_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path, monkeypatch):
+def test_runner_persists_workspace_write_without_extra_events(tmp_path, monkeypatch):
     app_module, runner, model_adapter, thread_store, home_dir = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
-    task_id = create_task(client, "更新 AGENTS")
+    task_id = create_task(client, "写 workspace 文件")
     workspace_root = home_dir / "workspace" / task_id
     workspace_root.mkdir(parents=True, exist_ok=True)
 
@@ -198,11 +198,11 @@ def test_runner_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path
                 "type": "tool_call",
                 "toolName": "workspace_write_file",
                 "input": {
-                    "path": "AGENTS.md",
+                    "path": "notes.md",
                     "content": "# Done\n任务已完成\n",
                 },
             },
-            {"type": "assistant_text", "content": "AGENTS.md 已更新。"},
+            {"type": "assistant_text", "content": "文件已更新。"},
         ]
     )
 
@@ -212,7 +212,7 @@ def test_runner_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path
     monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
-    projected_history = [{"role": "user", "content": "更新 AGENTS.md"}]
+    projected_history = [{"role": "user", "content": "写入 notes.md"}]
 
     async def collect():
         return [
@@ -235,86 +235,16 @@ def test_runner_syncs_agents_artifact_when_write_tool_updates_agents_md(tmp_path
         "message.completed",
         "message.completed",
         "tool.completed",
-        "message.completed",
-        "artifact.updated",
-        "message.delta",
         "message.delta",
         "message.completed",
         "run.completed",
     ]
     assert events[3]["item"]["kind"] == "tool_result"
-    assert events[5]["item"]["kind"] == "artifact"
-    assert events[6] == {
-        "type": "artifact.updated",
-        "path": "AGENTS.md",
-        "summary": "已同步 AGENTS.md 主产物",
-    }
 
-    assert (workspace_root / "AGENTS.md").read_text(encoding="utf-8") == "# Done\n任务已完成\n"
-    assert (workspace_root / "CLAUDE.md").is_symlink()
-    assert (workspace_root / "GEMINI.md").is_symlink()
-
-    task = client.get(f"/api/tasks/{task_id}").json()
-    assert task["agent_doc"] == "# Done\n任务已完成\n"
+    assert (workspace_root / "notes.md").read_text(encoding="utf-8") == "# Done\n任务已完成\n"
 
     thread = thread_store.get_task_agent_thread(task_id)
-    assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "artifact", "text"]
-    assert thread["messages"][2]["content_json"] == {
-        "path": "AGENTS.md",
-        "summary": "已同步 AGENTS.md 主产物",
-    }
-
-
-def test_runner_executes_task_context_tool_and_reads_target_task_context(tmp_path, monkeypatch):
-    app_module, runner, model_adapter, thread_store, home_dir = load_modules(tmp_path, monkeypatch)
-    client = TestClient(app_module.app)
-    task_id = create_task(client, "当前任务")
-    target_task_id = create_task(client, "目标任务")
-    workspace_root = home_dir / "workspace" / target_task_id
-    workspace_root.mkdir(parents=True, exist_ok=True)
-    (workspace_root / "AGENTS.md").write_text("# 目标任务\n先看这里\n", encoding="utf-8")
-
-    steps = iter(
-        [
-            {
-                "type": "tool_call",
-                "toolName": "task_read_context",
-                "input": {"taskId": target_task_id},
-            },
-            {"type": "assistant_text", "content": "我已经读完目标任务上下文。"},
-        ]
-    )
-
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
-        return next(steps)
-
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
-
-    run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
-    projected_history = [{"role": "user", "content": "读取目标任务上下文"}]
-
-    async def collect():
-        return [
-            event
-            async for event in runner.run_agent_loop(
-                task_id=task_id,
-                run_id=run["id"],
-                provider_id="claude",
-                history=projected_history,
-                projected_history=projected_history,
-            )
-        ]
-
-    import asyncio
-
-    events = asyncio.run(collect())
-    assert events[-1] == {"type": "run.completed", "runId": "run-1"}
-
-    thread = thread_store.get_task_agent_thread(task_id)
-    assert thread["messages"][0]["content_json"]["toolName"] == "task_read_context"
-    assert thread["messages"][1]["content_json"]["output"]["taskId"] == target_task_id
-    assert thread["messages"][1]["content_json"]["output"]["content"] == "# 目标任务\n先看这里"
-    assert thread["messages"][2]["content_json"]["content"] == "我已经读完目标任务上下文。"
+    assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "text"]
 
 
 def test_runner_keeps_run_alive_after_recoverable_tool_error(tmp_path, monkeypatch):
@@ -330,16 +260,16 @@ def test_runner_keeps_run_alive_after_recoverable_tool_error(tmp_path, monkeypat
         if call_count == 1:
             return {
                 "type": "tool_call",
-                "toolName": "task_read_context",
+                "toolName": "removed_context_tool",
                 "input": {"taskId": "current"},
             }
 
         assert tool_transcript == [
-            {"type": "tool_call", "toolName": "task_read_context", "input": {"taskId": "current"}},
+            {"type": "tool_call", "toolName": "removed_context_tool", "input": {"taskId": "current"}},
             {
                 "type": "tool_result",
-                "toolName": "task_read_context",
-                "output": {"ok": False, "error": "task_id is invalid"},
+                "toolName": "removed_context_tool",
+                "output": {"ok": False, "error": "unknown tool: removed_context_tool"},
             },
         ]
         return {"type": "assistant_text", "content": "先确认下报错出现在哪个环境，以及是否能稳定复现。"}
@@ -371,8 +301,8 @@ def test_runner_keeps_run_alive_after_recoverable_tool_error(tmp_path, monkeypat
     assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "text"]
     assert thread["messages"][1]["status"] == "failed"
     assert thread["messages"][1]["content_json"] == {
-        "toolName": "task_read_context",
-        "output": {"ok": False, "error": "task_id is invalid"},
+        "toolName": "removed_context_tool",
+        "output": {"ok": False, "error": "unknown tool: removed_context_tool"},
     }
     assert thread["messages"][2]["content_json"]["content"] == "先确认下报错出现在哪个环境，以及是否能稳定复现。"
 
@@ -417,7 +347,7 @@ def test_model_adapter_prompt_prefers_first_turn_clarification(tmp_path, monkeyp
     system_prompt = str(prompt_messages[-1]["content"])
     assert "首轮对话默认先通过 assistant_text 与用户沟通" in system_prompt
     assert "不要为了“先了解情况”就读取当前 workspace" in system_prompt
-    assert "不要把 current、当前任务、空字符串之类的值当作 taskId" in system_prompt
+    assert "removed_context_tool" not in system_prompt
 
 
 def test_model_adapter_parses_minimax_tool_call_markup(tmp_path, monkeypatch):
@@ -469,8 +399,8 @@ def test_model_adapter_parses_multiple_line_tool_call_json_objects(tmp_path, mon
     _, _, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
 
     parsed = model_adapter.parse_agent_model_response(
-        """{"toolName":"workspace_read_file","input":{"path":"AGENTS.md"}}
-{"toolName":"workspace_read_file","input":{"path":"CLAUDE.md"}}"""
+        """{"toolName":"workspace_read_file","input":{"path":"README.md"}}
+{"toolName":"workspace_read_file","input":{"path":"docs/notes.md"}}"""
     )
 
     assert parsed.structured is True
@@ -479,8 +409,8 @@ def test_model_adapter_parses_multiple_line_tool_call_json_objects(tmp_path, mon
         {"toolName": item.tool_name, "input": item.input_data}
         for item in parsed.tool_calls
     ] == [
-        {"toolName": "workspace_read_file", "input": {"path": "AGENTS.md"}},
-        {"toolName": "workspace_read_file", "input": {"path": "CLAUDE.md"}},
+        {"toolName": "workspace_read_file", "input": {"path": "README.md"}},
+        {"toolName": "workspace_read_file", "input": {"path": "docs/notes.md"}},
     ]
 
 
@@ -670,14 +600,14 @@ def test_runner_allows_more_than_four_tool_rounds_before_completing(tmp_path, mo
     task_id = create_task(client, "多轮工具调用")
     workspace_root = home_dir / "workspace" / task_id
     workspace_root.mkdir(parents=True, exist_ok=True)
-    (workspace_root / "AGENTS.md").write_text("# Demo\nhello\n", encoding="utf-8")
+    (workspace_root / "README.md").write_text("# Demo\nhello\n", encoding="utf-8")
 
     steps = iter(
         [
             {"type": "tool_call", "toolName": "workspace_list", "input": {"path": "."}},
-            {"type": "tool_call", "toolName": "workspace_read_file", "input": {"path": "AGENTS.md"}},
+            {"type": "tool_call", "toolName": "workspace_read_file", "input": {"path": "README.md"}},
             {"type": "tool_call", "toolName": "workspace_search_text", "input": {"query": "hello"}},
-            {"type": "tool_call", "toolName": "workspace_read_file", "input": {"path": "AGENTS.md", "startLine": 1, "endLine": 1}},
+            {"type": "tool_call", "toolName": "workspace_read_file", "input": {"path": "README.md", "startLine": 1, "endLine": 1}},
             {"type": "tool_call", "toolName": "workspace_list", "input": {"path": "."}},
             {"type": "assistant_text", "content": "五轮工具调用后完成。"},
         ]

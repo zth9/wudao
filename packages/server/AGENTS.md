@@ -12,7 +12,7 @@
 - 应用入口：`src/app.py`，创建 FastAPI app 并注册 HTTP、SSE、WebSocket 路由
 - 数据库：`src/db.py`，负责 SQLite 连接、默认 Provider seed、表初始化与兼容迁移
 - 路径与记忆：`src/paths.py`、`src/memories.py`
-- 任务服务：`src/task_service.py`、`src/task_helpers.py`、`src/task_claude_md.py`
+- 任务服务：`src/task_service.py`、`src/task_helpers.py`
 - LLM 适配：`src/llm.py`，兼容 Anthropic Messages、OpenAI Responses、OpenAI Chat Completions 与部分 provider fallback
 - Agentic Chat：
   - 路由：`src/task_agent_chat.py`
@@ -39,12 +39,12 @@
 
 ## 后端开发规则
 
-1. 任何接口、SSE/WebSocket 事件、数据库结构或任务产物语义变更，先更新承载文档再改实现。
+1. 任何接口、SSE/WebSocket 事件、数据库结构或任务上下文语义变更，先更新承载文档再改实现。
 2. 路由层只做协议编排、参数校验和响应转换；业务逻辑优先放到独立模块，避免 `app.py` 继续膨胀。
 3. DB 变更必须兼容已有 SQLite 数据，提供启动期迁移或明确的数据处理策略，不依赖手工清库。
 4. `tasks.chat_messages` 当前是 legacy 兼容投影；Agentic Chat 主数据在 `task_agent_runs` 与 `task_agent_messages`。
 5. Agent 工具读写文件必须限制在任务 workspace 内，并复用 `workspace_tools.py` / `path_guard.py` 的路径防逃逸策略。
-6. `AGENTS.md` 是任务主产物；写入或 patch 该文件时要同步数据库中的 `tasks.agent_doc`，并维护 `CLAUDE.md` / `GEMINI.md` 软链。
+6. 任务上下文后续通过 MCP 与结构化任务聊天/终端上下文打通，不再新增任务级 `AGENTS.md` 产物同步入口。
 7. 涉及 Agent Runtime 的改动必须考虑工具失败回流、SSE 断开、后台 run 继续执行、历史 thread 修复与重复事件去重。
 8. 涉及 SDK Runner 的改动必须考虑 run 持久化、事件回放、取消、应用 shutdown、任务删除和并发 run。
 9. 涉及 PTY 终端的改动必须考虑 create / attach / list / exit、进程组清理、真实 CLI session id 发现和 resize 去重。

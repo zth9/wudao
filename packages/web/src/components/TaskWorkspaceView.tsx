@@ -21,7 +21,6 @@ import { LoadingIndicator } from "./LoadingIndicator";
 import { Modal } from "@heroui/react/modal";
 import { buildInitialTaskInfoMessage } from "../utils/task-chat";
 import {
-  getArtifactsDragPreview,
   getCollapsedChatPanelWidth,
   getSdkRunnerDragPreview,
   getTerminalDragPreview,
@@ -33,13 +32,11 @@ import {
 } from "./task-panel/task-list-drawer-layout";
 
 const loadTaskListDrawer = () => import("./task-panel/TaskListDrawer");
-const loadTaskArtifactsDrawer = () => import("./TaskArtifactsDrawer");
 const loadTiledTerminalPanel = () => import("./TiledTerminalPanel");
 const loadNewTaskTerminalDialog = () => import("./dialogs/NewTaskTerminalDialog");
 const loadSdkRunnerPanel = () => import("./sdk-runner/SdkRunnerPanel");
 
 const TaskListDrawer = lazy(async () => ({ default: (await loadTaskListDrawer()).TaskListDrawer }));
-const TaskArtifactsDrawer = lazy(loadTaskArtifactsDrawer);
 const TiledTerminalPanel = lazy(loadTiledTerminalPanel);
 const NewTaskTerminalDialog = lazy(async () => ({ default: (await loadNewTaskTerminalDialog()).NewTaskTerminalDialog }));
 
@@ -120,7 +117,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
   const hasProviders = providers.length > 0;
 
   const [showTaskList, setShowTaskList] = useState(false);
-  const [isArtifactsDragging, setIsArtifactsDragging] = useState(false);
   const [isSdkRunnerDragging, setIsSdkRunnerDragging] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 1440 : window.innerWidth,
@@ -129,22 +125,17 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const terminalPanelRef = useRef<HTMLDivElement>(null);
   const sdkRunnerPanelRef = useRef<HTMLDivElement>(null);
-  const artifactsPanelRef = useRef<HTMLDivElement>(null);
-  const artifactsInnerRef = useRef<HTMLDivElement>(null);
   const autoStartedTaskIdRef = useRef<string | null>(null);
   const taskLayout = useTaskWorkspaceStore((state) => state.taskLayouts[taskId]);
   const setTaskLayout = useTaskWorkspaceStore((state) => state.setTaskLayout);
   const toggleTerminal = useTaskWorkspaceStore((state) => state.toggleTerminal);
-  const toggleArtifacts = useTaskWorkspaceStore((state) => state.toggleArtifacts);
   const toggleSdkRunner = useTaskWorkspaceStore((state) => state.toggleSdkRunner);
 
   const {
     terminalOpen,
     sdkRunnerOpen,
-    artifactsOpen,
     terminalWidth,
     sdkRunnerWidth,
-    artifactsWidth,
   } = useMemo(
     () => ({ ...DEFAULT_TASK_WORKSPACE_LAYOUT, ...taskLayout }),
     [taskLayout],
@@ -158,12 +149,10 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           terminalWidth,
           sdkRunnerOpen,
           sdkRunnerWidth,
-          artifactsOpen,
-          artifactsWidth,
         },
         viewportWidth,
       ),
-    [artifactsOpen, artifactsWidth, sdkRunnerOpen, sdkRunnerWidth, terminalOpen, terminalWidth, viewportWidth],
+    [sdkRunnerOpen, sdkRunnerWidth, terminalOpen, terminalWidth, viewportWidth],
   );
 
   const {
@@ -172,7 +161,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     currentTask,
     fetchOne,
     update,
-    generating,
     clearCurrent,
     agentTimeline,
     agentChatStreaming,
@@ -180,7 +168,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     startInitialAgentChat,
     abortAgentChat,
     remove,
-    generateDocs,
   } = useTaskStore();
 
   const { sdkRuns, openSdkPanel, closeSdkPanel, clearSdkRunner, fetchSdkRuns } = useSdkRunnerStore();
@@ -240,12 +227,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
       void loadTiledTerminalPanel();
     }
   }, [terminalOpen]);
-
-  useEffect(() => {
-    if (artifactsOpen) {
-      void loadTaskArtifactsDrawer();
-    }
-  }, [artifactsOpen]);
 
   useEffect(() => {
     if (sdkRunnerOpen) {
@@ -317,19 +298,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     },
     [currentTask?.provider_id, taskId, update]
   );
-
-  const handleGenerateDocs = useCallback(async () => {
-    void loadTaskArtifactsDrawer();
-    await generateDocs(taskId, providerRef.current ?? undefined);
-    setTaskLayout(taskId, { artifactsOpen: true });
-  }, [generateDocs, setTaskLayout, taskId]);
-
-  const handleToggleArtifacts = useCallback(() => {
-    if (!artifactsOpen) {
-      void loadTaskArtifactsDrawer();
-    }
-    toggleArtifacts(taskId);
-  }, [artifactsOpen, taskId, toggleArtifacts]);
 
   const handleShowNewDialog = useCallback(() => {
     void loadNewTaskTerminalDialog();
@@ -410,11 +378,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     [currentTask?.session_ids]
   );
 
-  const initialPrompt = useMemo(() => {
-    if (!currentTask || currentTask.id !== taskId) return null;
-    if (!currentTask.agent_doc) return null;
-    return t("terminal.initial_prompt");
-  }, [currentTask, taskId, t]);
+  const initialPrompt = null;
 
   const createTaskSession = useCallback((opts: {
     taskId: string;
@@ -538,8 +502,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           terminalWidth: resolvedDrawerLayout.terminalWidth,
           sdkRunnerOpen,
           sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
-          artifactsOpen,
-          artifactsWidth: resolvedDrawerLayout.artifactsWidth,
         },
       });
       currentWidth = nextWidth;
@@ -572,88 +534,12 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [
-    artifactsOpen,
-    resolvedDrawerLayout.artifactsWidth,
     resolvedDrawerLayout.sdkRunnerWidth,
     resolvedDrawerLayout.terminalWidth,
     sdkRunnerOpen,
     setTaskLayout,
     taskId,
     terminalOpen,
-  ]);
-
-  const handleArtifactsDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    draggingRef.current = true;
-    setIsArtifactsDragging(true);
-    let currentWidth = artifactsWidth;
-
-    const overlay = document.createElement("div");
-    overlay.style.position = "absolute";
-    overlay.style.inset = "0";
-    overlay.style.zIndex = "9999";
-    overlay.style.cursor = "col-resize";
-    document.body.appendChild(overlay);
-
-    const onMove = (ev: MouseEvent) => {
-      if (!draggingRef.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const { artifactsWidth: nextWidth, chatPanelWidth } = getArtifactsDragPreview({
-        containerRight: rect.right,
-        pointerClientX: ev.clientX,
-        viewportWidth: window.innerWidth,
-        layout: {
-          terminalOpen,
-          terminalWidth: resolvedDrawerLayout.terminalWidth,
-          sdkRunnerOpen,
-          sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
-          artifactsOpen,
-          artifactsWidth: resolvedDrawerLayout.artifactsWidth,
-        },
-      });
-      currentWidth = nextWidth;
-
-      if (artifactsPanelRef.current) {
-        artifactsPanelRef.current.style.width = `${currentWidth}px`;
-      }
-      if (artifactsInnerRef.current) {
-        artifactsInnerRef.current.style.width = `${currentWidth}px`;
-      }
-      if (chatPanelRef.current && chatPanelWidth) {
-        chatPanelRef.current.style.width = chatPanelWidth;
-      }
-    };
-    const onUp = () => {
-      draggingRef.current = false;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-
-      // Update width state first while isArtifactsDragging is still true (duration: 0)
-      setTaskLayout(taskId, { artifactsWidth: currentWidth });
-
-      // Delay disabling the dragging state to skip the spring animation for the final width update
-      setTimeout(() => {
-        setIsArtifactsDragging(false);
-        // Ensure everything is perfectly aligned at the end, after DOM has settled
-        setTimeout(() => window.dispatchEvent(new Event("resize")), 10);
-      }, 50);
-    };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [
-    resolvedDrawerLayout.artifactsWidth,
-    resolvedDrawerLayout.sdkRunnerWidth,
-    resolvedDrawerLayout.terminalWidth,
-    setTaskLayout,
-    taskId,
-    terminalOpen,
-    sdkRunnerOpen,
-    artifactsOpen,
   ]);
 
   const handleSdkRunnerDragStart = useCallback((e: React.MouseEvent) => {
@@ -681,8 +567,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           terminalWidth: resolvedDrawerLayout.terminalWidth,
           sdkRunnerOpen,
           sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
-          artifactsOpen,
-          artifactsWidth: resolvedDrawerLayout.artifactsWidth,
         },
       });
       currentWidth = nextWidth;
@@ -714,8 +598,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [
-    artifactsOpen,
-    resolvedDrawerLayout.artifactsWidth,
     resolvedDrawerLayout.sdkRunnerWidth,
     resolvedDrawerLayout.terminalWidth,
     setTaskLayout,
@@ -745,8 +627,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onDeleteClick={() => setShowDeleteConfirm(true)}
         onDeleteCancel={() => setShowDeleteConfirm(false)}
         onDeleteConfirm={() => void handleDeleteConfirm()}
-        artifactsOpen={artifactsOpen}
-        onToggleArtifacts={handleToggleArtifacts}
         terminalOpen={terminalOpen}
         onToggleTerminal={() => toggleTerminal(taskId)}
         sdkRunnerOpen={sdkRunnerOpen}
@@ -766,11 +646,9 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
               terminalWidth: resolvedDrawerLayout.terminalWidth,
               sdkRunnerOpen,
               sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
-              artifactsOpen,
-              artifactsWidth: resolvedDrawerLayout.artifactsWidth,
             }),
           }}
-          transition={isDragging || isArtifactsDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 200 }}
+          transition={isDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 200 }}
           className={cn(
             "flex flex-col min-h-0 border-r border-border bg-surface/20 shrink-0",
             !terminalOpen && "border-r-0"
@@ -782,9 +660,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
             taskProviderId={currentTask.provider_id}
             items={agentTimeline}
             streaming={agentChatStreaming}
-            agentDoc={currentTask.agent_doc}
-            generatingDocs={generating}
-            onGenerateDocs={() => void handleGenerateDocs()}
             onSend={(message, providerId) => sendAgentChatMessage(taskId, message, providerId)}
             onProviderChange={handleProviderChange}
             onAbort={abortAgentChat}
@@ -802,7 +677,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: resolvedDrawerLayout.terminalWidth + 1, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              transition={isDragging || isArtifactsDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 200 }}
+              transition={isDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 200 }}
               className="shrink-0 flex min-w-0 flex-row overflow-hidden"
             >
               <div
@@ -863,39 +738,6 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
           )}
         </AnimatePresence>
 
-        {/* Artifacts Resizer */}
-        {artifactsOpen && (
-          <div
-            onMouseDown={handleArtifactsDragStart}
-            className="w-[1px] shrink-0 cursor-col-resize bg-default hover:bg-accent transition-colors group relative z-30"
-          >
-             <div className="absolute inset-y-0 -left-1 -right-1 z-20" />
-          </div>
-        )}
-
-        {/* Artifacts Area (Right) */}
-        <AnimatePresence initial={false}>
-          {artifactsOpen && (
-            <motion.div
-              ref={artifactsPanelRef}
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: resolvedDrawerLayout.artifactsWidth, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={isArtifactsDragging ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 200 }}
-              className="shrink-0 flex flex-col overflow-hidden"
-            >
-              <div ref={artifactsInnerRef} style={{ width: resolvedDrawerLayout.artifactsWidth }} className="h-full flex flex-col min-h-0">
-                <Suspense fallback={<SidePanelFallback />}>
-                  <TaskArtifactsDrawer
-                    taskId={taskId}
-                    agentDoc={currentTask?.id === taskId ? currentTask.agent_doc : null}
-                    onClose={() => setTaskLayout(taskId, { artifactsOpen: false })}
-                  />
-                </Suspense>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {showNewDialog && (

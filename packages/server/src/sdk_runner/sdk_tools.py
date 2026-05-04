@@ -336,6 +336,7 @@ async def invoke_sdk_runner_tool(
     input_data: dict[str, Any],
     *,
     agent_run_id: str | None = None,
+    provider_id: str | None = None,
     tool_name: str = "invoke_claude_code_runner",
     on_started: SdkRunnerStartedCallback | None = None,
 ) -> dict[str, Any]:
@@ -379,6 +380,7 @@ async def invoke_sdk_runner_tool(
             cwd=cwd,
             emitter=noop_emitter,
             agent_run_id=agent_run_id,
+            provider_id=provider_id,
             runner_type=definition.runner_type,
             on_finished=handle_tool_finished,
         )

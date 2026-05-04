@@ -5,7 +5,6 @@ from typing import Any
 from .terminal_tools import terminal_snapshot_tool, terminal_tools_prompt_schema
 from .tool_types import AgentTool
 from .workspace_tools import (
-    task_read_context_tool,
     workspace_apply_patch_tool,
     workspace_list_tool,
     workspace_read_file_tool,
@@ -56,12 +55,6 @@ def list_agent_tools() -> list[AgentTool]:
             execute=workspace_apply_patch_tool,
         ),
         AgentTool(
-            name="task_read_context",
-            description=workspace_schemas["task_read_context"]["description"],
-            input_schema=workspace_schemas["task_read_context"]["inputSchema"],
-            execute=task_read_context_tool,
-        ),
-        AgentTool(
             name="terminal_snapshot",
             description=terminal_schemas["terminal_snapshot"]["description"],
             input_schema=terminal_schemas["terminal_snapshot"]["inputSchema"],
@@ -81,6 +74,7 @@ def _sdk_runner_tools() -> list[AgentTool]:
             input_data: dict[str, Any],
             *,
             agent_run_id: str | None = None,
+            provider_id: str | None = None,
             on_started=None,
             _tool_name: str = tool_name,
         ) -> dict[str, Any]:
@@ -88,6 +82,7 @@ def _sdk_runner_tools() -> list[AgentTool]:
                 task_id,
                 input_data,
                 agent_run_id=agent_run_id,
+                provider_id=provider_id,
                 tool_name=_tool_name,
                 on_started=on_started,
             )
@@ -126,6 +121,7 @@ async def execute_agent_tool(
     input_data: dict[str, Any],
     *,
     agent_run_id: str | None = None,
+    provider_id: str | None = None,
     on_started=None,
 ) -> dict[str, Any]:
     tool = get_agent_tool(tool_name)
@@ -134,4 +130,6 @@ async def execute_agent_tool(
     kwargs: dict[str, Any] = {"agent_run_id": agent_run_id}
     if on_started is not None and is_sdk_runner_tool_name(tool_name):
         kwargs["on_started"] = on_started
+    if is_sdk_runner_tool_name(tool_name):
+        kwargs["provider_id"] = provider_id
     return await tool.execute(task_id, input_data, **kwargs)

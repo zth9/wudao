@@ -9,7 +9,7 @@ from ..time_utils import normalize_stored_utc_datetime
 
 RUN_STATUSES = {"running", "waiting_approval", "completed", "failed", "cancelled"}
 MESSAGE_ROLES = {"system", "user", "assistant", "tool"}
-MESSAGE_KINDS = {"text", "tool_call", "tool_result", "approval", "artifact", "error"}
+MESSAGE_KINDS = {"text", "tool_call", "tool_result", "approval", "error"}
 MESSAGE_STATUSES = {"streaming", "completed", "failed", "waiting_approval"}
 _UNSET = object()
 

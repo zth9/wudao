@@ -94,18 +94,18 @@ def test_agent_runtime_store_persists_runs_and_thread_messages(tmp_path, monkeyp
         role="tool",
         kind="tool_result",
         status="completed",
-        content_json={"entries": ["AGENTS.md"]},
+        content_json={"entries": ["README.md"]},
         message_id="msg-3",
     )
 
     assert [first["seq"], second["seq"], third["seq"]] == [1, 2, 3]
-    assert third["content_json"] == {"entries": ["AGENTS.md"]}
+    assert third["content_json"] == {"entries": ["README.md"]}
 
     thread = thread_store.get_task_agent_thread(task_id)
     assert [run["id"] for run in thread["runs"]] == ["run-1"]
     assert [item["id"] for item in thread["messages"]] == ["msg-1", "msg-2", "msg-3"]
     assert thread["messages"][1]["kind"] == "tool_call"
-    assert thread["messages"][2]["content_json"] == {"entries": ["AGENTS.md"]}
+    assert thread["messages"][2]["content_json"] == {"entries": ["README.md"]}
 
 
 def test_agent_runtime_store_rejects_cross_task_message_append(tmp_path, monkeypatch):

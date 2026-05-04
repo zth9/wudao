@@ -2,6 +2,29 @@
 
 > 用户视角的变更记录。每完成一个可感知的功能后，由 Claude Code 更新。
 
+## Unreleased
+
+- **Agent Runner 现会沿用 Agentic Chat 选择的模型配置**：
+  - 当 Agentic Chat 调用 `invoke_claude_code_runner` 时，后端会把本轮用户选择的 provider 继续传给 Agent Runner
+  - Claude Agent SDK 子进程会使用该 provider 的模型和转换后的 `ANTHROPIC_BASE_URL`；自定义 base 会把 provider `api_key` 注入为 `ANTHROPIC_AUTH_TOKEN`，官方 Anthropic base 则注入为 `ANTHROPIC_API_KEY`
+  - Runner 启动时会显式覆盖继承环境中的 Anthropic token，避免 retry 时落回默认 Anthropic 接口或默认账号
+  - 已补充服务端回归测试，覆盖 provider 透传和 Claude SDK 环境变量注入
+
+- **任务级 `AGENTS.md` 产物链路已移除**：
+  - 前端不再展示“生成 / 更新 `AGENTS.md`”按钮和产物抽屉，任务工作台右侧只保留终端与 Agent Runner
+  - 后端移除手动生成文档接口、`task_read_context` 工具、任务文档写入后的产物同步事件，以及任务 workspace 内 `CLAUDE.md` / `GEMINI.md` 兼容软链自动生成
+  - 新建数据库与任务表迁移不再生成历史任务文档字段，运行时消息 schema 也不再接受旧产物消息类型
+  - 当前任务聊天与终端上下文不再通过任务产物文件衔接，后续转向 MCP 统一上下文桥接
+
+## 2026-05-04
+
+- **Agentic Chat 用户多行消息现会保留换行**：
+  - 修复了在任务聊天输入多行文本后，用户消息气泡里换行被折叠成空格的问题
+  - 现在用户消息仍按现有 Markdown 渲染链路展示，但会保留输入中的单换行
+  - 暗黑模式下用户消息气泡背景色已调整为 `#6ACE92`
+  - 暗黑模式下用户消息文字已调整为黑色，助手消息气泡背景色已调整为 `#2F2F30`
+  - 已补充 `TaskChat.test.ts` 回归测试，并完成前端测试与严格 TypeScript 检查
+
 ## 2026-04-29
 
 - **HeroUI v3 全量迁移完成，自定义 UI 组件层已移除**：

@@ -10,11 +10,17 @@ export interface UserProfile {
   avatar: string;
 }
 
+export interface AssistantProfile {
+  avatar: string;
+}
+
 interface SettingsState {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   user: UserProfile;
   setUser: (user: Partial<UserProfile>) => void;
+  assistant: AssistantProfile;
+  setAssistant: (assistant: Partial<AssistantProfile>) => void;
   taskSortBy: SortOption;
   setTaskSortBy: (sort: SortOption) => void;
   taskSortOrder: "asc" | "desc";
@@ -63,6 +69,10 @@ export const useSettingsStore = create<SettingsState>()(
         avatar: "",
       },
       setUser: (user) => set((state) => ({ user: { ...state.user, ...user } })),
+      assistant: {
+        avatar: "",
+      },
+      setAssistant: (assistant) => set((state) => ({ assistant: { ...state.assistant, ...assistant } })),
       taskSortBy: "updated_at",
       setTaskSortBy: (taskSortBy) => set({ taskSortBy }),
       taskSortOrder: "desc",
@@ -134,7 +144,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'wudao-settings',
-      partialize: (state) => ({ theme: state.theme, user: state.user, taskSortBy: state.taskSortBy, taskSortOrder: state.taskSortOrder }), // Persist theme, user, sort and order
+      partialize: (state) => ({ theme: state.theme, user: state.user, assistant: state.assistant, taskSortBy: state.taskSortBy, taskSortOrder: state.taskSortOrder }), // Persist theme, user, assistant, sort and order
     }
   )
 );

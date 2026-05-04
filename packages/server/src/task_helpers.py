@@ -160,7 +160,7 @@ def build_task_chat_history(task: dict[str, Any], message: str, seed_message: st
                 "content": (
                     seed_message.strip()
                     if isinstance(seed_message, str) and seed_message.strip()
-                    else f"[任务信息]\n标题：{task['title']}\n类型：{task['type']}\n初步意图：{task.get('context') or '无'}\n\n请先理解任务，并通过对话逐步补齐生成产物所需的信息。"
+                    else f"[任务信息]\n标题：{task['title']}\n类型：{task['type']}\n初步意图：{task.get('context') or '无'}\n\n请先理解任务，并通过对话逐步补齐目标、范围、环境和执行约束。"
                 ),
             }
         )

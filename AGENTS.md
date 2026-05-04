@@ -7,9 +7,9 @@
 悟道（Wudao）是一个个人 AI 工作站，用来把多种 AI 工具串成可执行、可追踪、可沉淀的任务闭环。
 
 - 当前重点：任务中心、Agentic Chat、任务工作台与 Claude Code Runner
-- 核心闭环：自然语言建任务 → Agentic Chat 澄清/规划 → 结构化工具调用 → 生成或同步 `AGENTS.md` → 终端 / Agent Runner 执行 → 完成归档
+- 核心闭环：自然语言建任务 → Agentic Chat 澄清/规划 → 结构化工具调用 → 终端 / Agent Runner 执行 → 完成归档
 - 技术形态：纯 Web、前后端分离、前端 TypeScript + 后端 Python、pnpm monorepo
-- 主产物模型：每个任务 workspace 中的 `AGENTS.md` 是任务上下文单一事实源，`CLAUDE.md` 与 `GEMINI.md` 是兼容软链
+- 上下文方向：任务聊天内容与终端上下文后续通过 MCP 打通，不再通过任务级 `AGENTS.md` 产物同步
 
 ## 当前能力基线
 
@@ -17,10 +17,10 @@
 - 后端是 FastAPI + sqlite3 + Python PTY，入口在 `packages/server/src/app.py`
 - 任务数据、Provider 配置、Agent Chat run/message、Claude Code Runner run/event 均持久化到 SQLite
 - Agentic Chat 使用 typed SSE、结构化 timeline 与工具协议，主要实现位于 `packages/server/src/task_agent_chat.py` 与 `packages/server/src/agent_runtime/`
-- Agent 工具包括 workspace 列表/读取/搜索/写入/patch、跨任务读取 `AGENTS.md`、终端快照、`invoke_claude_code_runner`
-- 任务详情页是左侧 Agentic Chat + 右侧三个可独立开关的抽屉：终端、Agent Runner、产物
+- Agent 工具包括 workspace 列表/读取/搜索/写入/patch、终端快照、`invoke_claude_code_runner`
+- 任务详情页是左侧 Agentic Chat + 右侧两个可独立开关的抽屉：终端、Agent Runner
 - 终端通过 `/ws/terminal` 管理 Python PTY，支持 Claude、Codex、Gemini、Kimi、GLM、MiniMax、Qwen 等 CLI
-- 记忆页只维护本地用户记忆与 Wudao Agent 全局记忆，并注入任务解析、文档生成、legacy chat 与 Agentic Chat
+- 记忆页只维护本地用户记忆与 Wudao Agent 全局记忆，并注入任务解析、legacy chat 与 Agentic Chat
 
 ## 先看哪些文档
 
@@ -168,7 +168,7 @@ flowchart TD
 
 - 前端核心视图包括 Dashboard、任务列表/工作台、记忆页、设置页
 - 后端负责任务接口、Provider 设置、用量聚合、记忆读写、Agent Runtime、SDK Runner、终端 PTY 与数据持久化
-- 任务工作台统一承载对话、执行、终端、产物，不再维护独立工作台入口
+- 任务工作台统一承载对话、执行与终端，不再维护独立工作台入口
 - Agent Runtime 写入结构化 `task_agent_runs` / `task_agent_messages`，legacy `tasks.chat_messages` 仅保留兼容投影
 
 ## 关键数据与目录
@@ -177,8 +177,8 @@ flowchart TD
 - 数据库：`WUDAO_DB_PATH` 或默认 `~/.wudao/wudao.db`
 - 任务工作区：`~/.wudao/workspace/<taskId>/`
 - 全局记忆：`~/.wudao/profile/user-memory.md` 与 `~/.wudao/profile/wudao-agent-memory.md`
-- 主产物：任务 workspace 下的 `AGENTS.md`
-- 兼容软链：根目录和任务 workspace 下的 `CLAUDE.md`、`GEMINI.md` 均指向 `AGENTS.md`
+- 任务 workspace：`~/.wudao/workspace/<taskId>/`，用于任务关联的文件读写与 Runner 执行
+- 根目录 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 仅用于仓库协作规则，不作为产品内任务上下文同步机制
 - 仓库临时目录：`workspace/`
 
 ## 项目结构

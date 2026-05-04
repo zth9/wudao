@@ -5,20 +5,16 @@ export interface TaskWorkspaceLayout {
   terminalOpen: boolean;
   terminalWidth: number;
   sdkRunnerOpen: boolean;
-  artifactsOpen: boolean;
   chatPanelWidth: number;
   sdkRunnerWidth: number;
-  artifactsWidth: number;
 }
 
 export const DEFAULT_TASK_WORKSPACE_LAYOUT: TaskWorkspaceLayout = {
   terminalOpen: false,
   terminalWidth: 720,
   sdkRunnerOpen: false,
-  artifactsOpen: false,
   chatPanelWidth: 40,
   sdkRunnerWidth: 420,
-  artifactsWidth: 440,
 };
 
 type TaskWorkspaceLayoutPatch = Partial<TaskWorkspaceLayout>;
@@ -28,7 +24,6 @@ interface TaskWorkspaceState {
   setTaskLayout: (taskId: string, patch: TaskWorkspaceLayoutPatch) => void;
   toggleTerminal: (taskId: string) => void;
   toggleSdkRunner: (taskId: string) => void;
-  toggleArtifacts: (taskId: string) => void;
 }
 
 function mergeTaskWorkspaceLayout(
@@ -77,16 +72,6 @@ export const useTaskWorkspaceStore = create<TaskWorkspaceState>()(
           };
         }),
 
-      toggleArtifacts: (taskId) =>
-        set((state) => {
-          const layout = mergeTaskWorkspaceLayout(state.taskLayouts[taskId]);
-          return {
-            taskLayouts: {
-              ...state.taskLayouts,
-              [taskId]: { ...layout, artifactsOpen: !layout.artifactsOpen },
-            },
-          };
-        }),
     }),
     {
       name: "wudao-task-workspace",

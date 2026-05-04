@@ -7,14 +7,84 @@ so they can be cancelled individually or cleaned up on shutdown.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable, Awaitable
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable
 
+from ..db import db
 from ..logger import logger
+from ..usage_utils import normalize_bearer_token
 from .sdk_store import create_sdk_run, update_sdk_run, append_sdk_event
 from .sdk_adapter import convert_sdk_message
 
 Emitter = Callable[[dict[str, Any]], Awaitable[None]]
 RunFinishedCallback = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+@dataclass(frozen=True, slots=True)
+class SdkProviderOptions:
+    model: str | None
+    env: dict[str, str]
+
+
+def _normalize_anthropic_base_url(endpoint: str) -> str:
+    normalized = endpoint.strip().rstrip("/")
+    lower = normalized.lower()
+    for suffix in (
+        "/v1/messages",
+        "/messages",
+        "/v1/chat/completions",
+        "/chat/completions",
+        "/v1/responses",
+        "/responses",
+    ):
+        if lower.endswith(suffix):
+            normalized = normalized[: -len(suffix)].rstrip("/")
+            lower = normalized.lower()
+            break
+    if lower.endswith("/v1"):
+        normalized = normalized[:-3].rstrip("/")
+    return normalized
+
+
+def _is_official_anthropic_base_url(base_url: str) -> bool:
+    return "api.anthropic.com" in base_url.lower()
+
+
+def _resolve_sdk_provider_options(provider_id: str | None) -> SdkProviderOptions:
+    if not provider_id:
+        return SdkProviderOptions(model=None, env={})
+
+    provider = db.query_one(
+        "SELECT id, endpoint, api_key, model FROM providers WHERE id = ?",
+        (provider_id,),
+    )
+    if not provider:
+        raise RuntimeError("Provider not found")
+
+    endpoint = str(provider.get("endpoint") or "").strip()
+    model = str(provider.get("model") or "").strip()
+    if not endpoint or not model:
+        missing = ", ".join(
+            name
+            for name, value in (("endpoint", endpoint), ("model", model))
+            if not value
+        )
+        raise RuntimeError(f"Provider {provider_id} is not fully configured: missing {missing}")
+
+    base_url = _normalize_anthropic_base_url(endpoint)
+    auth_token = normalize_bearer_token(str(provider.get("api_key") or ""))
+    env = {
+        "ANTHROPIC_BASE_URL": base_url,
+        "ANTHROPIC_API_KEY": "",
+        "ANTHROPIC_AUTH_TOKEN": "",
+    }
+    if auth_token:
+        if _is_official_anthropic_base_url(base_url):
+            env["ANTHROPIC_API_KEY"] = auth_token
+        else:
+            env["ANTHROPIC_AUTH_TOKEN"] = auth_token
+
+    return SdkProviderOptions(model=model, env=env)
 
 
 class ProcessRegistry:
@@ -96,6 +166,7 @@ async def run_sdk_query(
     cwd: str,
     emitter: Emitter,
     system_prompt: str | None = None,
+    provider_id: str | None = None,
     on_finished: RunFinishedCallback | None = None,
 ) -> None:
     """Execute a Claude Agent SDK query and stream events.
@@ -119,8 +190,11 @@ async def run_sdk_query(
                 await on_finished({"run_id": run_id, "status": "failed", "error": error_msg})
             return
 
+        provider_options = _resolve_sdk_provider_options(provider_id)
         options = ClaudeAgentOptions(
             cwd=cwd,
+            model=provider_options.model,
+            env=provider_options.env,
             permission_mode="acceptEdits",
             allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
         )
@@ -181,6 +255,7 @@ def start_sdk_run(
     cwd: str,
     emitter: Emitter,
     agent_run_id: str | None = None,
+    provider_id: str | None = None,
     runner_type: str = "claude_code",
     system_prompt: str | None = None,
     on_finished: RunFinishedCallback | None = None,
@@ -206,6 +281,7 @@ def start_sdk_run(
             cwd=cwd,
             emitter=emitter,
             system_prompt=system_prompt,
+            provider_id=provider_id,
             on_finished=on_finished,
         )
     )

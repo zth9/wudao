@@ -63,7 +63,6 @@ describe("TaskListDrawer", () => {
     type: "feature",
     status: "execution",
     context: null,
-    agent_doc: null,
     chat_messages: null,
     session_ids: "[]",
     session_names: "{}",

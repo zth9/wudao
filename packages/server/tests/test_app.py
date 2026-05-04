@@ -134,7 +134,6 @@ def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp
           type TEXT NOT NULL CHECK (type IN ('feature','bugfix','investigation','exploration','refactor','learning')),
           status TEXT NOT NULL DEFAULT 'execution' CHECK (status IN ('execution','done')),
           context TEXT,
-          agent_doc TEXT,
           chat_messages TEXT NOT NULL DEFAULT '[]',
           status_log TEXT NOT NULL DEFAULT '[]',
           session_ids TEXT NOT NULL DEFAULT '[]',
@@ -148,12 +147,12 @@ def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp
         );
 
         INSERT INTO tasks (
-          id, title, type, status, context, agent_doc, chat_messages, status_log,
+          id, title, type, status, context, chat_messages, status_log,
           session_ids, session_names, session_providers, priority, due_at,
           provider_id, created_at, updated_at
         )
         VALUES (
-          '2026-04-02-1', '修复坏外键', 'feature', 'execution', 'ctx', NULL, '[]', '[]',
+          '2026-04-02-1', '修复坏外键', 'feature', 'execution', 'ctx', '[]', '[]',
           '[]', '{}', '{}', 2, NULL, 'claude', '2026-04-02 00:00:00', '2026-04-02 00:00:00'
         );
 
@@ -175,7 +174,7 @@ def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp
           run_id TEXT NOT NULL REFERENCES task_agent_runs(id) ON DELETE CASCADE,
           seq INTEGER NOT NULL,
           role TEXT NOT NULL CHECK (role IN ('system','user','assistant','tool')),
-          kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','artifact','error')),
+          kind TEXT NOT NULL CHECK (kind IN ('text','tool_call','tool_result','approval','error')),
           status TEXT NOT NULL DEFAULT 'completed'
             CHECK (status IN ('streaming','completed','failed','waiting_approval')),
           content_json TEXT NOT NULL DEFAULT '{}',
@@ -545,7 +544,6 @@ def test_terminal_websocket_create_returns_discovered_codex_cli_session_id(tmp_p
     monkeypatch.setattr(terminal_module.os, "openpty", lambda: (11, 12))
     monkeypatch.setattr(terminal_module.os, "close", lambda fd: None)
     monkeypatch.setattr(terminal_module, "_set_winsize", lambda fd, rows, cols: None)
-    monkeypatch.setattr(terminal_module, "generate_task_claude_md", lambda task_id, cwd: None)
     monkeypatch.setattr(terminal_module, "_resolve_fixed_provider_cli_session_id", lambda provider_id, process, cwd: "actual-codex-session-id")
     monkeypatch.setattr(terminal_module.threading, "Thread", DummyThread)
 
@@ -607,7 +605,6 @@ def test_terminal_websocket_restore_recovers_broken_codex_runtime_id_from_worksp
     monkeypatch.setattr(terminal_module.os, "openpty", lambda: (11, 12))
     monkeypatch.setattr(terminal_module.os, "close", lambda fd: None)
     monkeypatch.setattr(terminal_module, "_set_winsize", lambda fd, rows, cols: None)
-    monkeypatch.setattr(terminal_module, "generate_task_claude_md", lambda task_id, cwd: None)
     monkeypatch.setattr(terminal_module.threading, "Thread", DummyThread)
 
     with client.websocket_connect("/ws/terminal") as ws:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import sys
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -165,3 +166,71 @@ def test_start_sdk_run_allows_multiple_active_runs_for_same_task(tmp_path, monke
         await test_registry.shutdown()
 
     _run(go())
+
+
+def test_run_sdk_query_uses_selected_provider_for_claude_sdk_env(tmp_path, monkeypatch):
+    runner_mod = load_modules(tmp_path, monkeypatch)
+    app_module = importlib.import_module("src.app")
+    sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
+    client = TestClient(app_module.app)
+    task_id = create_task_id()
+    provider_response = client.post(
+        "/api/settings",
+        json={
+            "name": "Custom Claude",
+            "endpoint": "https://gateway.example.com/anthropic/v1/messages",
+            "api_key": "Bearer custom-token-123",
+            "model": "claude-sonnet-custom",
+        },
+    )
+    assert provider_response.status_code == 201
+    provider_id = provider_response.json()["id"]
+
+    run = sdk_store.create_sdk_run(
+        task_id,
+        prompt="use selected provider",
+        cwd="/tmp/demo",
+        run_id="sdk-run-provider-env",
+    )
+    captured: dict[str, Any] = {}
+
+    class FakeClaudeAgentOptions:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    async def fake_query(*, prompt, options):
+        captured["prompt"] = prompt
+        captured["options"] = options
+        if False:
+            yield None
+
+    monkeypatch.setitem(
+        sys.modules,
+        "claude_agent_sdk",
+        SimpleNamespace(query=fake_query, ClaudeAgentOptions=FakeClaudeAgentOptions),
+    )
+
+    async def go():
+        async def noop_emitter(_event: dict[str, Any]) -> None:
+            return None
+
+        await runner_mod.run_sdk_query(
+            run_id=run["id"],
+            task_id=task_id,
+            prompt="use selected provider",
+            cwd="/tmp/demo",
+            emitter=noop_emitter,
+            provider_id=provider_id,
+        )
+
+    _run(go())
+
+    options = captured["options"]
+    assert captured["prompt"] == "use selected provider"
+    assert options.model == "claude-sonnet-custom"
+    assert options.env == {
+        "ANTHROPIC_BASE_URL": "https://gateway.example.com/anthropic",
+        "ANTHROPIC_API_KEY": "",
+        "ANTHROPIC_AUTH_TOKEN": "custom-token-123",
+    }
+    assert sdk_store.get_sdk_run(run["id"])["status"] == "completed"

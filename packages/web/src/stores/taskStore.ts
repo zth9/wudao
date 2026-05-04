@@ -28,7 +28,7 @@ import { extractSdkRunIdFromToolContent } from "../utils/sdk-runner";
 // Re-export for external use
 export type { AgentTimelineItem } from "../utils/agent-timeline";
 
-type TaskUpdatePayload = Partial<Pick<Task, "title" | "type" | "status" | "context" | "agent_doc" | "priority" | "due_at" | "provider_id">>;
+type TaskUpdatePayload = Partial<Pick<Task, "title" | "type" | "status" | "context" | "priority" | "due_at" | "provider_id">>;
 
 interface TaskState {
   tasks: Task[];
@@ -47,7 +47,6 @@ interface TaskState {
   fetchOne: (id: string) => Promise<void>;
   create: (data: { title: string; type: TaskType; context?: string; provider_id?: string | null }) => Promise<Task>;
   parse: (input: string, providerId?: string) => Promise<{ title: string; type: TaskType; context: string }>;
-  generateDocs: (id: string, providerId?: string) => Promise<void>;
   sendAgentChatMessage: (taskId: string, message: string, providerId?: string) => void;
   startInitialAgentChat: (taskId: string, seedMessage: string, providerId?: string) => void;
   abortAgentChat: () => void;
@@ -234,9 +233,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
         stopAgentChatStreaming();
         return;
       }
-      if (event.type === "artifact.updated") {
-        void get().fetchOne(taskId);
-      }
     };
 
     agentChatAbort = api.streamTaskAgentRun(
@@ -380,13 +376,6 @@ export const useTaskStore = create<TaskState>((set, get) => {
     },
 
     parse: (input, providerId) => withGenerating(() => api.parse(input, providerId)),
-
-    generateDocs: (id, providerId) =>
-      withGenerating(async () => {
-        const updated = await api.generateDocs(id, providerId);
-        set((state) => applyTaskMutation(state, id, updated, { setCurrentWhenEmpty: true }));
-        await refreshTasks();
-      }),
 
     sendAgentChatMessage: (taskId, message, providerId) => {
       startAgentChatStream(taskId, message, providerId, { appendUserMessage: true });

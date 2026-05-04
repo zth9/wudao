@@ -9,13 +9,11 @@ from .db import db
 from .llm import chat_complete
 from .memories import get_global_memory_system_messages
 from .paths import WORKSPACE_DIR
-from .task_claude_md import write_task_claude_md
 from .task_helpers import (
     get_default_provider_id,
     parse_session_ids,
     parse_session_names,
     parse_session_providers,
-    parse_task_chat_messages,
 )
 from .time_utils import get_current_date_in_default_time_zone, normalize_stored_utc_datetime
 
@@ -86,7 +84,6 @@ def to_task_response(task: dict[str, Any]) -> dict[str, Any]:
         "type": task["type"],
         "status": task["status"],
         "context": task.get("context"),
-        "agent_doc": task.get("agent_doc"),
         "chat_messages": task.get("chat_messages"),
         "session_ids": task.get("session_ids"),
         "session_names": task.get("session_names"),
@@ -97,21 +94,6 @@ def to_task_response(task: dict[str, Any]) -> dict[str, Any]:
         "created_at": normalize_stored_utc_datetime(task.get("created_at")) or task.get("created_at"),
         "updated_at": normalize_stored_utc_datetime(task.get("updated_at")) or task.get("updated_at"),
     }
-
-
-def persist_task_agent_doc(task_id: str, agent_doc: str, *, write_workspace: bool = True) -> None:
-    if not isinstance(agent_doc, str):
-        raise ValueError("agent_doc must be a string")
-
-    ws_dir = WORKSPACE_DIR / task_id
-    ws_dir.mkdir(parents=True, exist_ok=True)
-    if write_workspace:
-        (ws_dir / "AGENTS.md").write_text(agent_doc, encoding="utf-8")
-    write_task_claude_md(ws_dir)
-    db.execute(
-        "UPDATE tasks SET agent_doc = ?, updated_at = datetime('now') WHERE id = ?",
-        (agent_doc, task_id),
-    )
 
 
 def next_task_id() -> str:
@@ -172,73 +154,6 @@ type 只能是以下之一：feature, bugfix, investigation, exploration, refact
     return {"title": title, "type": task_type, "context": context}
 
 
-def extract_agent_doc(raw: str) -> str:
-    start = raw.find("---AGENTS---")
-    end = raw.find("---END---", start + 1)
-    if start < 0 or end < 0:
-        raise RuntimeError("AI 输出中缺少 AGENTS 标记，请重试")
-    agent_doc = raw[start + len("---AGENTS---") : end].strip()
-    if not agent_doc:
-        raise RuntimeError("AI 输出的 AGENTS 文档为空，请重试")
-    return agent_doc
-
-
-def build_task_agent_prompt(task: dict[str, Any]) -> str:
-    history = parse_task_chat_messages(task.get("chat_messages"))
-    transcript = (
-        "\n\n".join(f"{'用户' if item['role'] == 'user' else 'AI'}：{item['content']}" for item in history)
-        if history
-        else "（暂无补充对话，仅使用任务创建时的初步意图）"
-    )
-    return f"""你是悟道（Wudao）的任务文档生成助手。请基于下面已有信息，只生成一份给 coding agent 使用的 AGENTS.md。
-
-硬性要求：
-- 只能使用已知信息，不要假装你读过代码库或检查过文件
-- 如果某个技术细节未知，要明确写成“待确认”或“假设”
-- AGENTS.md 要足够让 coding agent 直接开始工作，但保持简洁，不要写成长篇说明
-- 优先提炼任务意图、目标、约束、待确认项和建议执行方式
-- 直接输出文档内容，不要加解释，不要使用代码块包裹整个结果
-- 涉及到具体项目，如果你知道的话，要给出完整的路径名称，不要使用模糊的“相关文件”之类的表述
-
-请严格按以下格式输出：
----AGENTS---
-# {task['title']}
-
-## 背景
-...
-
-# 目标
-...
-
-# 约束与待确认项
-...
-
-# 建议执行方式
-...
----END---
-
-任务标题：{task['title']}
-任务类型：{task['type']}
-任务状态：{'已完成' if task['status'] == 'done' else '执行中'}
-初步意图：{task.get('context') or '无'}
-
-历史对话：
-{transcript}"""
-
-
-async def generate_task_docs(task: dict[str, Any], requested_provider_id: str | None = None) -> dict[str, str]:
-    provider_id = requested_provider_id or task.get("provider_id") or get_default_provider_id()
-    raw = await chat_complete(
-        [*get_global_memory_system_messages(), {"role": "user", "content": build_task_agent_prompt(task)}],
-        str(provider_id),
-    )
-    return {"agentDoc": extract_agent_doc(raw)}
-
-
-def persist_task_docs(task_id: str, docs: dict[str, str]) -> None:
-    persist_task_agent_doc(task_id, docs["agentDoc"])
-
-
 def _provider_exists(provider_id: str) -> bool:
     row = db.query_one("SELECT 1 AS ok FROM providers WHERE id = ?", (provider_id,))
     return bool(row and row.get("ok") == 1)
@@ -250,23 +165,6 @@ def update_task_provider_binding(task_id: str, requested_provider_id: Any, curre
         return ""
     db.execute("UPDATE tasks SET provider_id = ?, updated_at = datetime('now') WHERE id = ?", (provider_id, task_id))
     return provider_id
-
-
-async def generate_and_persist_task_docs(task_id: str, requested_provider_id: str | None = None) -> dict[str, Any]:
-    task = get_task_by_id(task_id)
-    if not task:
-        raise RuntimeError("Task not found")
-    provider_id = requested_provider_id.strip() if isinstance(requested_provider_id, str) else ""
-    update_task_provider_binding(task_id, provider_id, task.get("provider_id"))
-    latest = get_task_by_id(task_id)
-    if not latest:
-        raise RuntimeError("Task not found")
-    docs = await generate_task_docs(latest, provider_id or None)
-    persist_task_docs(task_id, docs)
-    updated = get_task_by_id(task_id)
-    if not updated:
-        raise RuntimeError("Task not found")
-    return to_task_response(updated)
 
 
 def merge_task_session_link_data(task: dict[str, Any], input_data: dict[str, Any], provider_available: bool) -> dict[str, Any]:
