@@ -84,7 +84,7 @@ def _resolve_provider_protocol(provider: dict[str, Any]) -> str:
 
     if provider_id == "openai" or endpoint.endswith("/responses") or endpoint.endswith("/v1/responses") or "gpt-5.3-codex" in model:
         return "openai_responses"
-    if provider_id == "gemini" or "/chat/completions" in endpoint or "gemini" in model:
+    if provider_id == "mimo" or provider_id == "gemini" or "/chat/completions" in endpoint or "gemini" in model:
         return "openai_chat_completions"
     return "anthropic_messages"
 
