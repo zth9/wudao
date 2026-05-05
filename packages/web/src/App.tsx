@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Brain,
@@ -48,6 +48,11 @@ function AppInner() {
   const fetchProviders = useSettingsStore((s) => s.fetch);
   const user = useSettingsStore((s) => s.user);
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const leftSectionRef = useRef<HTMLDivElement>(null);
+  const rightSectionRef = useRef<HTMLDivElement>(null);
+  const fullMenuMeasureRef = useRef<HTMLDivElement>(null);
+  const [menuFits, setMenuFits] = useState(true);
 
   const navItems = useMemo<Array<{ key: ViewKey; label: string; icon: LucideIcon }>>(
     () => [
@@ -63,6 +68,23 @@ function AppInner() {
   useEffect(() => {
     fetchProviders();
   }, [fetchProviders]);
+
+  useLayoutEffect(() => {
+    const check = () => {
+      const header = headerRef.current;
+      const left = leftSectionRef.current;
+      const right = rightSectionRef.current;
+      const menu = fullMenuMeasureRef.current;
+      if (!header || !left || !right || !menu) return;
+      const menuWidth = menu.offsetWidth;
+      const available = header.clientWidth - left.offsetWidth - right.offsetWidth;
+      setMenuFits(menuWidth <= available);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    if (headerRef.current) ro.observe(headerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (route.view === "tasks") {
@@ -125,8 +147,8 @@ function AppInner() {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <header className="h-14 backdrop-blur-xl border-b border-border flex items-center justify-between px-6 z-30 shrink-0 relative bg-overlay/80">
-        <div className="flex items-center gap-2 min-w-[160px]">
+      <header ref={headerRef} className="h-14 backdrop-blur-xl border-b border-border flex items-center justify-between px-6 z-30 shrink-0 relative bg-overlay/80">
+        <div ref={leftSectionRef} className="flex items-center gap-2 min-w-[160px]">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent flex items-center justify-center text-white text-xs font-extrabold shadow-sm">
             WD
           </div>
@@ -134,82 +156,102 @@ function AppInner() {
         </div>
 
         <nav className="absolute left-1/2 -translate-x-1/2" aria-label={t("nav.menu")}>
-          <div className="hidden lg:flex items-center gap-1 p-1 bg-default rounded-full">
+          <div
+            ref={fullMenuMeasureRef}
+            className="absolute invisible flex items-center gap-1 p-1 whitespace-nowrap"
+            aria-hidden="true"
+          >
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeView === item.key;
               return (
-                <Button
-                  key={item.key}
-                  onPress={() => handleViewChange(item.key)}
-                  variant="ghost"
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-full transition-colors duration-200 group relative",
-                    isActive
-                      ? "text-white"
-                      : "text-muted hover:text-foreground",
-                  )}
-                >
-                  <Icon size={16} className={cn("relative z-10 transition-transform group-active:scale-90", isActive ? "text-white" : "text-accent")} />
-                  <span className="text-xs font-bold uppercase tracking-wider relative z-10">{item.label}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="active-pill"
-                      className="absolute inset-0 bg-accent rounded-full shadow-sm z-0"
-                      transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-                    />
-                  )}
-                </Button>
+                <div key={item.key} className="flex items-center gap-2 px-4 py-1.5 rounded-full">
+                  <Icon size={16} className="shrink-0" />
+                  <span className="text-xs font-bold uppercase tracking-wider">{item.label}</span>
+                </div>
               );
             })}
           </div>
 
-          <div className="lg:hidden">
-            <Dropdown isOpen={navMenuOpen} onOpenChange={setNavMenuOpen}>
-              <Button
-                variant="ghost"
-                aria-label={t("nav.menu")}
-                className="flex h-8 min-h-0 items-center gap-2 rounded-full bg-default px-3 transition-all hover:bg-default/80"
-              >
-                <ActiveNavIcon size={14} className="text-accent shrink-0" />
-                <span className="text-xs font-bold uppercase tracking-wider truncate">
-                  {activeNavItem.label}
-                </span>
-                <ChevronDown size={12} className="text-muted shrink-0" />
-              </Button>
-              <Dropdown.Popover>
-                <Dropdown.Menu
+          {menuFits && (
+            <div className="flex items-center gap-1 p-1 bg-default rounded-full">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeView === item.key;
+                return (
+                  <Button
+                    key={item.key}
+                    onPress={() => handleViewChange(item.key)}
+                    variant="ghost"
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-1.5 rounded-full transition-colors duration-200 group relative",
+                      isActive
+                        ? "text-white"
+                        : "text-muted hover:text-foreground",
+                    )}
+                  >
+                    <Icon size={16} className={cn("relative z-10 transition-transform group-active:scale-90", isActive ? "text-white" : "text-accent")} />
+                    <span className="text-xs font-bold uppercase tracking-wider relative z-10">{item.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="active-pill"
+                        className="absolute inset-0 bg-accent rounded-full shadow-sm z-0"
+                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                      />
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+
+          {!menuFits && (
+            <div>
+              <Dropdown isOpen={navMenuOpen} onOpenChange={setNavMenuOpen}>
+                <Button
+                  variant="ghost"
                   aria-label={t("nav.menu")}
-                  onAction={(key) => {
-                    handleViewChange(String(key) as ViewKey);
-                    setNavMenuOpen(false);
-                  }}
+                  className="flex h-8 min-h-0 items-center gap-2 rounded-full bg-default px-3 transition-all hover:bg-default/80"
                 >
-                  {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeView === item.key;
-                    return (
-                      <Dropdown.Item
-                        key={item.key}
-                        id={item.key}
-                        textValue={item.label}
-                        className={cn(
-                          "flex items-center gap-2 py-1.5 font-bold",
-                          isActive && "text-accent",
-                        )}
-                      >
-                        <Icon size={14} className="shrink-0" />
-                        <span className="text-xs uppercase tracking-wider">{item.label}</span>
-                      </Dropdown.Item>
-                    );
-                  })}
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-          </div>
+                  <ActiveNavIcon size={14} className="text-accent shrink-0" />
+                  <span className="text-xs font-bold uppercase tracking-wider truncate">
+                    {activeNavItem.label}
+                  </span>
+                  <ChevronDown size={12} className="text-muted shrink-0" />
+                </Button>
+                <Dropdown.Popover>
+                  <Dropdown.Menu
+                    aria-label={t("nav.menu")}
+                    onAction={(key) => {
+                      handleViewChange(String(key) as ViewKey);
+                      setNavMenuOpen(false);
+                    }}
+                  >
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeView === item.key;
+                      return (
+                        <Dropdown.Item
+                          key={item.key}
+                          id={item.key}
+                          textValue={item.label}
+                          className={cn(
+                            "flex items-center gap-2 py-1.5 font-bold",
+                            isActive && "text-accent",
+                          )}
+                        >
+                          <Icon size={14} className="shrink-0" />
+                          <span className="text-xs uppercase tracking-wider">{item.label}</span>
+                        </Dropdown.Item>
+                      );
+                    })}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            </div>
+          )}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div ref={rightSectionRef} className="flex items-center gap-4">
           <div className="flex items-center gap-3 px-2 border-l border-border ml-2 pl-6">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold tracking-tight">{userDisplayName}</p>
