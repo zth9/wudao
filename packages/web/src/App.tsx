@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import {
   Brain,
+  ChevronDown,
   LayoutDashboard,
   ListTodo,
   Settings as SettingsIcon,
@@ -22,6 +23,7 @@ import {
 import { LoadingIndicator } from "./components/LoadingIndicator";
 import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
+import { Dropdown } from "@heroui/react/dropdown";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 const DashboardView = lazy(() => import("./components/DashboardView"));
@@ -44,6 +46,7 @@ function AppInner() {
   const lastTaskIdRef = useRef<string | null>(route.taskId);
   const fetchProviders = useSettingsStore((s) => s.fetch);
   const user = useSettingsStore((s) => s.user);
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
 
   const navItems = useMemo<Array<{ key: ViewKey; label: string; icon: LucideIcon }>>(
     () => [
@@ -116,6 +119,8 @@ function AppInner() {
   const activeView = route.view;
   const activeTaskId = route.taskId;
   const userDisplayName = user.nickname || t("common.user");
+  const activeNavItem = navItems.find((item) => item.key === activeView) ?? navItems[0];
+  const ActiveNavIcon = activeNavItem.icon;
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
@@ -127,34 +132,80 @@ function AppInner() {
           <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-accent to-accent bg-clip-text text-transparent">Wudao</h1>
         </div>
 
-        <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 bg-default rounded-full">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.key;
-            return (
+        <nav className="absolute left-1/2 -translate-x-1/2" aria-label={t("nav.menu")}>
+          <div className="hidden lg:flex items-center gap-1 p-1 bg-default rounded-full">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeView === item.key;
+              return (
+                <Button
+                  key={item.key}
+                  onPress={() => handleViewChange(item.key)}
+                  variant="ghost"
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-full transition-colors duration-200 group relative",
+                    isActive
+                      ? "text-white"
+                      : "text-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon size={16} className={cn("relative z-10 transition-transform group-active:scale-90", isActive ? "text-white" : "text-accent")} />
+                  <span className="text-xs font-bold uppercase tracking-wider relative z-10">{item.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-pill"
+                      className="absolute inset-0 bg-accent rounded-full shadow-sm z-0"
+                      transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                    />
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+
+          <div className="lg:hidden">
+            <Dropdown isOpen={navMenuOpen} onOpenChange={setNavMenuOpen}>
               <Button
-                key={item.key}
-                onPress={() => handleViewChange(item.key)}
                 variant="ghost"
-                className={cn(
-                  "flex items-center gap-2 px-4 py-1.5 rounded-full transition-colors duration-200 group relative",
-                  isActive
-                    ? "text-white"
-                    : "text-muted hover:text-foreground",
-                )}
+                aria-label={t("nav.menu")}
+                className="flex h-8 min-h-0 items-center gap-2 rounded-full bg-default px-3 transition-all hover:bg-default/80"
               >
-                <Icon size={16} className={cn("relative z-10 transition-transform group-active:scale-90", isActive ? "text-white" : "text-accent")} />
-                <span className="text-xs font-bold uppercase tracking-wider relative z-10">{item.label}</span>
-                {isActive && (
-                  <motion.div
-                    layoutId="active-pill"
-                    className="absolute inset-0 bg-accent rounded-full shadow-sm z-0"
-                    transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-                  />
-                )}
+                <ActiveNavIcon size={14} className="text-accent shrink-0" />
+                <span className="text-xs font-bold uppercase tracking-wider truncate">
+                  {activeNavItem.label}
+                </span>
+                <ChevronDown size={12} className="text-muted shrink-0" />
               </Button>
-            );
-          })}
+              <Dropdown.Popover>
+                <Dropdown.Menu
+                  aria-label={t("nav.menu")}
+                  onAction={(key) => {
+                    handleViewChange(String(key) as ViewKey);
+                    setNavMenuOpen(false);
+                  }}
+                >
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeView === item.key;
+                    return (
+                      <Dropdown.Item
+                        key={item.key}
+                        id={item.key}
+                        textValue={item.label}
+                        className={cn(
+                          "flex items-center gap-2 py-1.5 font-bold",
+                          isActive && "text-accent",
+                        )}
+                      >
+                        <Icon size={14} className="shrink-0" />
+                        <span className="text-xs uppercase tracking-wider">{item.label}</span>
+                      </Dropdown.Item>
+                    );
+                  })}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </div>
         </nav>
 
         <div className="flex items-center gap-4">

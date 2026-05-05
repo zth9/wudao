@@ -3,7 +3,8 @@
     "dashboard": "Dashboard",
     "tasks": "Tasks",
     "memories": "Memories",
-    "settings": "Settings"
+    "settings": "Settings",
+    "menu": "Navigation menu"
   },
   "theme": {
     "light": "Light",

@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- **顶层导航栏现已支持响应式收缩**：
+  - 当浏览器宽度收缩到 `lg` 断点（1024px）以下时，原先居中的四栏导航 pill 会收起为一个紧凑的下拉胶囊按钮，避免导航项挤压 Logo 或用户头像区域
+  - 下拉触发器会显示当前所在页面的图标和名称，点击后展开 HeroUI Dropdown 菜单，可在 Dashboard / Tasks / Memories / Settings 之间切换
+  - 桌面端（≥1024px）继续保持原有的 pill 胶囊 + Framer Motion `active-pill` 滑动动效，交互体验不变
+  - 已补充中英文 `nav.menu` 文案，并完成 `pnpm --filter web exec tsc`、`pnpm --filter web test`（17 个测试文件 / 109 个用例）与 `pnpm --filter web build`
+
 - **Claude Code Runner 现不再被进度事件误取消**：
   - 修复 `invoke_claude_code_runner` 在 Runner 启动并回传 `sdk_run_id` 后，Agent Runtime 误把仍在等待完成的工具任务取消的问题
   - 后端现在只取消用于等待进度队列的临时 task，不会因为前端刷新、事件流重连或进度事件到达而取消 Runner 工具等待

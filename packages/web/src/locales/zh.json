@@ -3,7 +3,8 @@
     "dashboard": "仪表盘",
     "tasks": "任务中心",
     "memories": "记忆",
-    "settings": "系统设置"
+    "settings": "系统设置",
+    "menu": "导航菜单"
   },
   "theme": {
     "light": "浅色",
