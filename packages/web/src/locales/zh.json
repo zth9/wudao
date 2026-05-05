@@ -161,7 +161,16 @@
     "language_label": "语言",
     "tab_profile": "个人资料",
     "tab_appearance": "外观",
-    "tab_providers": "模型供应商"
+    "tab_providers": "模型供应商",
+    "agent_runner": "Agent Runner",
+    "agent_runner_desc": "配置 Agent Runner 的默认运行参数。对话中可临时覆盖。",
+    "runner_type": "运行器类型",
+    "runner_type_only_option": "当前仅支持此类型",
+    "runner_provider": "使用供应商",
+    "runner_provider_follow_chat": "跟随聊天供应商",
+    "runner_model": "模型覆盖",
+    "runner_model_placeholder": "留空则使用供应商默认模型",
+    "runner_model_hint": "可选。填写模型 ID 以覆盖供应商的默认模型。"
   },
   "memories": {
     "kicker": "Memory",

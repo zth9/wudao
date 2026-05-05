@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- **invoke_claude_code_runner 重命名为 agent_runner，新增设置面板与 LLM context 优化**：
+  - 工具名从 `invoke_claude_code_runner` 统一改为 `agent_runner`，更通用简洁
+  - 工具输入新增可选参数 `model` 和 `runner_type`，可在对话中临时覆盖默认配置
+  - 设置页新增 Agent Runner 配置区域，可设置默认 Provider、Model 覆盖和 Runner 类型
+  - LLM tool_transcript 优化：Agent Runner 工具的 tool_result 只保留 `ok` 和 `final_text`，大幅减少 context 占用
+  - 已更新全部设计文档、AGENTS.md 和测试用例（后端 114 测试 / 前端 115 测试全绿）
+
 - **顶层导航栏现已支持响应式收缩**：
   - 当浏览器宽度收缩到 `lg` 断点（1024px）以下时，原先居中的四栏导航 pill 会收起为一个紧凑的下拉胶囊按钮，避免导航项挤压 Logo 或用户头像区域
   - 下拉触发器会显示当前所在页面的图标和名称，点击后展开 HeroUI Dropdown 菜单，可在 Dashboard / Tasks / Memories / Settings 之间切换

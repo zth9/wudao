@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { providers as api, type Provider } from "../services/api";
+import { providers as api, runnerConfig as runnerConfigApi, type Provider, type RunnerConfig } from "../services/api";
 import type { SortOption } from "../components/task-panel/constants";
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -34,6 +34,10 @@ interface SettingsState {
   update: (id: string, data: Partial<Provider>) => Promise<boolean>;
   reorder: (ids: string[]) => Promise<boolean>;
   remove: (id: string) => Promise<boolean>;
+  runnerConfig: RunnerConfig | null;
+  runnerConfigLoading: boolean;
+  fetchRunnerConfig: () => Promise<boolean>;
+  updateRunnerConfig: (data: Partial<RunnerConfig>) => Promise<boolean>;
 }
 
 function resolveSettingsError(error: unknown, fallback: string): string {
@@ -142,6 +146,31 @@ export const useSettingsStore = create<SettingsState>()(
           return await get().fetch();
         } catch (error) {
           set({ error: resolveSettingsError(error, "Failed to delete provider") });
+          return false;
+        }
+      },
+
+      runnerConfig: null,
+      runnerConfigLoading: false,
+
+      fetchRunnerConfig: async () => {
+        set({ runnerConfigLoading: true });
+        try {
+          const config = await runnerConfigApi.get();
+          set({ runnerConfig: config, runnerConfigLoading: false });
+          return true;
+        } catch {
+          set({ runnerConfigLoading: false });
+          return false;
+        }
+      },
+
+      updateRunnerConfig: async (data) => {
+        try {
+          const config = await runnerConfigApi.update(data);
+          set({ runnerConfig: config });
+          return true;
+        } catch {
           return false;
         }
       },

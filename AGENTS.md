@@ -6,7 +6,7 @@
 
 悟道（Wudao）是一个个人 AI 工作站，用来把多种 AI 工具串成可执行、可追踪、可沉淀的任务闭环。
 
-- 当前重点：任务中心、Agentic Chat、任务工作台与 Claude Code Runner
+- 当前重点：任务中心、Agentic Chat、任务工作台与 Agent Runner
 - 核心闭环：自然语言建任务 → Agentic Chat 澄清/规划 → 结构化工具调用 → 终端 / Agent Runner 执行 → 完成归档
 - 技术形态：纯 Web、前后端分离、前端 TypeScript + 后端 Python、pnpm monorepo
 - 上下文方向：任务聊天内容与终端上下文后续通过 MCP 打通，不再通过任务级 `AGENTS.md` 产物同步
@@ -15,9 +15,9 @@
 
 - 前端是 Vite + React 19 + TypeScript + Tailwind CSS v4 + HeroUI v3 + zustand，入口在 `packages/web/src/App.tsx`
 - 后端是 FastAPI + sqlite3 + Python PTY，入口在 `packages/server/src/app.py`
-- 任务数据、Provider 配置、Agent Chat run/message、Claude Code Runner run/event 均持久化到 SQLite
+- 任务数据、Provider 配置、Agent Chat run/message、Agent Runner run/event 均持久化到 SQLite
 - Agentic Chat 使用 typed SSE、结构化 timeline 与工具协议，主要实现位于 `packages/server/src/task_agent_chat.py` 与 `packages/server/src/agent_runtime/`
-- Agent 工具包括 workspace 列表/读取/搜索/写入/patch、终端快照、`invoke_claude_code_runner`
+- Agent 工具包括 workspace 列表/读取/搜索/写入/patch、终端快照、`agent_runner`
 - 任务详情页是左侧 Agentic Chat + 右侧两个可独立开关的抽屉：终端、Agent Runner
 - 终端通过 `/ws/terminal` 管理 Python PTY，支持 Claude、Codex、Gemini、Kimi、GLM、MiniMax、Qwen 等 CLI
 - 记忆页只维护本地用户记忆与 Wudao Agent 全局记忆，并注入任务解析、legacy chat 与 Agentic Chat
@@ -31,8 +31,8 @@
 - 用户视角变更记录：`docs/changelog.md`
 - 前端开发规范：`docs/design/frontend-guidelines.md`
 - HeroUI 前端重构计划：`docs/design/heroui-frontend-refactor-plan.md`
-- Claude Code Runner 独立状态：`docs/design/claude-code-runner-independent-state.md`
-- Claude Code Runner 结果拆分：`docs/design/invoke-claude-code-runner-result-split.md`
+- Agent Runner 独立状态：`docs/design/agent-runner-independent-state.md`
+- Agent Runner 结果拆分：`docs/design/agent-runner-result-split.md`
 - 大功能或临时计划：优先新建到 `docs/design/`，并在本节补索引
 
 不要引用已经不存在的设计文档；如果需要恢复某个长期设计说明，先创建明确命名的文档，再把入口补到这里。
@@ -160,7 +160,7 @@ flowchart TD
     B --> C[SQLite\nproviders / tasks / agent runs / sdk runs]
     B --> D[Task Workspace\n~/.wudao/workspace/<taskId>]
     B --> E[Agent Runtime\nstructured tools + typed SSE]
-    E --> F[Claude Code Runner\nclaude-agent-sdk]
+    E --> F[Agent Runner\nclaude-agent-sdk]
     B --> G[Python PTY Terminal Runtime]
     G --> H[AI CLI Providers\nClaude / Codex / Gemini / Kimi / GLM / MiniMax / Qwen]
     B --> I[Profile Memory\n~/.wudao/profile/*.md]

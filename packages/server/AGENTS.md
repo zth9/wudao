@@ -20,12 +20,13 @@
   - 线程存储：`src/agent_runtime/thread_store.py`
   - 工具注册：`src/agent_runtime/tool_registry.py`
   - workspace / terminal 工具：`src/agent_runtime/workspace_tools.py`、`terminal_tools.py`
-- Claude Code Runner：
+- Agent Runner：
   - 路由：`src/task_sdk_runner.py`
   - 运行与进程注册：`src/sdk_runner/sdk_runner.py`
   - 持久化：`src/sdk_runner/sdk_store.py`
   - SDK 消息适配：`src/sdk_runner/sdk_adapter.py`
   - Agent 工具入口：`src/sdk_runner/sdk_tools.py`
+  - 全局配置：`src/runner_config.py`
 - 终端：`src/terminal.py`、`src/terminal_utils.py`
 - 测试：`tests/test_*.py`
 

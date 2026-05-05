@@ -50,9 +50,9 @@ def _is_official_anthropic_base_url(base_url: str) -> bool:
     return "api.anthropic.com" in base_url.lower()
 
 
-def _resolve_sdk_provider_options(provider_id: str | None) -> SdkProviderOptions:
+def _resolve_sdk_provider_options(provider_id: str | None, model_override: str | None = None) -> SdkProviderOptions:
     if not provider_id:
-        return SdkProviderOptions(model=None, env={})
+        return SdkProviderOptions(model=model_override, env={})
 
     provider = db.query_one(
         "SELECT id, endpoint, api_key, model FROM providers WHERE id = ?",
@@ -62,7 +62,7 @@ def _resolve_sdk_provider_options(provider_id: str | None) -> SdkProviderOptions
         raise RuntimeError("Provider not found")
 
     endpoint = str(provider.get("endpoint") or "").strip()
-    model = str(provider.get("model") or "").strip()
+    model = model_override or str(provider.get("model") or "").strip()
     if not endpoint or not model:
         missing = ", ".join(
             name
@@ -167,6 +167,7 @@ async def run_sdk_query(
     emitter: Emitter,
     system_prompt: str | None = None,
     provider_id: str | None = None,
+    model_override: str | None = None,
     on_finished: RunFinishedCallback | None = None,
 ) -> None:
     """Execute a Claude Agent SDK query and stream events.
@@ -190,7 +191,7 @@ async def run_sdk_query(
                 await on_finished({"run_id": run_id, "status": "failed", "error": error_msg})
             return
 
-        provider_options = _resolve_sdk_provider_options(provider_id)
+        provider_options = _resolve_sdk_provider_options(provider_id, model_override=model_override)
         options = ClaudeAgentOptions(
             cwd=cwd,
             model=provider_options.model,
@@ -257,6 +258,7 @@ def start_sdk_run(
     agent_run_id: str | None = None,
     provider_id: str | None = None,
     runner_type: str = "claude_code",
+    model_override: str | None = None,
     system_prompt: str | None = None,
     on_finished: RunFinishedCallback | None = None,
 ) -> dict[str, Any]:
@@ -282,6 +284,7 @@ def start_sdk_run(
             emitter=emitter,
             system_prompt=system_prompt,
             provider_id=provider_id,
+            model_override=model_override,
             on_finished=on_finished,
         )
     )

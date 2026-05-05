@@ -349,7 +349,7 @@ describe("fetchOne", () => {
           kind: "tool_result",
           status: "completed",
           content_json: {
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             output: { ok: true, sdk_run_id: "sdk-run-1" },
           },
           created_at: "2026-02-26T00:00:00Z",
@@ -471,7 +471,7 @@ describe("agent chat timeline", () => {
     });
   });
 
-  it("auto-subscribes sdk runner events after invoke_claude_code_runner returns sdk_run_id", () => {
+  it("auto-subscribes sdk runner events after agent_runner returns sdk_run_id", () => {
     useTaskStore.getState().sendAgentChatMessage("t1", "直接测试", "claude");
 
     capturedAgentCallbacks.onEvent!({
@@ -485,7 +485,7 @@ describe("agent chat timeline", () => {
         kind: "tool_result",
         status: "completed",
         content_json: {
-          toolName: "invoke_claude_code_runner",
+          toolName: "agent_runner",
           output: {
             ok: true,
             sdk_run_id: "sdk-run-42",
@@ -498,17 +498,16 @@ describe("agent chat timeline", () => {
 
     expect(mockFetchSdkRuns).toHaveBeenCalledWith("t1");
     expect(mockSubscribeSdkEvents).toHaveBeenCalledWith("t1", "sdk-run-42");
-    expect(mockSetTaskLayout).toHaveBeenCalledWith("t1", { sdkRunnerOpen: true });
     expect(useTaskStore.getState().agentTimeline.at(-1)).toEqual({
       id: "sdk-result-1",
       kind: "tool_result",
-      toolName: "invoke_claude_code_runner",
+      toolName: "agent_runner",
       output: { ok: true, sdk_run_id: "sdk-run-42" },
       status: "completed",
     });
   });
 
-  it("auto-subscribes sdk runner events as soon as invoke_claude_code_runner enters running state", () => {
+  it("auto-subscribes sdk runner events as soon as agent_runner enters running state", () => {
     useTaskStore.getState().sendAgentChatMessage("t1", "直接测试", "claude");
 
     capturedAgentCallbacks.onEvent!({
@@ -522,7 +521,7 @@ describe("agent chat timeline", () => {
         kind: "tool_call",
         status: "streaming",
         content_json: {
-          toolName: "invoke_claude_code_runner",
+          toolName: "agent_runner",
           input: { prompt: "执行一次测试" },
           sdk_run_id: "sdk-run-77",
         },
@@ -533,11 +532,10 @@ describe("agent chat timeline", () => {
 
     expect(mockFetchSdkRuns).toHaveBeenCalledWith("t1");
     expect(mockSubscribeSdkEvents).toHaveBeenCalledWith("t1", "sdk-run-77");
-    expect(mockSetTaskLayout).toHaveBeenCalledWith("t1", { sdkRunnerOpen: true });
     expect(useTaskStore.getState().agentTimeline.at(-1)).toEqual({
       id: "sdk-call-1",
       kind: "tool_call",
-      toolName: "invoke_claude_code_runner",
+      toolName: "agent_runner",
       input: { prompt: "执行一次测试" },
       sdkRunId: "sdk-run-77",
       status: "streaming",

@@ -131,11 +131,12 @@ def test_sdk_runner_tool_registry_exposes_runner_specific_tool_name(tmp_path, mo
     del current_task_id
 
     tool_names = [item["name"] for item in tool_registry.serialize_tool_schemas()]
-    assert "invoke_claude_code_runner" in tool_names
+    assert "agent_runner" in tool_names
+    assert "invoke_claude_code_runner" not in tool_names
     assert "invoke_sdk_runner" not in tool_names
 
 
-def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_run(tmp_path, monkeypatch):
+def test_agent_runner_defaults_to_task_workspace_and_links_agent_run(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, home_dir = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "Agent Runner 默认目录")
@@ -145,13 +146,14 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
     captured: dict[str, object] = {}
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", model_override: str | None = None, system_prompt: str | None = None, on_finished=None):
         captured["task_id"] = task_id
         captured["prompt"] = prompt
         captured["cwd"] = cwd
         captured["agent_run_id"] = agent_run_id
         captured["provider_id"] = provider_id
         captured["runner_type"] = runner_type
+        captured["model_override"] = model_override
         captured["system_prompt"] = system_prompt
         if on_finished is not None:
             asyncio.get_running_loop().create_task(on_finished({"run_id": "sdk-run-1", "status": "completed"}))
@@ -184,7 +186,7 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
     result = asyncio.run(
         tool_registry.execute_agent_tool(
             task_id,
-            "invoke_claude_code_runner",
+            "agent_runner",
             {"prompt": "请在当前任务 workspace 内执行最小测试"},
             agent_run_id="agent-run-123",
             provider_id="claude",
@@ -204,63 +206,13 @@ def test_invoke_claude_code_runner_defaults_to_task_workspace_and_links_agent_ru
         "agent_run_id": "agent-run-123",
         "provider_id": "claude",
         "runner_type": "claude_code",
+        "model_override": None,
         "system_prompt": None,
     }
     assert workspace_dir.is_dir()
 
 
-def test_legacy_invoke_sdk_runner_alias_still_executes_claude_code_runner(tmp_path, monkeypatch):
-    app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
-    client = TestClient(app_module.app)
-    task_id = create_task(client, "Agent Runner 兼容别名")
-
-    sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
-    sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
-    captured: dict[str, object] = {}
-
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
-        captured["task_id"] = task_id
-        captured["prompt"] = prompt
-        captured["provider_id"] = provider_id
-        captured["runner_type"] = runner_type
-        if on_finished is not None:
-            asyncio.get_running_loop().create_task(on_finished({"run_id": "sdk-run-legacy", "status": "completed"}))
-        return {"id": "sdk-run-legacy", "prompt": prompt, "cwd": cwd, "runner_type": runner_type}
-
-    monkeypatch.setattr(sdk_runner, "start_sdk_run", fake_start_sdk_run)
-    monkeypatch.setattr(
-        sdk_store,
-        "get_sdk_run",
-        lambda run_id: {
-            "id": run_id,
-            "status": "completed",
-            "runner_type": "claude_code",
-            "cwd": "/tmp/demo",
-            "prompt": "兼容旧工具名",
-            "total_cost_usd": 0,
-            "total_tokens": 0,
-        },
-    )
-    monkeypatch.setattr(sdk_store, "list_sdk_events", lambda run_id: [])
-
-    result = asyncio.run(
-        tool_registry.execute_agent_tool(
-            task_id,
-            "invoke_sdk_runner",
-            {"prompt": "兼容旧工具名"},
-        )
-    )
-
-    assert result["ok"] is True
-    assert result["sdk_run_id"] == "sdk-run-legacy"
-    assert result["tool_name"] == "invoke_claude_code_runner"
-    assert result["runner_type"] == "claude_code"
-    assert result["status"] == "completed"
-    assert captured["runner_type"] == "claude_code"
-    assert captured["provider_id"] is None
-
-
-def test_invoke_claude_code_runner_falls_back_to_last_tool_result_when_final_text_missing(tmp_path, monkeypatch):
+def test_agent_runner_falls_back_to_last_tool_result_when_final_text_missing(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "Agent Runner 摘要回退")
@@ -268,7 +220,7 @@ def test_invoke_claude_code_runner_falls_back_to_last_tool_result_when_final_tex
     sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", model_override: str | None = None, system_prompt: str | None = None, on_finished=None):
         if on_finished is not None:
             asyncio.get_running_loop().create_task(on_finished({"run_id": "sdk-run-fallback", "status": "completed"}))
         return {"id": "sdk-run-fallback", "prompt": prompt, "cwd": cwd, "runner_type": runner_type}
@@ -300,7 +252,7 @@ def test_invoke_claude_code_runner_falls_back_to_last_tool_result_when_final_tex
     result = asyncio.run(
         tool_registry.execute_agent_tool(
             task_id,
-            "invoke_claude_code_runner",
+            "agent_runner",
             {"prompt": "获取当前时间"},
         )
     )
@@ -317,7 +269,7 @@ def test_invoke_claude_code_runner_falls_back_to_last_tool_result_when_final_tex
     }
 
 
-def test_invoke_claude_code_runner_recovers_when_completion_callback_is_missing(tmp_path, monkeypatch):
+def test_agent_runner_recovers_when_completion_callback_is_missing(tmp_path, monkeypatch):
     app_module, _, _, tool_registry, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "Agent Runner 完成回调兜底")
@@ -325,7 +277,7 @@ def test_invoke_claude_code_runner_recovers_when_completion_callback_is_missing(
     sdk_runner = importlib.import_module("src.sdk_runner.sdk_runner")
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
 
-    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", system_prompt: str | None = None, on_finished=None):
+    def fake_start_sdk_run(*, task_id: str, prompt: str, cwd: str, emitter, agent_run_id: str | None = None, provider_id: str | None = None, runner_type: str = "claude_code", model_override: str | None = None, system_prompt: str | None = None, on_finished=None):
         run = sdk_store.create_sdk_run(
             task_id,
             prompt=prompt,
@@ -366,7 +318,7 @@ def test_invoke_claude_code_runner_recovers_when_completion_callback_is_missing(
     result = asyncio.run(
         tool_registry.execute_agent_tool(
             task_id,
-            "invoke_claude_code_runner",
+            "agent_runner",
             {"prompt": "获取当前时间", "timeoutSeconds": 2},
             agent_run_id="agent-run-456",
         )
