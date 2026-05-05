@@ -20,15 +20,30 @@ def load_modules(tmp_path, monkeypatch):
 
     app_module = importlib.import_module("src.app")
     runner = importlib.import_module("src.agent_runtime.runner")
+    model_adapter = importlib.import_module("src.agent_runtime.model_adapter")
     thread_store = importlib.import_module("src.agent_runtime.thread_store")
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
-    return app_module, runner, thread_store, sdk_store
+    return app_module, runner, model_adapter, thread_store, sdk_store
 
 
 def create_task(client: TestClient, title: str) -> str:
     response = client.post("/api/tasks", json={"title": title, "type": "feature"})
     assert response.status_code == 201
     return response.json()["id"]
+
+
+def make_step_streamer(step_func):
+    """Wrap an async step function into an async generator for stream_next_agent_step."""
+
+    async def streamer(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        step = await step_func(provider_id, system_messages=system_messages, history=history, tool_schemas=tool_schemas, tool_transcript=tool_transcript)
+        if isinstance(step, dict) and step.get("type") == "assistant_text":
+            content = step.get("content", "")
+            if content:
+                yield {"type": "delta", "text": content}
+        yield {"type": "complete", "step": step}
+
+    return streamer
 
 
 def parse_sse_payloads(raw_text: str) -> list[dict[str, object]]:
@@ -54,7 +69,7 @@ def start_run_and_collect_events(client: TestClient, task_id: str, payload: dict
 
 
 def test_agent_chat_thread_endpoint_returns_structured_snapshot(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "查看 Agent Thread")
 
@@ -65,7 +80,7 @@ def test_agent_chat_thread_endpoint_returns_structured_snapshot(tmp_path, monkey
         assert tool_transcript == []
         return {"type": "assistant_text", "content": "第一段第二段"}
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
 
     run_response = client.post(
         f"/api/tasks/{task_id}/agent-chat/runs",
@@ -87,7 +102,7 @@ def test_agent_chat_thread_endpoint_returns_structured_snapshot(tmp_path, monkey
 
 
 def test_agent_chat_run_stream_emits_typed_events_and_projects_legacy_chat(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "跑 Agent Chat")
 
@@ -97,7 +112,7 @@ def test_agent_chat_run_stream_emits_typed_events_and_projects_legacy_chat(tmp_p
         assert tool_transcript == []
         return {"type": "assistant_text", "content": "第一段第二段"}
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
 
     payloads = start_run_and_collect_events(
         client,
@@ -125,7 +140,7 @@ def test_agent_chat_run_stream_emits_typed_events_and_projects_legacy_chat(tmp_p
 
 
 def test_agent_chat_run_executes_read_only_tools_and_persists_timeline(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "列出 workspace")
     workspace_root = Path(tmp_path) / "home" / "workspace" / task_id
@@ -144,7 +159,7 @@ def test_agent_chat_run_executes_read_only_tools_and_persists_timeline(tmp_path,
         assert tool_schemas
         return next(responses)
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
 
     payloads = start_run_and_collect_events(
         client,
@@ -178,7 +193,7 @@ def test_agent_chat_run_executes_read_only_tools_and_persists_timeline(tmp_path,
 
 
 def test_agent_chat_run_emits_only_tool_events_for_workspace_write(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "普通 workspace 写入")
     workspace_root = Path(tmp_path) / "home" / "workspace" / task_id
@@ -198,7 +213,7 @@ def test_agent_chat_run_emits_only_tool_events_for_workspace_write(tmp_path, mon
     async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return next(responses)
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
 
     payloads = start_run_and_collect_events(
         client,
@@ -225,7 +240,7 @@ def test_agent_chat_run_emits_only_tool_events_for_workspace_write(tmp_path, mon
 
 
 def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "recover from tool error")
 
@@ -247,7 +262,7 @@ def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, mon
         ]
         return {"type": "assistant_text", "content": "先告诉我这个报错的出现环境和复现步骤。"}
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
 
     payloads = start_run_and_collect_events(
         client,
@@ -278,7 +293,7 @@ def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, mon
 
 
 def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "Claude Code 完成后继续回答")
 
@@ -365,7 +380,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
             "message": "Claude Code Runner completed successfully.",
         }
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
     monkeypatch.setattr(runner, "execute_agent_tool", fake_execute_agent_tool)
 
     payloads = start_run_and_collect_events(
@@ -415,7 +430,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
 
 
 def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "Claude Code 失败后继续回答")
 
@@ -477,7 +492,7 @@ def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path,
             "message": "pytest failed",
         }
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
     monkeypatch.setattr(runner, "execute_agent_tool", fake_execute_agent_tool)
 
     payloads = start_run_and_collect_events(
@@ -511,7 +526,7 @@ def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path,
 
 
 def test_thread_endpoint_repairs_orphaned_completed_sdk_runner_tool_call(tmp_path, monkeypatch):
-    app_module, _, thread_store, sdk_store = load_modules(tmp_path, monkeypatch)
+    app_module, _, _, thread_store, sdk_store = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "修复孤儿 runner 工具调用")
 
@@ -590,7 +605,7 @@ def test_thread_endpoint_repairs_orphaned_completed_sdk_runner_tool_call(tmp_pat
 
 
 def test_thread_endpoint_repairs_sdk_runner_tool_call_from_checkpoint(tmp_path, monkeypatch):
-    app_module, _, thread_store, sdk_store = load_modules(tmp_path, monkeypatch)
+    app_module, _, _, thread_store, sdk_store = load_modules(tmp_path, monkeypatch)
     checkpoint_mod = importlib.import_module("src.agent_runtime.sdk_runner_checkpoint")
     client = TestClient(app_module.app)
     task_id = create_task(client, "从 checkpoint 修复 runner 工具调用")
@@ -649,7 +664,7 @@ def test_thread_endpoint_repairs_sdk_runner_tool_call_from_checkpoint(tmp_path, 
 
 
 def test_agent_chat_run_marks_failed_run_and_keeps_legacy_projection_consistent(tmp_path, monkeypatch):
-    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "处理 Agent Chat 失败")
 
@@ -658,7 +673,7 @@ def test_agent_chat_run_marks_failed_run_and_keeps_legacy_projection_consistent(
         assert history
         raise RuntimeError("stream exploded")
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
 
     payloads = start_run_and_collect_events(
         client,

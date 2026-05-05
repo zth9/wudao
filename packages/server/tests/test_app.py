@@ -265,6 +265,7 @@ def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp
     thread_store = importlib.import_module("src.agent_runtime.thread_store")
     sdk_store = importlib.import_module("src.sdk_runner.sdk_store")
     runner = importlib.import_module("src.agent_runtime.runner")
+    model_adapter = importlib.import_module("src.agent_runtime.model_adapter")
 
     assert {row["table"] for row in db_module.db.query_all("PRAGMA foreign_key_list(task_agent_runs)")} == {"tasks"}
     assert {row["table"] for row in db_module.db.query_all("PRAGMA foreign_key_list(task_agent_messages)")} == {
@@ -283,7 +284,12 @@ def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp
     async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return {"type": "assistant_text", "content": "修复后可以继续对话。"}
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    async def fake_stream_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        step = await fake_next_agent_step(provider_id, system_messages=system_messages, history=history, tool_schemas=tool_schemas, tool_transcript=tool_transcript)
+        yield {"type": "delta", "text": step["content"]}
+        yield {"type": "complete", "step": step}
+
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", fake_stream_next_step)
 
     run_response = client.post(
         "/api/tasks/2026-04-02-1/agent-chat/runs",

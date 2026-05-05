@@ -30,6 +30,24 @@ def create_task(client: TestClient, title: str) -> str:
     return response.json()["id"]
 
 
+def make_step_streamer(step_func):
+    """Wrap an async step function into an async generator for stream_next_agent_step.
+
+    For assistant_text steps, yields the content as a single delta before completing.
+    For tool_call steps, yields only the complete event.
+    """
+
+    async def streamer(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        step = await step_func(provider_id, system_messages=system_messages, history=history, tool_schemas=tool_schemas, tool_transcript=tool_transcript)
+        if isinstance(step, dict) and step.get("type") == "assistant_text":
+            content = step.get("content", "")
+            if content:
+                yield {"type": "delta", "text": content}
+        yield {"type": "complete", "step": step}
+
+    return streamer
+
+
 def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypatch):
     app_module, runner, model_adapter, thread_store, home_dir = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
@@ -46,7 +64,7 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
     async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return next(steps)
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "看看 workspace"}]
@@ -73,7 +91,6 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
         "message.completed",
         "tool.completed",
         "message.delta",
-        "message.delta",
         "message.completed",
         "run.completed",
     ]
@@ -97,7 +114,7 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
 
 
 def test_runner_persists_sdk_wait_checkpoint_while_runner_is_active(tmp_path, monkeypatch):
-    app_module, runner, _, thread_store, _ = load_modules(tmp_path, monkeypatch)
+    app_module, runner, model_adapter, thread_store, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
     task_id = create_task(client, "Runner checkpoint")
 
@@ -139,7 +156,7 @@ def test_runner_persists_sdk_wait_checkpoint_while_runner_is_active(tmp_path, mo
             "message": "Claude Code Runner completed successfully.",
         }
 
-    monkeypatch.setattr(runner, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
     monkeypatch.setattr(runner, "execute_agent_tool", fake_execute_agent_tool)
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-checkpoint")
@@ -195,7 +212,7 @@ def test_runner_degrades_invalid_model_output_to_plain_text_reply(tmp_path, monk
     async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return {"type": "assistant_text", "content": "这是降级后的纯文本回复。", "degraded": True}
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "继续"}]
@@ -244,7 +261,7 @@ def test_runner_executes_write_tool_and_updates_workspace(tmp_path, monkeypatch)
     async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return next(steps)
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "写一份计划"}]
@@ -300,7 +317,7 @@ def test_runner_persists_workspace_write_without_extra_events(tmp_path, monkeypa
     async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return next(steps)
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "写入 notes.md"}]
@@ -365,7 +382,7 @@ def test_runner_keeps_run_alive_after_recoverable_tool_error(tmp_path, monkeypat
         ]
         return {"type": "assistant_text", "content": "先确认下报错出现在哪个环境，以及是否能稳定复现。"}
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "先帮我排查这个问题"}]
@@ -436,8 +453,8 @@ def test_model_adapter_prompt_prefers_first_turn_clarification(tmp_path, monkeyp
     prompt_messages = captured["messages"]
     assert isinstance(prompt_messages, list)
     system_prompt = str(prompt_messages[-1]["content"])
-    assert "首轮对话默认先通过 assistant_text 与用户沟通" in system_prompt
-    assert "不要为了“先了解情况”就读取当前 workspace" in system_prompt
+    assert "首轮对话默认先与用户沟通" in system_prompt
+    assert '不要为了"先了解情况"就读取当前 workspace' in system_prompt
     assert "removed_context_tool" not in system_prompt
 
 
@@ -484,7 +501,7 @@ def test_model_adapter_retries_unstructured_tool_protocol_reply(tmp_path, monkey
     ] == [{"toolName": "workspace_list", "input": {"path": "."}}]
     assert len(captured_messages) == 2
     assert captured_messages[1][-2] == {"role": "assistant", "content": "我会调用工具查看目录。"}
-    assert "必须把它改写为 tool_calls" in captured_messages[1][-1]["content"]
+    assert "必须把它改写为 JSON 格式并提供 tool_calls" in captured_messages[1][-1]["content"]
 
 
 def test_model_adapter_parses_minimax_tool_call_markup(tmp_path, monkeypatch):
@@ -633,7 +650,7 @@ def test_runner_executes_multiple_tool_calls_from_single_model_step(tmp_path, mo
     async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return next(steps)
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "先看下情况"}]
@@ -666,7 +683,6 @@ def test_runner_executes_multiple_tool_calls_from_single_model_step(tmp_path, mo
         "message.completed",
         "tool.completed",
         "message.delta",
-        "message.delta",
         "message.completed",
         "run.completed",
     ]
@@ -693,7 +709,7 @@ def test_runner_fails_invalid_multiple_tool_payload_before_persisting_assistant_
             "assistantText": "这段说明不该被持久化。",
         }
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "继续"}]
@@ -753,7 +769,7 @@ def test_runner_allows_more_than_four_tool_rounds_before_completing(tmp_path, mo
     async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
         return next(steps)
 
-    monkeypatch.setattr(model_adapter, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
 
     run = thread_store.create_agent_run(task_id, "claude", run_id="run-1")
     projected_history = [{"role": "user", "content": "多看几轮"}]

@@ -22,15 +22,8 @@ from .tool_registry import execute_agent_tool, serialize_tool_schemas
 
 Emitter = Callable[[dict[str, Any]], Awaitable[None]]
 MAX_TOOL_ROUNDS = 8
-TEXT_CHUNK_SIZE = 12
 
 NormalizedToolCall = tuple[str, dict[str, Any]]
-
-
-def _chunk_text(text: str) -> list[str]:
-    if len(text) <= TEXT_CHUNK_SIZE:
-        return [text]
-    return [text[index : index + TEXT_CHUNK_SIZE] for index in range(0, len(text), TEXT_CHUNK_SIZE)]
 
 
 def _persist_assistant_text(
@@ -474,13 +467,24 @@ async def run_agent_loop(
                     for item in tool_transcript
                 ],
             )
-            step = await next_agent_step(
+
+            assistant_message_id = str(uuid.uuid4())
+            step: dict[str, Any] | None = None
+
+            async for event in model_adapter.stream_next_agent_step(
                 provider_id,
                 system_messages=effective_system_messages,
                 history=history,
                 tool_schemas=tool_schemas,
                 tool_transcript=tool_transcript,
-            )
+            ):
+                if event["type"] == "delta":
+                    yield {"type": "message.delta", "itemId": assistant_message_id, "delta": event["text"]}
+                elif event["type"] == "complete":
+                    step = event["step"]
+
+            if step is None:
+                raise RuntimeError("stream_next_agent_step did not yield a step")
 
             tool_calls = _extract_tool_calls_from_step(step)
             if tool_calls is None:
@@ -493,9 +497,6 @@ async def run_agent_loop(
                     content=debug_text(full_response),
                     degraded=step.get("degraded"),
                 )
-                assistant_message_id = str(uuid.uuid4())
-                for delta in _chunk_text(full_response):
-                    yield {"type": "message.delta", "itemId": assistant_message_id, "delta": delta}
                 assistant_item = _persist_completed_run_text(
                     task_id,
                     run_id,
