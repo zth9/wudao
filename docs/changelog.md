@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- **Dashboard 用量统计现已按 Tracker 独立请求，慢接口不再阻塞整体渲染**：
+  - 后端新增 `GET /api/usage/{tracker_id}` 单 tracker 用量接口，把 `fetch_all_trackers` 内的 `_fetch_one` 抽取为模块级 `fetch_tracker`，旧 `GET /api/usage` 保留兼容
+  - 前端 `DashboardView` 从单一聚合请求改为 per-tracker 独立 state：先拉 tracker 列表，再并行触发每个 enabled tracker 的 `fetchOne`
+  - 每张用量卡片独立展示 loading / ok / error 状态；Codex 等慢接口只影响自身卡片，MiniMax/GLM/Kimi/MiMo 可秒级到位
+  - 新增单 tracker 请求节流（`inFlightTrackersRef`），避免慢接口卡死下次刷新；同时保留全局 `refreshInFlightRef` 防止整板重复刷新
+  - 已补充 3 个服务端回归测试（单 tracker 正常返回、404、未知 provider），前后端测试全绿：server 129 passed / web 115 passed
+
 - **invoke_claude_code_runner 重命名为 agent_runner，新增设置面板与 LLM context 优化**：
   - 工具名从 `invoke_claude_code_runner` 统一改为 `agent_runner`，更通用简洁
   - 工具输入新增可选参数 `model` 和 `runner_type`，可在对话中临时覆盖默认配置

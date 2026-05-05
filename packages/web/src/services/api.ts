@@ -58,6 +58,7 @@ export interface ProviderUsage {
 
 export const usage = {
   fetch: () => request<ProviderUsage[]>("/usage"),
+  fetchOne: (trackerId: string) => request<ProviderUsage>(`/usage/${trackerId}`),
 };
 
 // Usage Trackers

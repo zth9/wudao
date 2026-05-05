@@ -232,6 +232,7 @@
     "usage_load_failed": "Unable to load usage right now. Please try again later.",
     "provider_connected": "Connected",
     "provider_error": "Error",
+    "provider_loading": "Loading",
     "refresh_dashboard": "Refresh Dashboard",
     "auto_refresh_in": "Auto refresh in {{seconds}}s"
   },

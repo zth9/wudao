@@ -251,3 +251,49 @@ def test_parse_curl_command():
     # Empty input
     assert parse_curl_command("") == {}
     assert parse_curl_command("  ") == {}
+
+
+def test_fetch_single_tracker_endpoint(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    # Create a tracker without token so it returns error quickly
+    created = client.post("/api/usage-trackers", json={"provider": "minimax", "name": "Test MiniMax"})
+    assert created.status_code == 201
+    tracker = created.json()
+
+    resp = client.get(f"/api/usage/{tracker['id']}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["tracker_id"] == tracker["id"]
+    assert data["tracker_name"] == tracker["name"]
+    assert data["provider"] == "MiniMax"
+    assert "status" in data
+    assert "items" in data
+
+
+def test_fetch_single_tracker_not_found(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    client = TestClient(module.app)
+
+    resp = client.get("/api/usage/nonexistent-id")
+    assert resp.status_code == 404
+
+
+def test_fetch_single_tracker_unknown_provider(tmp_path, monkeypatch):
+    module = load_app(tmp_path, monkeypatch)
+    db_module = importlib.import_module("src.db")
+    db_path = tmp_path / "wudao.db"
+    test_db = db_module.DatabaseManager(db_path)
+    test_db.execute(
+        "INSERT INTO usage_trackers (id, provider, name, sort_order, enabled) VALUES (?, ?, ?, ?, ?)",
+        ("custom-xxx-id", "custom-xxx", "Custom Provider", 0, 1),
+    )
+    del test_db
+
+    client = TestClient(module.app)
+    resp = client.get("/api/usage/custom-xxx-id")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "error"
+    assert "未知的供应商类型" in data["error"]

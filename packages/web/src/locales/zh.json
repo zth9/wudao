@@ -232,6 +232,7 @@
     "usage_load_failed": "加载用量失败，请稍后重试",
     "provider_connected": "已连接",
     "provider_error": "错误",
+    "provider_loading": "加载中",
     "refresh_dashboard": "刷新仪表盘",
     "auto_refresh_in": "{{seconds}} 秒后自动刷新"
   },
