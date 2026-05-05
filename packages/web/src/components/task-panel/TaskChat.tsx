@@ -589,15 +589,16 @@ export function TaskChat({
 
       {/* Messages: Scrollable */}
       <div className="absolute inset-0 z-0 bg-transparent">
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="h-full overflow-y-auto px-4 space-y-6 scrollbar-thin scrollbar-thumb-black/5 dark:scrollbar-thumb-white/5"
-          style={{
-            paddingTop: `${TASK_WORKSPACE_HEADER_HEIGHT_PX}px`,
-            paddingBottom: `calc(${textareaHeight}px + ${TASK_CHAT_INPUT_PANEL_BOTTOM_PADDING_PX}px)`,
-          }}
-        >
+        <div className="relative mx-auto h-full max-w-[1024px]">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="h-full overflow-y-auto px-4 space-y-6 scrollbar-thin scrollbar-thumb-black/5 dark:scrollbar-thumb-white/5"
+            style={{
+              paddingTop: `${TASK_WORKSPACE_HEADER_HEIGHT_PX}px`,
+              paddingBottom: `calc(${textareaHeight}px + ${TASK_CHAT_INPUT_PANEL_BOTTOM_PADDING_PX}px)`,
+            }}
+          >
           {items.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
                <div className="w-12 h-12 rounded-2xl bg-default flex items-center justify-center mb-4">
@@ -795,6 +796,7 @@ export function TaskChat({
           onClick={handleResumeAutoScroll}
           style={{ bottom: `calc(${textareaHeight}px + ${TASK_CHAT_SCROLL_BUTTON_BOTTOM_PX}px)` }}
         />
+        </div>
       </div>
 
       {/* Input Area: Absolute Bottom */}
@@ -803,7 +805,8 @@ export function TaskChat({
         data-task-chat-input-shell="true"
         className="absolute bottom-0 left-0 right-0 z-20"
       >
-        <div className="relative m-3 rounded-2xl border border-border bg-surface/90 shadow-lg backdrop-blur-xl">
+        <div className="mx-auto max-w-[1024px]">
+          <div className="relative m-3 rounded-2xl border border-border bg-surface/90 shadow-lg backdrop-blur-xl">
           <div
             data-task-chat-input-panel="true"
             className="relative z-10 px-4 pt-3 pb-3"
@@ -941,6 +944,7 @@ export function TaskChat({
             <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-2 text-center opacity-50">
               {t('tasks.chat_hint')}
             </p>
+          </div>
           </div>
         </div>
       </div>
