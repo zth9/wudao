@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User } from "lucide-react";
 import { ProviderIcon } from "./ProviderIcon";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -83,8 +83,10 @@ export default function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingAssistant, setUploadingAssistant] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("profile");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assistantFileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Default avatar options
   const defaultAvatars = ["👨‍💻", "👩‍💻", "🤖", "🐱", "🐶", "🦊", "🦁", "🐧", "🎨", "🚀"];
@@ -227,6 +229,18 @@ export default function SettingsView() {
     }
   };
 
+  const menuItems = [
+    { key: "profile", icon: User, label: t("settings.user_profile") },
+    { key: "assistant", icon: Bot, label: t("settings.assistant_profile") },
+    { key: "appearance", icon: Sun, label: t("settings.appearance") },
+    { key: "providers", icon: Cpu, label: t("settings.model_providers") },
+  ];
+
+  // Reset scroll position when switching sections
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 });
+  }, [activeSection]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-background-secondary dark:bg-black">
       <header className="px-8 pt-8 pb-4 shrink-0">
@@ -234,264 +248,287 @@ export default function SettingsView() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
         >
-           <p className="text-[11px] font-bold text-accent uppercase tracking-[0.2em] mb-1">{t('settings.preferences')}</p>
-           <h1 className="text-3xl font-extrabold tracking-tight">{t('nav.settings')}</h1>
+          <p className="text-[11px] font-bold text-accent uppercase tracking-[0.2em] mb-1">{t('settings.preferences')}</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{t('nav.settings')}</h1>
         </motion.div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* User Profile Section */}
-          <Card className="overflow-hidden">
-             <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="max-w-5xl mx-auto flex gap-8 items-start">
+          {/* Left Navigation Menu */}
+          <nav className="w-52 shrink-0 sticky top-6">
+            <ul className="space-y-1">
+              {menuItems.map(({ key, icon: Icon, label }) => (
+                <li key={key}>
+                  <button
+                    onClick={() => setActiveSection(key)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all text-left",
+                      activeSection === key
+                        ? "bg-accent/10 text-accent font-semibold"
+                        : "text-muted font-medium hover:text-foreground hover:bg-default",
+                    )}
+                  >
+                    <Icon size={16} />
+                    <span>{label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {/* Right Content Panel */}
+          <div className="flex-1 min-w-0 space-y-6">
+            {/* User Profile Section */}
+            {activeSection === "profile" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
                 <SettingsIcon size={16} className="text-accent" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.user_profile')}</h2>
-             </div>
-             <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
-                {/* Avatar Preview & Selection */}
+              </div>
+              <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col items-center gap-4 shrink-0">
-                   <input
-                     ref={fileInputRef}
-                     type="file"
-                     className="hidden"
-                     accept="image/*"
-                     onChange={handleFileChange}
-                   />
-                   <Button
-                     onPress={() => fileInputRef.current?.click()}
-                     variant="ghost"
-                     className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
-                     aria-label={t("common.avatar")}
-                   >
-                      <Avatar size="lg" className="h-24 w-24 text-4xl">
-                        {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
-                          <Avatar.Image src={user.avatar} alt={t("common.avatar")} />
-                        ) : null}
-                        <Avatar.Fallback>{user.avatar || "👨‍💻"}</Avatar.Fallback>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    onPress={() => fileInputRef.current?.click()}
+                    variant="ghost"
+                    className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
+                    aria-label={t("common.avatar")}
+                  >
+                    <Avatar size="lg" className="h-24 w-24 text-4xl">
+                      {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
+                        <Avatar.Image src={user.avatar} alt={t("common.avatar")} />
+                      ) : null}
+                      <Avatar.Fallback>{user.avatar || "👨‍💻"}</Avatar.Fallback>
+                    </Avatar>
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {uploading ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
+                    </div>
+                  </Button>
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
+                    {defaultAvatars.map(av => (
+                      <Avatar
+                        key={av}
+                        size="sm"
+                        className={cn(
+                          "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
+                          user.avatar === av ? "ring-2 ring-accent" : ""
+                        )}
+                        onClick={() => setUser({ avatar: av })}
+                      >
+                        <Avatar.Fallback>{av}</Avatar.Fallback>
                       </Avatar>
-                      <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                         {uploading ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
-                      </div>
-                   </Button>
-                   <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
-                      {defaultAvatars.map(av => (
-                        <Avatar
-                          key={av}
-                          size="sm"
-                          className={cn(
-                            "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
-                            user.avatar === av ? "ring-2 ring-accent" : ""
-                          )}
-                          onClick={() => setUser({ avatar: av })}
-                        >
-                          <Avatar.Fallback>{av}</Avatar.Fallback>
-                        </Avatar>
-                      ))}
-                   </div>
+                    ))}
+                  </div>
                 </div>
-
-                {/* Profile Fields */}
                 <div className="flex-1 space-y-4 w-full">
-                   <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.nickname')}</label>
-                      <Input
-                        className="w-full"
-                        placeholder="Your Nickname"
-                        value={user.nickname}
-                        onChange={(e) => setUser({ nickname: e.target.value })}
-                      />
-                   </div>
-                   <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.avatar_url')}</label>
-                      <Input
-                        className="w-full"
-                        placeholder="https://example.com/avatar.png"
-                        value={user.avatar && user.avatar.startsWith('http') ? user.avatar : ""}
-                        onChange={(e) => setUser({ avatar: e.target.value })}
-                      />
-                   </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.nickname')}</label>
+                    <Input
+                      className="w-full"
+                      placeholder="Your Nickname"
+                      value={user.nickname}
+                      onChange={(e) => setUser({ nickname: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.avatar_url')}</label>
+                    <Input
+                      className="w-full"
+                      placeholder="https://example.com/avatar.png"
+                      value={user.avatar && user.avatar.startsWith('http') ? user.avatar : ""}
+                      onChange={(e) => setUser({ avatar: e.target.value })}
+                    />
+                  </div>
                 </div>
-             </div>
-          </Card>
+              </div>
+            </Card>
+            )}
 
-          {/* Assistant Profile Section */}
-          <Card className="overflow-hidden">
-             <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+            {/* Assistant Profile Section */}
+            {activeSection === "assistant" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
                 <Bot size={16} className="text-accent" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.assistant_profile')}</h2>
-             </div>
-             <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
-                {/* Assistant Avatar Preview & Selection */}
+              </div>
+              <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex flex-col items-center gap-4 shrink-0">
-                   <input
-                     ref={assistantFileInputRef}
-                     type="file"
-                     className="hidden"
-                     accept="image/*"
-                     onChange={handleAssistantFileChange}
-                   />
-                   <Button
-                     onPress={() => assistantFileInputRef.current?.click()}
-                     variant="ghost"
-                     className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
-                     aria-label={t("settings.assistant_avatar")}
-                   >
-                      <Avatar size="lg" className="h-24 w-24 text-4xl">
-                        {assistant.avatar && (assistant.avatar.includes('/') || assistant.avatar.includes('\\') || assistant.avatar.startsWith('http') || assistant.avatar.startsWith('file:') || assistant.avatar.startsWith('data:')) ? (
-                          <Avatar.Image src={assistant.avatar} alt={t("settings.assistant_avatar")} />
-                        ) : null}
-                        <Avatar.Fallback>{assistant.avatar || "🤖"}</Avatar.Fallback>
+                  <input
+                    ref={assistantFileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleAssistantFileChange}
+                  />
+                  <Button
+                    onPress={() => assistantFileInputRef.current?.click()}
+                    variant="ghost"
+                    className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
+                    aria-label={t("settings.assistant_avatar")}
+                  >
+                    <Avatar size="lg" className="h-24 w-24 text-4xl">
+                      {assistant.avatar && (assistant.avatar.includes('/') || assistant.avatar.includes('\\') || assistant.avatar.startsWith('http') || assistant.avatar.startsWith('file:') || assistant.avatar.startsWith('data:')) ? (
+                        <Avatar.Image src={assistant.avatar} alt={t("settings.assistant_avatar")} />
+                      ) : null}
+                      <Avatar.Fallback>{assistant.avatar || "🤖"}</Avatar.Fallback>
+                    </Avatar>
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {uploadingAssistant ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
+                    </div>
+                  </Button>
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
+                    {defaultAssistantAvatars.map(av => (
+                      <Avatar
+                        key={av}
+                        size="sm"
+                        className={cn(
+                          "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
+                          assistant.avatar === av ? "ring-2 ring-accent" : ""
+                        )}
+                        onClick={() => setAssistant({ avatar: av })}
+                      >
+                        <Avatar.Fallback>{av}</Avatar.Fallback>
                       </Avatar>
-                      <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                         {uploadingAssistant ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
-                      </div>
-                   </Button>
-                   <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
-                      {defaultAssistantAvatars.map(av => (
-                        <Avatar
-                          key={av}
-                          size="sm"
-                          className={cn(
-                            "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
-                            assistant.avatar === av ? "ring-2 ring-accent" : ""
-                          )}
-                          onClick={() => setAssistant({ avatar: av })}
-                        >
-                          <Avatar.Fallback>{av}</Avatar.Fallback>
-                        </Avatar>
-                      ))}
-                   </div>
+                    ))}
+                  </div>
                 </div>
-
-                {/* Assistant Avatar URL Field */}
                 <div className="flex-1 space-y-4 w-full">
-                   <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.assistant_avatar_url')}</label>
-                      <Input
-                        className="w-full"
-                        placeholder="https://example.com/assistant-avatar.png"
-                        value={assistant.avatar && assistant.avatar.startsWith('http') ? assistant.avatar : ""}
-                        onChange={(e) => setAssistant({ avatar: e.target.value })}
-                      />
-                   </div>
-                </div>
-             </div>
-          </Card>
-
-          {/* Appearance Settings */}
-          <Card className="overflow-hidden">
-            <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
-              <Languages size={16} className="text-accent" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.appearance')}</h2>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Theme */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.theme_label')}</label>
-                <div className="flex gap-2">
-                  {[
-                    { key: "light" as const, icon: Sun, label: t("theme.light") },
-                    { key: "dark" as const, icon: Moon, label: t("theme.dark") },
-                    { key: "system" as const, icon: Monitor, label: t("theme.auto") },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    const isActive = theme === item.key;
-                    return (
-                      <Button
-                        key={item.key}
-                        variant="ghost"
-                        onPress={() => setTheme(item.key)}
-                        className={cn(
-                          "flex items-center gap-2 px-4 py-2 rounded-xl border transition-all",
-                          isActive
-                            ? "border-accent/20 bg-accent/10 text-accent"
-                            : "border-border bg-default text-muted hover:text-foreground hover:border-accent/20",
-                        )}
-                      >
-                        <Icon size={14} />
-                        <span className="text-xs font-bold">{item.label}</span>
-                      </Button>
-                    );
-                  })}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.assistant_avatar_url')}</label>
+                    <Input
+                      className="w-full"
+                      placeholder="https://example.com/assistant-avatar.png"
+                      value={assistant.avatar && assistant.avatar.startsWith('http') ? assistant.avatar : ""}
+                      onChange={(e) => setAssistant({ avatar: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
+            </Card>
+            )}
 
-              {/* Language */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.language_label')}</label>
-                <div className="flex gap-2">
-                  {[
-                    { key: "zh", label: "中文" },
-                    { key: "en", label: "English" },
-                  ].map((item) => {
-                    const activeLang = i18n.language.startsWith("zh") ? "zh" : "en";
-                    const isActive = activeLang === item.key;
-                    return (
-                      <Button
-                        key={item.key}
-                        variant="ghost"
-                        onPress={() => void i18n.changeLanguage(item.key)}
-                        className={cn(
-                          "flex items-center gap-2 px-4 py-2 rounded-xl border transition-all",
-                          isActive
-                            ? "border-accent/20 bg-accent/10 text-accent"
-                            : "border-border bg-default text-muted hover:text-foreground hover:border-accent/20",
-                        )}
-                      >
-                        <span className="text-xs font-bold">{item.label}</span>
-                      </Button>
-                    );
-                  })}
+            {/* Appearance Settings */}
+            {activeSection === "appearance" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+                <Languages size={16} className="text-accent" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.appearance')}</h2>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.theme_label')}</label>
+                  <div className="flex gap-2">
+                    {[
+                      { key: "light" as const, icon: Sun, label: t("theme.light") },
+                      { key: "dark" as const, icon: Moon, label: t("theme.dark") },
+                      { key: "system" as const, icon: Monitor, label: t("theme.auto") },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      const isActive = theme === item.key;
+                      return (
+                        <Button
+                          key={item.key}
+                          variant="ghost"
+                          onPress={() => setTheme(item.key)}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-xl border transition-all",
+                            isActive
+                              ? "border-accent/20 bg-accent/10 text-accent"
+                              : "border-border bg-default text-muted hover:text-foreground hover:border-accent/20",
+                          )}
+                        >
+                          <Icon size={14} />
+                          <span className="text-xs font-bold">{item.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.language_label')}</label>
+                  <div className="flex gap-2">
+                    {[
+                      { key: "zh", label: "中文" },
+                      { key: "en", label: "English" },
+                    ].map((item) => {
+                      const activeLang = i18n.language.startsWith("zh") ? "zh" : "en";
+                      const isActive = activeLang === item.key;
+                      return (
+                        <Button
+                          key={item.key}
+                          variant="ghost"
+                          onPress={() => void i18n.changeLanguage(item.key)}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-xl border transition-all",
+                            isActive
+                              ? "border-accent/20 bg-accent/10 text-accent"
+                              : "border-border bg-default text-muted hover:text-foreground hover:border-accent/20",
+                          )}
+                        >
+                          <span className="text-xs font-bold">{item.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+            )}
 
-          <Card className="overflow-hidden">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-secondary">
-              <div className="flex items-center gap-2">
-                <Cpu size={16} className="text-accent" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.model_providers')}</h2>
-              </div>
-              <Button
-                onPress={openCreate}
-                variant="primary"
-                className="flex items-center gap-1.5 px-3 py-1 text-xs shadow-sm"
-              >
-                <Plus size={14} />
-                <span>{t('settings.add_provider')}</span>
-              </Button>
-            </div>
-
-            <div className="divide-y divide-border">
-              {error && (
-                <div className="mx-4 mt-4">
-                  <Alert color="danger">
-                    <Alert.Indicator>
-                      <AlertCircle size={16} />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Description>{error}</Alert.Description>
-                    </Alert.Content>
-                  </Alert>
+            {/* Model Providers */}
+            {activeSection === "providers" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-secondary">
+                <div className="flex items-center gap-2">
+                  <Cpu size={16} className="text-accent" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.model_providers')}</h2>
                 </div>
-              )}
+                <Button
+                  onPress={openCreate}
+                  variant="primary"
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs shadow-sm"
+                >
+                  <Plus size={14} />
+                  <span>{t('settings.add_provider')}</span>
+                </Button>
+              </div>
 
-              {loading && (
-                 <div className="p-12 text-center text-muted">
+              <div className="divide-y divide-border">
+                {error && (
+                  <div className="mx-4 mt-4">
+                    <Alert color="danger">
+                      <Alert.Indicator>
+                        <AlertCircle size={16} />
+                      </Alert.Indicator>
+                      <Alert.Content>
+                        <Alert.Description>{error}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  </div>
+                )}
+
+                {loading && (
+                  <div className="p-12 text-center text-muted">
                     <Spinner size="sm" className="mx-auto mb-2" />
                     <p className="text-xs font-medium uppercase tracking-widest">{t('settings.loading_providers')}</p>
-                 </div>
-              )}
+                  </div>
+                )}
 
-              {!loading && providers.length === 0 && (
-                <div className="p-12 text-center text-muted">
-                   <SettingsIcon size={32} className="mx-auto mb-3 opacity-20" />
-                   <p className="text-sm font-medium">{t('settings.no_providers')}</p>
-                </div>
-              )}
+                {!loading && providers.length === 0 && (
+                  <div className="p-12 text-center text-muted">
+                    <SettingsIcon size={32} className="mx-auto mb-3 opacity-20" />
+                    <p className="text-sm font-medium">{t('settings.no_providers')}</p>
+                  </div>
+                )}
 
-              {!loading && providers.length > 0 && (
+                {!loading && providers.length > 0 && (
                 <div className="p-2 space-y-1">
                   {providers.map((p, index) => {
                     const providerSummary = [p.model || p.id, p.endpoint || ""].filter(Boolean).join(" • ");
@@ -506,7 +543,7 @@ export default function SettingsView() {
                           "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
                           p.is_default ? "bg-accent" : "bg-default"
                         )}>
-                           <ProviderIcon providerId={p.id} size={20} />
+                          <ProviderIcon providerId={p.id} size={20} />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -592,14 +629,16 @@ export default function SettingsView() {
                     );
                   })}
                 </div>
-              )}
-            </div>
-          </Card>
+                )}
+              </div>
+            </Card>
+            )}
 
-          <footer className="text-center py-8 opacity-30">
-             <div className="w-1 bg-default h-6 mb-4 rounded-full mx-auto" />
-             <p className="text-[9px] font-bold uppercase tracking-[0.2em]">{t('settings.config_panel')}</p>
-          </footer>
+            <footer className="text-center py-8 opacity-30">
+              <div className="w-1 bg-default h-6 mb-4 rounded-full mx-auto" />
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em]">{t('settings.config_panel')}</p>
+            </footer>
+          </div>
         </div>
       </div>
 
