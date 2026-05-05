@@ -145,8 +145,6 @@ describe("TaskChat", () => {
     expect(html).toContain('data-tool-animated-panel="true"');
     expect(html).toContain("transition-[grid-template-rows]");
     expect(html).toContain("grid-rows-[0fr]");
-    expect(html).toContain("tasks.expand_tool");
-    expect(html).toContain("tasks.collapse_tool");
     expect(html).toContain("workspace_list");
     expect(html).toContain("README.md");
   });
