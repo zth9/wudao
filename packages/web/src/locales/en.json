@@ -85,8 +85,6 @@
     "tool_message_label": "Tool Execution",
     "tool_input_label": "Input",
     "tool_output_label": "Output",
-    "expand_tool": "Expand Details",
-    "collapse_tool": "Collapse Details",
     "tool_running": "Running",
     "tool_running_detail": "Waiting for the tool to finish...",
     "open_sdk_runner": "Open Agent Runner",

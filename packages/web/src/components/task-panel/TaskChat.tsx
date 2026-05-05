@@ -355,8 +355,6 @@ interface CollapsibleToolMessageCardProps {
   cardBody: ReactNode;
   sdkRunId: string | null;
   onOpenSdkRun?: (sdkRunId: string) => void;
-  expandLabel: string;
-  collapseLabel: string;
   openSdkRunnerLabel: string;
 }
 
@@ -366,8 +364,6 @@ function CollapsibleToolMessageCard({
   cardBody,
   sdkRunId,
   onOpenSdkRun,
-  expandLabel,
-  collapseLabel,
   openSdkRunnerLabel,
 }: CollapsibleToolMessageCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -400,22 +396,6 @@ function CollapsibleToolMessageCard({
             )}
           />
           <div className="min-w-0 flex-1">{cardHeader}</div>
-          <span
-            className={cn(
-              "shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-opacity duration-200",
-              expanded && "hidden"
-            )}
-          >
-            {expandLabel}
-          </span>
-          <span
-            className={cn(
-              "hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-opacity duration-200",
-              expanded && "inline"
-            )}
-          >
-            {collapseLabel}
-          </span>
         </Button>
         {sdkRunId && onOpenSdkRun && (
           <Button
@@ -745,8 +725,6 @@ export function TaskChat({
                         cardBody={cardBody}
                         sdkRunId={sdkRunId}
                         onOpenSdkRun={onOpenSdkRun}
-                        expandLabel={t("tasks.expand_tool")}
-                        collapseLabel={t("tasks.collapse_tool")}
                         openSdkRunnerLabel={t("tasks.open_sdk_runner")}
                       />
                     ) : (
