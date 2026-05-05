@@ -338,7 +338,7 @@ function AgentRunnerSettingsCard() {
             value={modelOverride}
             onChange={(e) => setModelOverride(e.target.value)}
             placeholder={t("settings.runner_model_placeholder")}
-            className="font-mono text-xs"
+            className="font-mono text-xs dark:border-white/10 dark:bg-default/70"
           />
           <p className="text-[10px] text-muted mt-1">{t("settings.runner_model_hint")}</p>
         </div>
@@ -698,7 +698,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.nickname')}</label>
                     <Input
-                      className="w-full"
+                      className="w-full dark:border-white/10 dark:bg-default/70"
                       placeholder="Your Nickname"
                       value={user.nickname}
                       onChange={(e) => setUser({ nickname: e.target.value })}
@@ -707,7 +707,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.avatar_url')}</label>
                     <Input
-                      className="w-full"
+                      className="w-full dark:border-white/10 dark:bg-default/70"
                       placeholder="https://example.com/avatar.png"
                       value={user.avatar && user.avatar.startsWith('http') ? user.avatar : ""}
                       onChange={(e) => setUser({ avatar: e.target.value })}
@@ -770,7 +770,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.assistant_avatar_url')}</label>
                     <Input
-                      className="w-full"
+                      className="w-full dark:border-white/10 dark:bg-default/70"
                       placeholder="https://example.com/assistant-avatar.png"
                       value={assistant.avatar && assistant.avatar.startsWith('http') ? assistant.avatar : ""}
                       onChange={(e) => setAssistant({ avatar: e.target.value })}
@@ -1037,7 +1037,7 @@ export default function SettingsView() {
                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.name')}</label>
                         <Input
-                          className="w-full"
+                          className="w-full dark:border-white/10 dark:bg-default/70"
                           placeholder="Ollama Local"
                           value={form.name}
                           onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -1046,7 +1046,7 @@ export default function SettingsView() {
                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.model_id')}</label>
                         <Input
-                          className="w-full"
+                          className="w-full dark:border-white/10 dark:bg-default/70"
                           placeholder="qwen2.5"
                           value={form.model}
                           onChange={(e) => setForm({ ...form, model: e.target.value })}
@@ -1057,7 +1057,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.endpoint_url')}</label>
                      <Input
-                       className="w-full"
+                       className="w-full dark:border-white/10 dark:bg-default/70"
                        placeholder="http://localhost:11434"
                        value={form.endpoint}
                        onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
@@ -1067,7 +1067,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.api_key')}</label>
                      <Input
-                       className="w-full"
+                       className="w-full dark:border-white/10 dark:bg-default/70"
                        placeholder="••••••••••••"
                        type="password"
                        value={form.api_key}
@@ -1137,7 +1137,7 @@ export default function SettingsView() {
                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_name')}</label>
                         <Input
-                          className="w-full"
+                          className="w-full dark:border-white/10 dark:bg-default/70"
                           placeholder="My Codex"
                           value={trackerForm.name}
                           onChange={(e) => setTrackerForm({ ...trackerForm, name: e.target.value })}
@@ -1146,7 +1146,7 @@ export default function SettingsView() {
                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_provider')}</label>
                         <select
-                          className="w-full h-9 rounded-lg border border-border bg-default px-3 text-sm"
+                          className="w-full h-9 rounded-lg border border-border bg-default px-3 text-sm dark:border-white/10 dark:bg-default/70 dark:text-foreground"
                           value={trackerForm.provider}
                           onChange={(e) => setTrackerForm({ ...trackerForm, provider: e.target.value })}
                           disabled={!!editingTrackerId}
@@ -1164,7 +1164,7 @@ export default function SettingsView() {
                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_curl_command')}</label>
                         <TextArea
-                          className="min-h-[120px] w-full resize-y font-mono text-xs"
+                          className="min-h-[120px] w-full resize-y font-mono text-xs border border-border bg-default/80 dark:border-white/10 dark:bg-default/70"
                           placeholder="curl 'https://chatgpt.com/backend-api/wham/usage' -H 'authorization: Bearer ...' ..."
                           value={trackerForm.curl_command}
                           onChange={(e) => setTrackerForm({ ...trackerForm, curl_command: e.target.value })}
@@ -1174,7 +1174,7 @@ export default function SettingsView() {
                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_auth_token')}</label>
                         <Input
-                          className="w-full"
+                          className="w-full dark:border-white/10 dark:bg-default/70"
                           placeholder="JWT Token..."
                           type="password"
                           value={trackerForm.auth_token}
@@ -1186,7 +1186,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_cookie')}</label>
                      <TextArea
-                       className="min-h-[60px] w-full resize-none"
+                       className="min-h-[60px] w-full resize-none border border-border bg-default/80 dark:border-white/10 dark:bg-default/70"
                        placeholder={trackerForm.provider === "codex" ? "Cookie string（从浏览器 DevTools 复制）..." : "Cookie string..."}
                        value={trackerForm.cookie}
                        onChange={(e) => setTrackerForm({ ...trackerForm, cookie: e.target.value })}
@@ -1196,7 +1196,7 @@ export default function SettingsView() {
                   <div className="space-y-1.5">
                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_url')}</label>
                      <Input
-                       className="w-full"
+                       className="w-full dark:border-white/10 dark:bg-default/70"
                        placeholder="https://..."
                        value={trackerForm.url}
                        onChange={(e) => setTrackerForm({ ...trackerForm, url: e.target.value })}
