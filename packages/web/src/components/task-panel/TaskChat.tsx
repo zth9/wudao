@@ -15,6 +15,7 @@ import {
   Wrench,
   AlertCircle,
   ChevronRight,
+  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProviderIcon } from "../ProviderIcon";
@@ -398,18 +399,23 @@ function CollapsibleToolMessageCard({
           <div className="min-w-0 flex-1">{cardHeader}</div>
         </Button>
         {sdkRunId && onOpenSdkRun && (
-          <Button
-            type="button"
-            onPress={() => onOpenSdkRun(sdkRunId)}
-            data-sdk-run-link={sdkRunId}
-            variant="ghost"
-            className="inline-flex h-auto min-h-0 shrink-0 items-center gap-1 rounded-full border border-accent/20 bg-accent/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-accent hover:bg-accent/15"
-          >
-            <span>{openSdkRunnerLabel}</span>
-            <span className="text-[9px] tracking-[0.08em] text-muted">
-              {shortSdkRunId(sdkRunId)}
-            </span>
-          </Button>
+          <Tooltip delay={300} closeDelay={0}>
+            <Button
+              type="button"
+              isIconOnly
+              onPress={() => onOpenSdkRun(sdkRunId)}
+              data-sdk-run-link={sdkRunId}
+              variant="ghost"
+              aria-label={openSdkRunnerLabel}
+              className="h-7 w-7 shrink-0 rounded-full bg-accent/10 text-accent hover:bg-accent/15"
+            >
+              <Zap size={14} />
+            </Button>
+            <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+              <Tooltip.Arrow className="fill-overlay" />
+              {openSdkRunnerLabel}
+            </Tooltip.Content>
+          </Tooltip>
         )}
       </div>
       <div
