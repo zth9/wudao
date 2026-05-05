@@ -834,6 +834,9 @@ class DatabaseManager:
                     (str(uuid.uuid4()), provider_key, name, auth_token, cookie, ""),
                 )
 
+    def _migrate_usage_trackers_table(self) -> None:
+        self._ensure_column("usage_trackers", "curl_command", "TEXT")
+
     def _seed_usage_trackers(self) -> None:
         next_sort_row = self.query_one("SELECT COALESCE(MAX(sort_order), 0) + 1 AS v FROM usage_trackers")
         next_sort = int(next_sort_row["v"] if next_sort_row else 1)
@@ -939,6 +942,7 @@ class DatabaseManager:
 
         self._create_usage_trackers_table()
         self._migrate_usage_credentials_from_providers()
+        self._migrate_usage_trackers_table()
         self._seed_usage_trackers()
 
 

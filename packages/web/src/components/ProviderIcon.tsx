@@ -10,7 +10,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   deepseek: "/providers/deepseek.png",
   qwen: "/providers/qwen.png",
   mimo: "/providers/mimo.png",
-  codex: "/providers/codex.svg",
+  codex: "/providers/openai.png",
 };
 
 const NAME_TO_ID: Record<string, string> = {

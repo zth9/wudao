@@ -67,6 +67,7 @@ export interface UsageTracker {
   name: string;
   auth_token: string | null;
   cookie: string | null;
+  curl_command: string | null;
   url: string | null;
   sort_order: number;
   enabled: number;

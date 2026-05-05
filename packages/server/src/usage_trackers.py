@@ -33,8 +33,8 @@ def create_tracker(data: dict[str, Any]) -> dict[str, Any]:
     tracker_id = str(uuid.uuid4())
     db.execute(
         """
-        INSERT INTO usage_trackers (id, provider, name, auth_token, cookie, url, sort_order, enabled)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO usage_trackers (id, provider, name, auth_token, cookie, curl_command, url, sort_order, enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             tracker_id,
@@ -42,6 +42,7 @@ def create_tracker(data: dict[str, Any]) -> dict[str, Any]:
             name,
             data.get("auth_token"),
             data.get("cookie"),
+            data.get("curl_command"),
             data.get("url"),
             sort_order,
             1 if data.get("enabled", True) else 0,
@@ -69,7 +70,7 @@ def update_tracker(tracker_id: str, data: dict[str, Any]) -> dict[str, Any] | No
     db.execute(
         """
         UPDATE usage_trackers
-        SET provider = ?, name = ?, auth_token = ?, cookie = ?, url = ?, enabled = ?
+        SET provider = ?, name = ?, auth_token = ?, cookie = ?, curl_command = ?, url = ?, enabled = ?
         WHERE id = ?
         """,
         (
@@ -77,6 +78,7 @@ def update_tracker(tracker_id: str, data: dict[str, Any]) -> dict[str, Any] | No
             name,
             data.get("auth_token", existing.get("auth_token")),
             data.get("cookie", existing.get("cookie")),
+            data.get("curl_command", existing.get("curl_command")),
             data.get("url", existing.get("url")),
             1 if data.get("enabled", existing.get("enabled", 1)) else 0,
             tracker_id,

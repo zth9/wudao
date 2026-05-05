@@ -178,6 +178,7 @@
     "tracker_name": "追踪器名称",
     "tracker_provider": "供应商类型",
     "tracker_auth_token": "认证 Token",
+    "tracker_curl_command": "Curl 命令（从浏览器 DevTools 复制）",
     "tracker_cookie": "Cookie",
     "tracker_url": "自定义链接 (可选)",
     "tracker_enabled": "启用",

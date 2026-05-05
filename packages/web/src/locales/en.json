@@ -178,6 +178,7 @@
     "tracker_name": "Tracker Name",
     "tracker_provider": "Provider Type",
     "tracker_auth_token": "Auth Token",
+    "tracker_curl_command": "Curl Command (Copy from browser DevTools)",
     "tracker_cookie": "Cookie",
     "tracker_url": "Custom URL (Optional)",
     "tracker_enabled": "Enabled",

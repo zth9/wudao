@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import re
+import shlex
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -230,3 +232,80 @@ def quota_snapshot_to_item(label: str, snapshot: dict[str, Any], time_zone: str)
             ]
         ),
     }
+
+
+def parse_curl_command(curl_text: str) -> dict[str, Any]:
+    """Parse a curl command string and extract URL, headers, cookies, and method."""
+    if not curl_text or not curl_text.strip():
+        return {}
+
+    text = curl_text.strip()
+    # Remove leading "curl " if present
+    if text.lower().startswith("curl "):
+        text = text[5:]
+    # Normalize line continuations
+    text = text.replace("\\\n", " ").replace("\\\r\n", " ")
+
+    url = ""
+    method = "GET"
+    headers: dict[str, str] = {}
+    cookie_str = ""
+    raw_auth = ""
+
+    try:
+        tokens = shlex.split(text)
+    except ValueError:
+        # Fallback: simple regex-based parsing for unmatched quotes
+        tokens = re.findall(r'(?:[^\s"\'\\]|\\.|"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\')+', text)
+
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if tok in ("-X", "--request") and i + 1 < len(tokens):
+            method = tokens[i + 1].upper()
+            i += 2
+        elif tok in ("-H", "--header") and i + 1 < len(tokens):
+            header_line = tokens[i + 1]
+            if ":" in header_line:
+                key, _, value = header_line.partition(":")
+                key = key.strip().lower()
+                value = value.strip()
+                if key == "cookie":
+                    cookie_str = value
+                elif key == "authorization":
+                    raw_auth = value
+                else:
+                    headers[key] = value
+            i += 2
+        elif tok in ("-b", "--cookie") and i + 1 < len(tokens):
+            cookie_str = tokens[i + 1]
+            i += 2
+        elif tok in ("--cookie-jar", "--compressed", "-k", "--insecure", "-s", "--silent",
+                      "-S", "--show-error", "-v", "--verbose", "-L", "--location",
+                      "-#", "--progress-bar", "-f", "--fail"):
+            i += 1
+        elif tok in ("-d", "--data", "--data-raw", "--data-binary", "--data-urlencode") and i + 1 < len(tokens):
+            method = "POST"
+            i += 2
+        elif tok.startswith("-") and not tok.startswith("http"):
+            i += 1
+        else:
+            if not url and (tok.startswith("http://") or tok.startswith("https://") or tok.startswith("'http")):
+                url = tok.strip("'\"")
+            i += 1
+
+    result: dict[str, Any] = {}
+    if url:
+        result["url"] = url
+    if method and method != "GET":
+        result["method"] = method
+    if headers:
+        result["headers"] = headers
+    if cookie_str:
+        result["cookie"] = cookie_str
+
+    # Extract authorization token
+    if raw_auth:
+        result["auth_token"] = raw_auth.removeprefix("Bearer ").removeprefix("bearer ").strip()
+
+    return result

@@ -217,7 +217,7 @@ export default function SettingsView() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [trackerDialogOpen, setTrackerDialogOpen] = useState(false);
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null);
-  const [trackerForm, setTrackerForm] = useState({ provider: "codex", name: "", auth_token: "", cookie: "", url: "", enabled: 1 });
+  const [trackerForm, setTrackerForm] = useState({ provider: "codex", name: "", auth_token: "", cookie: "", curl_command: "", url: "", enabled: 1 });
   const [trackerReordering, setTrackerReordering] = useState(false);
   const [trackerSaving, setTrackerSaving] = useState(false);
 
@@ -364,7 +364,7 @@ export default function SettingsView() {
 
   const openCreateTracker = () => {
     clearTrackerError();
-    setTrackerForm({ provider: "codex", name: "", auth_token: "", cookie: "", url: "", enabled: 1 });
+    setTrackerForm({ provider: "codex", name: "", auth_token: "", cookie: "", curl_command: "", url: "", enabled: 1 });
     setEditingTrackerId(null);
     setTrackerDialogOpen(true);
   };
@@ -376,6 +376,7 @@ export default function SettingsView() {
       name: t.name,
       auth_token: t.auth_token || "",
       cookie: t.cookie || "",
+      curl_command: t.curl_command || "",
       url: t.url || "",
       enabled: t.enabled,
     });
@@ -388,7 +389,7 @@ export default function SettingsView() {
     setTrackerDialogOpen(false);
     setEditingTrackerId(null);
     setTrackerSaving(false);
-    setTrackerForm({ provider: "codex", name: "", auth_token: "", cookie: "", url: "", enabled: 1 });
+    setTrackerForm({ provider: "codex", name: "", auth_token: "", cookie: "", curl_command: "", url: "", enabled: 1 });
   };
 
   const handleSaveTracker = async () => {
@@ -1144,22 +1145,34 @@ export default function SettingsView() {
                      </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_auth_token')}</label>
-                     <Input
-                       className="w-full"
-                       placeholder="JWT Token..."
-                       type="password"
-                       value={trackerForm.auth_token}
-                       onChange={(e) => setTrackerForm({ ...trackerForm, auth_token: e.target.value })}
-                     />
-                  </div>
+                  {trackerForm.provider === "codex" ? (
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_curl_command')}</label>
+                        <TextArea
+                          className="min-h-[120px] w-full resize-y font-mono text-xs"
+                          placeholder="curl 'https://chatgpt.com/backend-api/wham/usage' -H 'authorization: Bearer ...' ..."
+                          value={trackerForm.curl_command}
+                          onChange={(e) => setTrackerForm({ ...trackerForm, curl_command: e.target.value })}
+                        />
+                     </div>
+                  ) : (
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_auth_token')}</label>
+                        <Input
+                          className="w-full"
+                          placeholder="JWT Token..."
+                          type="password"
+                          value={trackerForm.auth_token}
+                          onChange={(e) => setTrackerForm({ ...trackerForm, auth_token: e.target.value })}
+                        />
+                     </div>
+                  )}
 
                   <div className="space-y-1.5">
                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_cookie')}</label>
                      <TextArea
                        className="min-h-[60px] w-full resize-none"
-                       placeholder="Cookie string..."
+                       placeholder={trackerForm.provider === "codex" ? "Cookie string（从浏览器 DevTools 复制）..." : "Cookie string..."}
                        value={trackerForm.cookie}
                        onChange={(e) => setTrackerForm({ ...trackerForm, cookie: e.target.value })}
                      />

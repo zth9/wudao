@@ -18,6 +18,7 @@ from .usage_utils import (
     join_detail,
     normalize_bearer_token,
     normalize_cookie_header,
+    parse_curl_command,
     parse_json_safe,
     parse_timestamp_ms,
     percent_from,
@@ -75,12 +76,15 @@ def _first_array(*candidates: Any) -> list[Any]:
     return []
 
 
-async def _fetch_json(provider: str, url: str, method: str = "GET", headers: dict[str, str] | None = None, body: Any = None) -> dict[str, Any]:
-    timeout = aiohttp.ClientTimeout(total=8)
+async def _fetch_json(provider: str, url: str, method: str = "GET", headers: dict[str, str] | None = None, body: Any = None, *, proxy: str = "", timeout_seconds: int = 8) -> dict[str, Any]:
+    timeout = aiohttp.ClientTimeout(total=timeout_seconds)
     connector = aiohttp.TCPConnector(ssl=False)
     try:
         async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-            async with session.request(method, url, headers=headers, json=body) as response:
+            kwargs: dict[str, Any] = {}
+            if proxy:
+                kwargs["proxy"] = proxy
+            async with session.request(method, url, headers=headers, json=body, **kwargs) as response:
                 text = await response.text()
                 data = parse_json_safe(text)
                 if response.status >= 400:
@@ -88,7 +92,7 @@ async def _fetch_json(provider: str, url: str, method: str = "GET", headers: dic
                     return {"error": _provider_error(provider, fallback)}
                 return {"data": data}
     except asyncio.TimeoutError:
-        return {"error": _provider_error(provider, "请求超时（8s）")}
+        return {"error": _provider_error(provider, f"请求超时（{timeout_seconds}s）")}
     except Exception as exc:
         return {"error": _provider_error(provider, f"请求失败: {exc}")}
 
@@ -111,7 +115,7 @@ class UsageAdapter:
     display_name: str = ""
     default_url: str = ""
 
-    async def fetch(self, auth_token: str, cookie: str) -> dict[str, Any]:
+    async def fetch(self, auth_token: str, cookie: str, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError
 
 
@@ -120,7 +124,7 @@ class MinimaxAdapter(UsageAdapter):
     display_name = "MiniMax"
     default_url = "https://platform.minimaxi.com/user-center/payment/coding-plan"
 
-    async def fetch(self, auth_token: str, cookie: str) -> dict[str, Any]:
+    async def fetch(self, auth_token: str, cookie: str, **kwargs: Any) -> dict[str, Any]:
         provider = self.display_name
         token = normalize_bearer_token(auth_token or _get_env("MINIMAX_AUTH_TOKEN"))
         cookie_str = normalize_cookie_header(cookie or _get_env("MINIMAX_COOKIE"))
@@ -160,7 +164,7 @@ class GlmAdapter(UsageAdapter):
     display_name = "GLM"
     default_url = "https://bigmodel.cn/usercenter/glm-coding/usage"
 
-    async def fetch(self, auth_token: str, cookie: str) -> dict[str, Any]:
+    async def fetch(self, auth_token: str, cookie: str, **kwargs: Any) -> dict[str, Any]:
         provider = self.display_name
         cookie_str = cookie or _get_env("GLM_COOKIE")
         auth = auth_token or _get_env("GLM_AUTH_TOKEN")
@@ -220,7 +224,7 @@ class KimiAdapter(UsageAdapter):
 
         return {"token": token, "cookie": cookie_str}
 
-    async def fetch(self, auth_token: str, cookie: str) -> dict[str, Any]:
+    async def fetch(self, auth_token: str, cookie: str, **kwargs: Any) -> dict[str, Any]:
         provider = self.display_name
         auth = self._resolve_auth(auth_token, cookie)
         if auth.get("error"):
@@ -308,7 +312,7 @@ class MimoAdapter(UsageAdapter):
     display_name = "MiMo"
     default_url = "https://platform.xiaomimimo.com/console/plan-manage"
 
-    async def fetch(self, auth_token: str, cookie: str) -> dict[str, Any]:
+    async def fetch(self, auth_token: str, cookie: str, **kwargs: Any) -> dict[str, Any]:
         provider = self.display_name
         cookie_str = normalize_cookie_header(cookie or _get_env("MIMO_COOKIE"))
         if not cookie_str:
@@ -374,23 +378,35 @@ class CodexAdapter(UsageAdapter):
     display_name = "Codex"
     default_url = "https://chatgpt.com/codex/cloud/settings/analytics"
 
-    async def fetch(self, auth_token: str, cookie: str) -> dict[str, Any]:
+    async def fetch(self, auth_token: str, cookie: str, **kwargs: Any) -> dict[str, Any]:
         provider = self.display_name
-        if not auth_token:
-            return _provider_error(provider, "Codex 认证 Token 未设置")
+        curl_command = str_or_empty(kwargs.get("curl_command"))
 
-        headers = {
-            "accept": "*/*",
-            "authorization": f"Bearer {auth_token}",
-        }
-        if cookie:
-            headers["cookie"] = cookie
+        curl_parsed = parse_curl_command(curl_command) if curl_command else {}
+        curl_headers = curl_parsed.get("headers", {})
+        curl_token = curl_parsed.get("auth_token", "")
+        curl_cookie = curl_parsed.get("cookie", "")
+        curl_url = curl_parsed.get("url", "")
 
-        result = await _fetch_json(
-            provider,
-            "https://chatgpt.com/backend-api/wham/usage",
-            headers=headers,
-        )
+        effective_token = curl_token or normalize_bearer_token(auth_token)
+        if not effective_token:
+            return _provider_error(provider, "Codex 认证未设置（需要 curl 命令或 auth token）")
+
+        headers: dict[str, str] = {"accept": "*/*"}
+        # Merge curl headers (lowercase keys), skip ones we override
+        for k, v in curl_headers.items():
+            if k not in ("authorization", "cookie", "accept"):
+                headers[k] = v
+        headers["authorization"] = f"Bearer {effective_token}"
+
+        effective_cookie = cookie or curl_cookie
+        if effective_cookie:
+            headers["cookie"] = effective_cookie
+
+        api_url = curl_url if curl_url.endswith("/wham/usage") else "https://chatgpt.com/backend-api/wham/usage"
+
+        proxy = _get_env("HTTPS_PROXY") or _get_env("https_proxy") or _get_env("ALL_PROXY") or _get_env("all_proxy")
+        result = await _fetch_json(provider, api_url, headers=headers, proxy=proxy, timeout_seconds=15)
 
         def parse(data: Any) -> list[dict[str, Any]]:
             rate_limit = (data or {}).get("rate_limit")
@@ -440,7 +456,7 @@ ADAPTERS: dict[str, UsageAdapter] = {
 
 async def fetch_all_trackers() -> list[dict[str, Any]]:
     trackers = db.query_all(
-        "SELECT id, provider, name, auth_token, cookie, url FROM usage_trackers WHERE enabled = 1 ORDER BY sort_order ASC, created_at ASC"
+        "SELECT id, provider, name, auth_token, cookie, curl_command, url FROM usage_trackers WHERE enabled = 1 ORDER BY sort_order ASC, created_at ASC"
     )
     if not trackers:
         return []
@@ -461,6 +477,7 @@ async def fetch_all_trackers() -> list[dict[str, Any]]:
         result = await adapter.fetch(
             str_or_empty(tracker.get("auth_token")),
             str_or_empty(tracker.get("cookie")),
+            curl_command=str_or_empty(tracker.get("curl_command")),
         )
         result["tracker_id"] = tracker["id"]
         result["tracker_name"] = tracker["name"]
