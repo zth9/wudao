@@ -406,7 +406,7 @@ export default function SettingsView() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  const handleProviderDragEnd = useCallback(async (event: DragEndEvent) => {
+  const handleProviderDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -415,10 +415,10 @@ export default function SettingsView() {
     if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(providers, oldIndex, newIndex);
-    await reorder(reordered.map((p) => p.id));
+    reorder(reordered.map((p) => p.id));
   }, [providers, reorder]);
 
-  const handleTrackerDragEnd = useCallback(async (event: DragEndEvent) => {
+  const handleTrackerDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -427,7 +427,7 @@ export default function SettingsView() {
     if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(usageTrackers, oldIndex, newIndex);
-    await reorderTrackers(reordered.map((t) => t.id));
+    reorderTrackers(reordered.map((t) => t.id));
   }, [usageTrackers, reorderTrackers]);
 
   // Default avatar options
