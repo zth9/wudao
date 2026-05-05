@@ -282,7 +282,7 @@ export default function SettingsView() {
             {/* User Profile Section */}
             {activeSection === "profile" && (
             <Card className="overflow-hidden rounded-xl">
-              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl rounded-b-xl">
                 <SettingsIcon size={16} className="text-accent" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.user_profile')}</h2>
               </div>
@@ -354,7 +354,7 @@ export default function SettingsView() {
             {/* Assistant Profile Section */}
             {activeSection === "assistant" && (
             <Card className="overflow-hidden rounded-xl">
-              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl rounded-b-xl">
                 <Bot size={16} className="text-accent" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.assistant_profile')}</h2>
               </div>
@@ -417,7 +417,7 @@ export default function SettingsView() {
             {/* Appearance Settings */}
             {activeSection === "appearance" && (
             <Card className="overflow-hidden rounded-xl">
-              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl rounded-b-xl">
                 <Languages size={16} className="text-accent" />
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.appearance')}</h2>
               </div>
@@ -485,7 +485,7 @@ export default function SettingsView() {
             {/* Model Providers */}
             {activeSection === "providers" && (
             <Card className="overflow-hidden rounded-xl">
-              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-secondary rounded-t-xl">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-secondary rounded-t-xl rounded-b-xl">
                 <div className="flex items-center gap-2">
                   <Cpu size={16} className="text-accent" />
                   <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.model_providers')}</h2>
