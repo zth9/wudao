@@ -225,7 +225,7 @@ export default function DashboardView({ onNavigate }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {usageData.map((usage) => (
                     <Card
-                      key={usage.provider}
+                      key={usage.tracker_id || usage.provider}
                       className="relative flex flex-col overflow-hidden rounded-2xl bg-surface-secondary p-5 shadow-none"
                     >
                       <div className="flex items-center justify-between mb-6">
@@ -234,7 +234,7 @@ export default function DashboardView({ onNavigate }: Props) {
                             <ProviderIcon providerId={usage.provider} size={24} />
                           </div>
                           <div>
-                            <p className="text-sm font-bold tracking-tight">{usage.provider}</p>
+                            <p className="text-sm font-bold tracking-tight">{usage.tracker_name || usage.provider}</p>
                             <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                               {usage.status === "ok" ? t("dashboard.provider_connected") : t("dashboard.provider_error")}
                             </p>

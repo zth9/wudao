@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,47 @@ class DefaultProviderSeed:
     is_default: int
     sort_order: int
 
+
+@dataclass(frozen=True)
+class DefaultUsageTrackerSeed:
+    provider: str
+    name: str
+    url: str
+    sort_order: int
+
+
+DEFAULT_USAGE_TRACKERS = [
+    DefaultUsageTrackerSeed(
+        provider="minimax",
+        name="MiniMax",
+        url="https://platform.minimaxi.com/user-center/payment/coding-plan",
+        sort_order=1,
+    ),
+    DefaultUsageTrackerSeed(
+        provider="glm",
+        name="GLM",
+        url="https://bigmodel.cn/usercenter/glm-coding/usage",
+        sort_order=2,
+    ),
+    DefaultUsageTrackerSeed(
+        provider="kimi",
+        name="Kimi",
+        url="https://www.kimi.com/code/console",
+        sort_order=3,
+    ),
+    DefaultUsageTrackerSeed(
+        provider="mimo",
+        name="MiMo",
+        url="https://platform.xiaomimimo.com/console/plan-manage",
+        sort_order=4,
+    ),
+    DefaultUsageTrackerSeed(
+        provider="codex",
+        name="Codex",
+        url="https://chatgpt.com/codex/cloud/settings/analytics",
+        sort_order=5,
+    ),
+]
 
 DEFAULT_PROVIDERS = [
     DefaultProviderSeed(
@@ -722,6 +764,101 @@ class DatabaseManager:
             (keep_id,),
         )
 
+    def _create_usage_trackers_table(self) -> None:
+        self.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS usage_trackers (
+              id TEXT PRIMARY KEY,
+              provider TEXT NOT NULL,
+              name TEXT NOT NULL,
+              auth_token TEXT,
+              cookie TEXT,
+              url TEXT,
+              sort_order INTEGER DEFAULT 0,
+              enabled INTEGER NOT NULL DEFAULT 1,
+              created_at TEXT DEFAULT (datetime('now')),
+              UNIQUE(provider, name)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_usage_trackers_sort
+              ON usage_trackers(sort_order ASC, created_at ASC);
+            """
+        )
+
+    def _migrate_usage_credentials_from_providers(self) -> None:
+        provider_key_map = {
+            "minimax": "minimax",
+            "glm": "glm",
+            "kimi": "kimi",
+            "mimo": "mimo",
+        }
+        name_map = {
+            "minimax": "MiniMax",
+            "glm": "GLM",
+            "kimi": "Kimi",
+            "mimo": "MiMo",
+        }
+
+        rows = self.query_all(
+            "SELECT id, usage_auth_token, usage_cookie FROM providers "
+            "WHERE (usage_auth_token IS NOT NULL AND usage_auth_token != '') "
+            "OR (usage_cookie IS NOT NULL AND usage_cookie != '')"
+        )
+
+        for row in rows:
+            provider_id = str(row["id"])
+            if provider_id not in provider_key_map:
+                continue
+            provider_key = provider_key_map[provider_id]
+            name = name_map[provider_id]
+            auth_token = row.get("usage_auth_token") or ""
+            cookie = row.get("usage_cookie") or ""
+            if not auth_token and not cookie:
+                continue
+
+            existing = self.query_one(
+                "SELECT id FROM usage_trackers WHERE provider = ? AND name = ?",
+                (provider_key, name),
+            )
+            if existing:
+                self.execute(
+                    "UPDATE usage_trackers SET auth_token = ?, cookie = ? WHERE id = ?",
+                    (auth_token, cookie, existing["id"]),
+                )
+            else:
+                self.execute(
+                    """
+                    INSERT INTO usage_trackers (id, provider, name, auth_token, cookie, url, sort_order, enabled)
+                    VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM usage_trackers), 1)
+                    """,
+                    (str(uuid.uuid4()), provider_key, name, auth_token, cookie, ""),
+                )
+
+    def _seed_usage_trackers(self) -> None:
+        next_sort_row = self.query_one("SELECT COALESCE(MAX(sort_order), 0) + 1 AS v FROM usage_trackers")
+        next_sort = int(next_sort_row["v"] if next_sort_row else 1)
+        inserted = 0
+
+        for tracker in DEFAULT_USAGE_TRACKERS:
+            exists = self.query_one(
+                "SELECT 1 AS ok FROM usage_trackers WHERE provider = ? AND name = ?",
+                (tracker.provider, tracker.name),
+            )
+            if exists:
+                continue
+            self.execute(
+                """
+                INSERT INTO usage_trackers (id, provider, name, auth_token, cookie, url, sort_order, enabled)
+                VALUES (?, ?, ?, NULL, NULL, ?, ?, 1)
+                """,
+                (str(uuid.uuid4()), tracker.provider, tracker.name, tracker.url, max(tracker.sort_order, next_sort)),
+            )
+            next_sort += 1
+            inserted += 1
+
+        if inserted > 0:
+            logger.info("Seeded %s default usage tracker(s)", inserted)
+
     def _init_database(self) -> None:
         self.executescript(
             """
@@ -799,6 +936,10 @@ class DatabaseManager:
 
         self.execute("UPDATE providers SET name = 'Claude' WHERE id = 'claude' AND name = 'Claude 原生'")
         self._normalize_default_provider()
+
+        self._create_usage_trackers_table()
+        self._migrate_usage_credentials_from_providers()
+        self._seed_usage_trackers()
 
 
 db = DatabaseManager(DB_PATH)

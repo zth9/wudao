@@ -170,7 +170,19 @@
     "runner_provider_follow_chat": "Follow Chat Provider",
     "runner_model": "Model Override",
     "runner_model_placeholder": "Leave empty to use provider default",
-    "runner_model_hint": "Optional. Enter a model ID to override the provider's default model."
+    "runner_model_hint": "Optional. Enter a model ID to override the provider's default model.",
+    "usage_tracking_section": "Usage Tracking",
+    "add_tracker": "Add Tracker",
+    "edit_tracker": "Edit Tracker",
+    "new_tracker": "New Tracker",
+    "tracker_name": "Tracker Name",
+    "tracker_provider": "Provider Type",
+    "tracker_auth_token": "Auth Token",
+    "tracker_cookie": "Cookie",
+    "tracker_url": "Custom URL (Optional)",
+    "tracker_enabled": "Enabled",
+    "no_trackers": "No usage trackers configured",
+    "loading_trackers": "Loading..."
   },
   "memories": {
     "kicker": "Memory",

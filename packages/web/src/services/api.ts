@@ -18,8 +18,8 @@ export interface Provider {
   name: string;
   endpoint: string;
   api_key: string | null;
-  usage_auth_token: string | null;
-  usage_cookie: string | null;
+  usage_auth_token?: string | null;
+  usage_cookie?: string | null;
   model: string;
   is_default: number;
   sort_order: number;
@@ -28,7 +28,7 @@ export interface Provider {
 
 export const providers = {
   list: () => request<Provider[]>("/settings"),
-  create: (data: Omit<Provider, "id" | "created_at" | "sort_order">) =>
+  create: (data: Partial<Provider> & { name: string; endpoint: string; model: string }) =>
     request<Provider>("/settings", { method: "POST", body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Provider>) =>
     request<Provider>(`/settings/${id}`, { method: "PUT", body: JSON.stringify(data) }),
@@ -47,6 +47,8 @@ export interface UsageItem {
 }
 
 export interface ProviderUsage {
+  tracker_id: string;
+  tracker_name: string;
   provider: string;
   status: "ok" | "error";
   error?: string;
@@ -56,6 +58,31 @@ export interface ProviderUsage {
 
 export const usage = {
   fetch: () => request<ProviderUsage[]>("/usage"),
+};
+
+// Usage Trackers
+export interface UsageTracker {
+  id: string;
+  provider: string;
+  name: string;
+  auth_token: string | null;
+  cookie: string | null;
+  url: string | null;
+  sort_order: number;
+  enabled: number;
+  created_at: string;
+}
+
+export const usageTrackers = {
+  list: () => request<UsageTracker[]>("/usage-trackers"),
+  create: (data: Omit<UsageTracker, "id" | "created_at" | "sort_order">) =>
+    request<UsageTracker>("/usage-trackers", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<UsageTracker>) =>
+    request<UsageTracker>(`/usage-trackers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  reorder: (ids: string[]) =>
+    request<UsageTracker[]>("/usage-trackers/order", { method: "PUT", body: JSON.stringify({ ids }) }),
+  delete: (id: string) =>
+    request<{ ok: boolean }>(`/usage-trackers/${id}`, { method: "DELETE" }),
 };
 
 export interface WudaoUserMemory {

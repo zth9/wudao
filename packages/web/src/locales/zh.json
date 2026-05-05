@@ -170,7 +170,19 @@
     "runner_provider_follow_chat": "跟随聊天供应商",
     "runner_model": "模型覆盖",
     "runner_model_placeholder": "留空则使用供应商默认模型",
-    "runner_model_hint": "可选。填写模型 ID 以覆盖供应商的默认模型。"
+    "runner_model_hint": "可选。填写模型 ID 以覆盖供应商的默认模型。",
+    "usage_tracking_section": "用量追踪",
+    "add_tracker": "添加追踪",
+    "edit_tracker": "编辑追踪",
+    "new_tracker": "新建追踪",
+    "tracker_name": "追踪器名称",
+    "tracker_provider": "供应商类型",
+    "tracker_auth_token": "认证 Token",
+    "tracker_cookie": "Cookie",
+    "tracker_url": "自定义链接 (可选)",
+    "tracker_enabled": "启用",
+    "no_trackers": "暂无用量追踪配置",
+    "loading_trackers": "正在加载..."
   },
   "memories": {
     "kicker": "Memory",
