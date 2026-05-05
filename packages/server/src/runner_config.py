@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 from .db import db
 
 DEFAULT_RUNNER_CONFIG: dict[str, Any] = {
@@ -52,9 +55,6 @@ def set_runner_config(
 
 
 def register_runner_config_routes(app: Any) -> None:
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
-
     @app.get("/api/runner-config")
     async def get_runner_config_route(_request: Request) -> JSONResponse:
         return JSONResponse(get_runner_config())
