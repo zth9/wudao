@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
 import { FolderOpen, RefreshCw, Save, User, WandSparkles } from "lucide-react";
 import { LoadingIndicator } from "./LoadingIndicator";
 import {
@@ -146,11 +147,14 @@ export default function MemoriesView() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-surface-secondary dark:bg-background">
       <header className="px-8 pt-8 pb-4 shrink-0 flex items-start justify-between gap-4">
-        <div>
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
           <p className="text-[11px] font-bold text-accent uppercase tracking-[0.2em] mb-1">{t("memories.kicker")}</p>
           <h1 className="text-3xl font-extrabold tracking-tight">{t("memories.title")}</h1>
           <p className="mt-2 text-sm text-muted max-w-3xl">{t("memories.subtitle")}</p>
-        </div>
+        </motion.div>
         <Button
           variant="primary"
           onPress={() => void refreshAll(true)}
