@@ -338,3 +338,15 @@ export const sdkRunner = {
   cancel: (taskId: string, runId: string) =>
     request<{ ok: boolean }>(`/tasks/${taskId}/sdk-runner/${runId}/cancel`, { method: "POST" }),
 };
+
+export interface RunnerConfig {
+  runner_type: string;
+  provider_id: string | null;
+  model_override: string | null;
+}
+
+export const runnerConfig = {
+  get: () => request<RunnerConfig>("/runner-config"),
+  update: (data: Partial<RunnerConfig>) =>
+    request<RunnerConfig>("/runner-config", { method: "PUT", body: JSON.stringify(data) }),
+};

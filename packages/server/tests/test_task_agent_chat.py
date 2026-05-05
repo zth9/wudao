@@ -306,44 +306,22 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
         if step_count == 1:
             return {
                 "type": "tool_call",
-                "toolName": "invoke_claude_code_runner",
+                "toolName": "agent_runner",
                 "input": {"prompt": "获取当前时间"},
             }
 
         assert tool_transcript == [
-            {"type": "tool_call", "toolName": "invoke_claude_code_runner", "input": {"prompt": "获取当前时间"}},
+            {"type": "tool_call", "toolName": "agent_runner", "input": {"prompt": "获取当前时间"}},
             {
                 "type": "tool_result",
-                "toolName": "invoke_claude_code_runner",
-                "output": {
-                    "ok": True,
-                    "status": "completed",
-                    "sdk_run_id": "sdk-run-time",
-                    "runner_type": "claude_code",
-                    "tool_name": "invoke_claude_code_runner",
-                    "cwd": "/tmp/demo",
-                    "prompt": "获取当前时间",
-                    "final_text": "Sun Mar 22 09:00:00 CST 2026",
-                    "summary_source": "sdk.tool_result",
-                    "tool_names": ["Bash"],
-                    "total_cost_usd": 0.01,
-                    "total_tokens": 12,
-                    "duration_ms": 900,
-                    "num_turns": 1,
-                    "last_tool_result": {
-                        "tool_use_id": "toolu_1",
-                        "tool_name": "Bash",
-                        "content": "Sun Mar 22 09:00:00 CST 2026",
-                        "text": "Sun Mar 22 09:00:00 CST 2026",
-                    },
-                    "message": "Claude Code Runner completed successfully.",
-                },
+                "toolName": "agent_runner",
+                "output": {"ok": True, "final_text": "Sun Mar 22 09:00:00 CST 2026"},
             },
         ]
         return {"type": "assistant_text", "content": "当前时间是 Sun Mar 22 09:00:00 CST 2026。"}
 
     async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, provider_id=None, on_started=None):
-        assert tool_name == "invoke_claude_code_runner"
+        assert tool_name == "agent_runner"
         assert input_data == {"prompt": "获取当前时间"}
         assert provider_id == "openai"
         if on_started is not None:
@@ -351,7 +329,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
                 {
                     "sdk_run_id": "sdk-run-time",
                     "runner_type": "claude_code",
-                    "tool_name": "invoke_claude_code_runner",
+                    "tool_name": "agent_runner",
                     "status": "running",
                     "message": "Claude Code Runner started and is now running.",
                 }
@@ -361,7 +339,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
             "status": "completed",
             "sdk_run_id": "sdk-run-time",
             "runner_type": "claude_code",
-            "tool_name": "invoke_claude_code_runner",
+            "tool_name": "agent_runner",
             "cwd": "/tmp/demo",
             "prompt": "获取当前时间",
             "final_text": "Sun Mar 22 09:00:00 CST 2026",
@@ -442,39 +420,28 @@ def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path,
         if step_count == 1:
             return {
                 "type": "tool_call",
-                "toolName": "invoke_claude_code_runner",
+                "toolName": "agent_runner",
                 "input": {"prompt": "运行失败的测试"},
             }
 
         assert tool_transcript == [
-            {"type": "tool_call", "toolName": "invoke_claude_code_runner", "input": {"prompt": "运行失败的测试"}},
+            {"type": "tool_call", "toolName": "agent_runner", "input": {"prompt": "运行失败的测试"}},
             {
                 "type": "tool_result",
-                "toolName": "invoke_claude_code_runner",
-                "output": {
-                    "ok": False,
-                    "status": "failed",
-                    "sdk_run_id": "sdk-run-failed",
-                    "runner_type": "claude_code",
-                    "tool_name": "invoke_claude_code_runner",
-                    "cwd": "/tmp/demo",
-                    "prompt": "运行失败的测试",
-                    "last_error": "pytest failed",
-                    "error": "pytest failed",
-                    "message": "pytest failed",
-                },
+                "toolName": "agent_runner",
+                "output": {"ok": False, "final_text": "", "error": "pytest failed"},
             },
         ]
         return {"type": "assistant_text", "content": "Runner 执行失败：pytest failed。"}
 
     async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, provider_id=None, on_started=None):
-        assert tool_name == "invoke_claude_code_runner"
+        assert tool_name == "agent_runner"
         if on_started is not None:
             await on_started(
                 {
                     "sdk_run_id": "sdk-run-failed",
                     "runner_type": "claude_code",
-                    "tool_name": "invoke_claude_code_runner",
+                    "tool_name": "agent_runner",
                     "status": "running",
                     "message": "Claude Code Runner started and is now running.",
                 }
@@ -484,7 +451,7 @@ def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path,
             "status": "failed",
             "sdk_run_id": "sdk-run-failed",
             "runner_type": "claude_code",
-            "tool_name": "invoke_claude_code_runner",
+            "tool_name": "agent_runner",
             "cwd": "/tmp/demo",
             "prompt": "运行失败的测试",
             "last_error": "pytest failed",
@@ -556,7 +523,7 @@ def test_thread_endpoint_repairs_orphaned_completed_sdk_runner_tool_call(tmp_pat
         kind="tool_call",
         status="streaming",
         content_json={
-            "toolName": "invoke_claude_code_runner",
+            "toolName": "agent_runner",
             "input": {"prompt": "print current time", "timeoutSeconds": 120},
             "sdk_run_id": "sdk-run-1",
         },
@@ -615,7 +582,7 @@ def test_thread_endpoint_repairs_sdk_runner_tool_call_from_checkpoint(tmp_path, 
         "openai",
         run_id="agent-run-checkpoint",
         checkpoint_json=checkpoint_mod.build_sdk_runner_wait_checkpoint(
-            tool_name="invoke_claude_code_runner",
+            tool_name="agent_runner",
             tool_input={"prompt": "print current time"},
             tool_call_message_id="tool-call-checkpoint",
             sdk_run_id="sdk-run-checkpoint",
@@ -628,7 +595,7 @@ def test_thread_endpoint_repairs_sdk_runner_tool_call_from_checkpoint(tmp_path, 
         kind="tool_call",
         status="streaming",
         content_json={
-            "toolName": "invoke_claude_code_runner",
+            "toolName": "agent_runner",
             "input": {"prompt": "print current time"},
         },
         message_id="tool-call-checkpoint",

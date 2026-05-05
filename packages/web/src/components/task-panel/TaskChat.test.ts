@@ -149,14 +149,14 @@ describe("TaskChat", () => {
     expect(html).toContain("README.md");
   });
 
-  it("为 invoke_claude_code_runner 工具结果提供打开对应 Agent Runner 的入口", () => {
+  it("为 agent_runner 工具结果提供打开对应 Agent Runner 的入口", () => {
     const html = renderToStaticMarkup(
       createElement(TaskChat, {
         taskId: "2026-03-21-1",
         taskProviderId: "provider-1",
         items: [
-          { id: "tool-call", kind: "tool_call", toolName: "invoke_claude_code_runner", input: { prompt: "执行一次测试" }, status: "completed" },
-          { id: "tool-result", kind: "tool_result", toolName: "invoke_claude_code_runner", output: { ok: true, sdk_run_id: "sdk-run-12345678" }, status: "completed" },
+          { id: "tool-call", kind: "tool_call", toolName: "agent_runner", input: { prompt: "执行一次测试" }, status: "completed" },
+          { id: "tool-result", kind: "tool_result", toolName: "agent_runner", output: { ok: true, sdk_run_id: "sdk-run-12345678" }, status: "completed" },
         ],
         streaming: false,
         onSend: () => undefined,
@@ -180,7 +180,7 @@ describe("TaskChat", () => {
           {
             id: "tool-call",
             kind: "tool_call",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             input: { prompt: "执行一次测试" },
             sdkRunId: "sdk-run-12345678",
             status: "completed",
@@ -188,7 +188,7 @@ describe("TaskChat", () => {
           {
             id: "tool-result",
             kind: "tool_result",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             output: { ok: true, sdk_run_id: "sdk-run-12345678", final_text_split: true },
             status: "completed",
           },
@@ -225,14 +225,14 @@ describe("TaskChat", () => {
           {
             id: "tool-call",
             kind: "tool_call",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             input: { prompt: "获取当前时间" },
             status: "completed",
           },
           {
             id: "tool-result",
             kind: "tool_result",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             output: {
               ok: true,
               sdk_run_id: "sdk-run-old",
@@ -262,14 +262,14 @@ describe("TaskChat", () => {
           {
             id: "tool-call",
             kind: "tool_call",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             input: { prompt: "运行测试" },
             status: "failed",
           },
           {
             id: "tool-result",
             kind: "tool_result",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             output: { ok: false, sdk_run_id: "sdk-run-failed", error: "pytest failed" },
             status: "failed",
           },
@@ -295,7 +295,7 @@ describe("TaskChat", () => {
           {
             id: "tool-call",
             kind: "tool_call",
-            toolName: "invoke_claude_code_runner",
+            toolName: "agent_runner",
             input: { prompt: "执行一次测试" },
             sdkRunId: "sdk-run-87654321",
             status: "streaming",

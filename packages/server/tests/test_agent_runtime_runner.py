@@ -126,19 +126,19 @@ def test_runner_persists_sdk_wait_checkpoint_while_runner_is_active(tmp_path, mo
         if step_count == 1:
             return {
                 "type": "tool_call",
-                "toolName": "invoke_claude_code_runner",
+                "toolName": "agent_runner",
                 "input": {"prompt": "run tests"},
             }
         return {"type": "assistant_text", "content": "Runner 已完成。"}
 
     async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, provider_id=None, on_started=None):
-        assert tool_name == "invoke_claude_code_runner"
+        assert tool_name == "agent_runner"
         if on_started is not None:
             await on_started(
                 {
                     "sdk_run_id": "sdk-run-checkpoint-active",
                     "runner_type": "claude_code",
-                    "tool_name": "invoke_claude_code_runner",
+                    "tool_name": "agent_runner",
                     "status": "running",
                     "message": "Claude Code Runner started and is now running.",
                 }
@@ -184,7 +184,7 @@ def test_runner_persists_sdk_wait_checkpoint_while_runner_is_active(tmp_path, mo
         checkpoint = thread_store.get_agent_run(run["id"])["checkpoint_json"]
         assert checkpoint == {
             "type": "sdk_runner_wait",
-            "tool_name": "invoke_claude_code_runner",
+            "tool_name": "agent_runner",
             "tool_input": {"prompt": "run tests"},
             "tool_call_message_id": events[0]["item"]["id"],
             "sdk_run_id": "sdk-run-checkpoint-active",

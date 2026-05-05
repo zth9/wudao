@@ -39,6 +39,7 @@ from .task_helpers import (
     persist_task_chat_result,
     to_due_at_sort_key,
 )
+from .runner_config import register_runner_config_routes
 from .task_agent_chat import register_task_agent_chat_routes
 from .task_sdk_runner import register_sdk_runner_routes
 from .task_service import (
@@ -596,6 +597,7 @@ def create_app() -> FastAPI:
 
     register_task_agent_chat_routes(app)
     register_sdk_runner_routes(app)
+    register_runner_config_routes(app)
 
     @app.websocket("/ws/terminal")
     async def terminal_ws(websocket: WebSocket) -> None:

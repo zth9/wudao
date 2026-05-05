@@ -57,6 +57,127 @@ export function DefaultProviderToggle({ checked, label, onChange }: DefaultProvi
   );
 }
 
+function AgentRunnerSettingsCard() {
+  const { t } = useTranslation();
+  const providers = useSettingsStore((s) => s.providers);
+  const runnerConfig = useSettingsStore((s) => s.runnerConfig);
+  const runnerConfigLoading = useSettingsStore((s) => s.runnerConfigLoading);
+  const fetchRunnerConfig = useSettingsStore((s) => s.fetchRunnerConfig);
+  const updateRunnerConfig = useSettingsStore((s) => s.updateRunnerConfig);
+  const fetchProviders = useSettingsStore((s) => s.fetch);
+  const [modelOverride, setModelOverride] = useState("");
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
+
+  useEffect(() => {
+    fetchRunnerConfig();
+    fetchProviders();
+  }, []);
+
+  useEffect(() => {
+    if (runnerConfig) {
+      setModelOverride(runnerConfig.model_override || "");
+      setSelectedProviderId(runnerConfig.provider_id || "");
+    }
+  }, [runnerConfig]);
+
+  const handleSave = async () => {
+    await updateRunnerConfig({
+      provider_id: selectedProviderId || null,
+      model_override: modelOverride.trim() || null,
+    });
+  };
+
+  return (
+    <Card className="p-6 space-y-6 border border-border bg-surface/50 backdrop-blur-md">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+          <Bot size={16} className="text-accent" />
+        </div>
+        <div>
+          <h2 className="text-sm font-bold">{t("settings.agent_runner")}</h2>
+          <p className="text-[11px] text-muted">{t("settings.agent_runner_desc")}</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">
+            {t("settings.runner_type")}
+          </label>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-default/50 text-xs">
+            <Chip size="sm" variant="soft" className="bg-accent/10 text-accent">
+              Claude SDK
+            </Chip>
+            <span className="text-muted text-[10px]">{t("settings.runner_type_only_option")}</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">
+            {t("settings.runner_provider")}
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSelectedProviderId("")}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs text-left transition-all",
+                !selectedProviderId
+                  ? "border-accent/20 bg-accent/10"
+                  : "border-border bg-default/50 hover:bg-default/80",
+              )}
+            >
+              <span className="font-medium">{t("settings.runner_provider_follow_chat")}</span>
+            </button>
+            {providers.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelectedProviderId(p.id)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs text-left transition-all",
+                  selectedProviderId === p.id
+                    ? "border-accent/20 bg-accent/10"
+                    : "border-border bg-default/50 hover:bg-default/80",
+                )}
+              >
+                <ProviderIcon providerId={p.id} size={14} className="shrink-0" />
+                <span className="font-medium">{p.name}</span>
+                <span className="text-muted text-[10px] truncate">{p.model}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-2">
+            {t("settings.runner_model")}
+          </label>
+          <Input
+            value={modelOverride}
+            onChange={(e) => setModelOverride(e.target.value)}
+            placeholder={t("settings.runner_model_placeholder")}
+            className="font-mono text-xs"
+          />
+          <p className="text-[10px] text-muted mt-1">{t("settings.runner_model_hint")}</p>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          onPress={handleSave}
+          variant="primary"
+          size="sm"
+          isDisabled={runnerConfigLoading}
+          className="rounded-lg"
+        >
+          {runnerConfigLoading ? <Spinner size="sm" /> : t("common.save")}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export default function SettingsView() {
   const { t, i18n } = useTranslation();
   const {
@@ -234,6 +355,7 @@ export default function SettingsView() {
     { key: "assistant", icon: Bot, label: t("settings.assistant_profile") },
     { key: "appearance", icon: Sun, label: t("settings.appearance") },
     { key: "providers", icon: Cpu, label: t("settings.model_providers") },
+    { key: "agent_runner", icon: Bot, label: t("settings.agent_runner") },
   ];
 
   // Reset scroll position when switching sections
@@ -632,6 +754,10 @@ export default function SettingsView() {
                 )}
               </div>
             </Card>
+            )}
+
+            {activeSection === "agent_runner" && (
+            <AgentRunnerSettingsCard />
             )}
 
             <footer className="text-center py-8 opacity-30">

@@ -23,23 +23,20 @@ class SdkRunnerToolDefinition:
 
 SDK_RUNNER_TOOL_DEFINITIONS: tuple[SdkRunnerToolDefinition, ...] = (
     SdkRunnerToolDefinition(
-        tool_name="invoke_claude_code_runner",
+        tool_name="agent_runner",
         runner_type="claude_code",
-        display_name="Claude Code Runner",
+        display_name="Agent Runner",
         description=(
-            "Invoke Claude Code Runner to execute a coding task in a target project directory. "
-            "Use this when the user explicitly wants Claude Code / Claude Agent SDK to write code, "
+            "Invoke Agent Runner to execute a coding task in a target project directory. "
+            "Use this when the user explicitly wants an AI coding agent to write code, "
             "fix bugs, add features, run tests, or perform coding work. "
             "The runner execution will be visible in the Agent Runner panel while this tool call is running. "
-            "This tool waits for Claude Code Runner to finish and then returns its final execution summary. "
-            "Do not use terminal_snapshot to inspect Claude Code Runner output; read this tool result instead."
+            "This tool waits for the runner to finish and then returns its final execution summary. "
+            "Do not use terminal_snapshot to inspect Agent Runner output; read this tool result instead."
         ),
     ),
 )
 
-SDK_RUNNER_TOOL_ALIASES = {
-    "invoke_sdk_runner": "invoke_claude_code_runner",
-}
 SDK_RUN_TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
 
 _TOOL_DEFINITION_BY_NAME = {item.tool_name: item for item in SDK_RUNNER_TOOL_DEFINITIONS}
@@ -52,8 +49,7 @@ def _default_sdk_cwd(task_id: str) -> str:
 
 
 def normalize_sdk_runner_tool_name(tool_name: str) -> str:
-    normalized = tool_name.strip()
-    return SDK_RUNNER_TOOL_ALIASES.get(normalized, normalized)
+    return tool_name.strip()
 
 
 def is_sdk_runner_tool_name(tool_name: str) -> bool:
@@ -65,7 +61,7 @@ def get_sdk_runner_tool_definition(tool_name: str) -> SdkRunnerToolDefinition | 
 
 
 def sdk_runner_known_tool_names() -> set[str]:
-    return set(_TOOL_DEFINITION_BY_NAME) | set(SDK_RUNNER_TOOL_ALIASES)
+    return set(_TOOL_DEFINITION_BY_NAME)
 
 
 def sdk_tools_prompt_schema() -> list[dict[str, Any]]:
@@ -85,6 +81,20 @@ def sdk_tools_prompt_schema() -> list[dict[str, Any]]:
                         "description": (
                             "Working directory for the runner. Defaults to the current task workspace. "
                             "Use an absolute path to target a different project."
+                        ),
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": (
+                            "Model to use for this run. Overrides the default runner model. "
+                            "Only set when the user explicitly requests a specific model."
+                        ),
+                    },
+                    "runner_type": {
+                        "type": "string",
+                        "description": (
+                            "Runner backend type. Currently only 'claude_code' is supported. "
+                            "Only set when the user explicitly requests a different runner type."
                         ),
                     },
                 },
@@ -228,9 +238,9 @@ def _build_completed_run_summary(
     if last_tool_result is not None:
         output["last_tool_result"] = last_tool_result
     if final_text:
-        output["message"] = "Claude Code Runner completed successfully."
+        output["message"] = "Agent Runner completed successfully."
     else:
-        output["message"] = "Claude Code Runner completed successfully, but no final text summary was produced."
+        output["message"] = "Agent Runner completed successfully, but no final text summary was produced."
     return output
 
 
@@ -240,7 +250,7 @@ def _build_failed_run_summary(
     tool_name: str,
     error: str,
 ) -> dict[str, Any]:
-    message = error.strip() or "Claude Code Runner failed."
+    message = error.strip() or "Agent Runner failed."
     return {
         "ok": False,
         "status": run.get("status") or "failed",
@@ -258,7 +268,7 @@ def _build_failed_run_summary(
 def summarize_sdk_run_result(
     run_id: str,
     *,
-    tool_name: str = "invoke_claude_code_runner",
+    tool_name: str = "agent_runner",
 ) -> dict[str, Any]:
     from .sdk_store import get_sdk_run, list_sdk_events
 
@@ -337,7 +347,7 @@ async def invoke_sdk_runner_tool(
     *,
     agent_run_id: str | None = None,
     provider_id: str | None = None,
-    tool_name: str = "invoke_claude_code_runner",
+    tool_name: str = "agent_runner",
     on_started: SdkRunnerStartedCallback | None = None,
 ) -> dict[str, Any]:
     """Execute a runner-specific SDK invocation tool."""
@@ -354,6 +364,18 @@ async def invoke_sdk_runner_tool(
         cwd = _default_sdk_cwd(task_id)
     else:
         cwd = str(Path(cwd).expanduser())
+
+    model_override = input_data.get("model", "").strip() or None
+    runner_type_override = input_data.get("runner_type", "").strip() or None
+
+    from ..runner_config import get_runner_config
+    runner_defaults = get_runner_config()
+
+    effective_runner_type = runner_type_override or runner_defaults.get("runner_type") or definition.runner_type
+    if not model_override:
+        model_override = runner_defaults.get("model_override") or None
+    if runner_defaults.get("provider_id") and not provider_id:
+        provider_id = str(runner_defaults["provider_id"])
 
     from .sdk_runner import registry, start_sdk_run
     from .sdk_store import get_sdk_run, list_sdk_events
@@ -375,7 +397,8 @@ async def invoke_sdk_runner_tool(
             emitter=noop_emitter,
             agent_run_id=agent_run_id,
             provider_id=provider_id,
-            runner_type=definition.runner_type,
+            runner_type=effective_runner_type,
+            model_override=model_override,
             on_finished=handle_tool_finished,
         )
         started_payload = {

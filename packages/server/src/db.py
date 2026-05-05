@@ -242,6 +242,19 @@ class DatabaseManager:
             "UPDATE task_sdk_runs SET runner_type = 'claude_code' WHERE runner_type IS NULL OR runner_type = ''"
         )
 
+    def _create_agent_runner_config_table(self) -> None:
+        self.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS agent_runner_config (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              runner_type TEXT NOT NULL DEFAULT 'claude_code',
+              provider_id TEXT,
+              model_override TEXT,
+              updated_at TEXT DEFAULT (datetime('now'))
+            );
+            """
+        )
+
     def _foreign_key_targets(self, table: str) -> set[str]:
         if not self._table_exists(table):
             return set()
@@ -735,6 +748,7 @@ class DatabaseManager:
         self._create_task_agent_runtime_tables()
         self._create_sdk_runner_tables()
         self._migrate_sdk_runner_tables()
+        self._create_agent_runner_config_table()
         self._repair_legacy_task_runtime_foreign_keys()
 
         self.execute("UPDATE tasks SET status = 'execution' WHERE status IS NULL OR status != 'done'")

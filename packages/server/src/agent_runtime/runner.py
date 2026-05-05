@@ -400,10 +400,17 @@ async def _process_tool_execution(
         )
         yield {"type": "message.completed", "item": text_item}
 
-    tool_transcript.extend([
-        {"type": "tool_call", "toolName": tool_name, "input": tool_input},
-        {"type": "tool_result", "toolName": tool_name, "output": output},
-    ])
+    if is_sdk_runner_tool_name(tool_name):
+        compact_output: dict[str, Any] = {"ok": output.get("ok"), "final_text": str(output.get("final_text") or "")}
+        if not output.get("ok"):
+            compact_output["error"] = str(output.get("error") or "")
+        tool_transcript.append({"type": "tool_call", "toolName": tool_name, "input": tool_input})
+        tool_transcript.append({"type": "tool_result", "toolName": tool_name, "output": compact_output})
+    else:
+        tool_transcript.extend([
+            {"type": "tool_call", "toolName": tool_name, "input": tool_input},
+            {"type": "tool_result", "toolName": tool_name, "output": output},
+        ])
 
 
 async def _execute_tool_call_sequence(

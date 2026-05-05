@@ -1,7 +1,5 @@
 export const SDK_RUNNER_TOOL_NAMES = new Set([
-  "invoke_sdk_runner",
-  "invoke_claude_code_runner",
-  "invoke_codex_runner",
+  "agent_runner",
 ]);
 
 function asRecord(value: unknown): Record<string, unknown> | null {

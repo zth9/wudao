@@ -161,7 +161,16 @@
     "language_label": "Language",
     "tab_profile": "Profile",
     "tab_appearance": "Appearance",
-    "tab_providers": "Model Providers"
+    "tab_providers": "Model Providers",
+    "agent_runner": "Agent Runner",
+    "agent_runner_desc": "Configure default parameters for Agent Runner. Can be overridden in conversation.",
+    "runner_type": "Runner Type",
+    "runner_type_only_option": "Only this type is currently supported",
+    "runner_provider": "Provider",
+    "runner_provider_follow_chat": "Follow Chat Provider",
+    "runner_model": "Model Override",
+    "runner_model_placeholder": "Leave empty to use provider default",
+    "runner_model_hint": "Optional. Enter a model ID to override the provider's default model."
   },
   "memories": {
     "kicker": "Memory",
