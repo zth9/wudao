@@ -11,7 +11,6 @@ from typing import Any, Awaitable, Callable
 from ..paths import WORKSPACE_DIR
 
 SdkRunnerStartedCallback = Callable[[dict[str, Any]], Awaitable[None]]
-DEFAULT_SDK_RUNNER_TIMEOUT_SECONDS = 20 * 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,13 +85,6 @@ def sdk_tools_prompt_schema() -> list[dict[str, Any]]:
                         "description": (
                             "Working directory for the runner. Defaults to the current task workspace. "
                             "Use an absolute path to target a different project."
-                        ),
-                    },
-                    "timeoutSeconds": {
-                        "type": "number",
-                        "description": (
-                            "Optional timeout for the runner execution. "
-                            f"Defaults to {DEFAULT_SDK_RUNNER_TIMEOUT_SECONDS} seconds."
                         ),
                     },
                 },
@@ -247,19 +239,17 @@ def _build_failed_run_summary(
     run: dict[str, Any],
     tool_name: str,
     error: str,
-    timed_out: bool = False,
 ) -> dict[str, Any]:
     message = error.strip() or "Claude Code Runner failed."
     return {
         "ok": False,
-        "status": run.get("status") or ("cancelled" if timed_out else "failed"),
+        "status": run.get("status") or "failed",
         "sdk_run_id": run["id"],
         "runner_type": run.get("runner_type") or "claude_code",
         "tool_name": tool_name,
         "cwd": run.get("cwd"),
         "prompt": run.get("prompt", ""),
         "last_error": run.get("last_error") or message,
-        "timed_out": timed_out,
         "error": message,
         "message": message,
     }
@@ -289,7 +279,6 @@ def summarize_sdk_run_result(
             run=run,
             tool_name=tool_name,
             error=str(run.get("last_error") or f"Claude Code Runner {status}."),
-            timed_out=False,
         )
 
     raise RuntimeError(f"SDK run {run_id} is still active")
@@ -299,36 +288,47 @@ async def _wait_for_sdk_run_completion(
     run_id: str,
     *,
     completion_future: asyncio.Future[dict[str, Any]],
-    timeout_seconds: float,
 ) -> dict[str, Any]:
+    from .sdk_runner import registry
     from .sdk_store import get_sdk_run
 
-    loop = asyncio.get_running_loop()
-    deadline = loop.time() + float(timeout_seconds)
     poll_interval = 0.25
 
     while True:
-        remaining = deadline - loop.time()
-        if remaining <= 0:
-            raise asyncio.TimeoutError
-
         try:
             return await asyncio.wait_for(
                 asyncio.shield(completion_future),
-                timeout=min(poll_interval, remaining),
+                timeout=poll_interval,
             )
         except asyncio.TimeoutError:
-            current_run = get_sdk_run(run_id)
-            status = str(current_run.get("status") or "").strip() if current_run else ""
-            if status not in SDK_RUN_TERMINAL_STATUSES:
+            # Check if the SDK process task is still alive
+            if registry.is_running(run_id):
                 continue
 
-            payload: dict[str, Any] = {"run_id": run_id, "status": status}
-            if status == "failed" and current_run:
-                last_error = str(current_run.get("last_error") or "").strip()
-                if last_error:
-                    payload["error"] = last_error
-            return payload
+            # Process died — check DB for terminal status
+            current_run = get_sdk_run(run_id)
+            status = str(current_run.get("status") or "").strip() if current_run else ""
+            if status in SDK_RUN_TERMINAL_STATUSES:
+                payload: dict[str, Any] = {"run_id": run_id, "status": status}
+                if status == "failed" and current_run:
+                    last_error = str(current_run.get("last_error") or "").strip()
+                    if last_error:
+                        payload["error"] = last_error
+                return payload
+
+            # Process dead but DB not yet updated — wait briefly for DB to catch up
+            await asyncio.sleep(0.5)
+            current_run = get_sdk_run(run_id)
+            status = str(current_run.get("status") or "").strip() if current_run else ""
+            if status in SDK_RUN_TERMINAL_STATUSES:
+                payload = {"run_id": run_id, "status": status}
+                if status == "failed" and current_run:
+                    last_error = str(current_run.get("last_error") or "").strip()
+                    if last_error:
+                        payload["error"] = last_error
+                return payload
+
+            return {"run_id": run_id, "status": "failed", "error": "SDK process exited unexpectedly"}
 
 
 async def invoke_sdk_runner_tool(
@@ -354,12 +354,6 @@ async def invoke_sdk_runner_tool(
         cwd = _default_sdk_cwd(task_id)
     else:
         cwd = str(Path(cwd).expanduser())
-
-    timeout_seconds = input_data.get("timeoutSeconds")
-    if timeout_seconds is None:
-        timeout_seconds = DEFAULT_SDK_RUNNER_TIMEOUT_SECONDS
-    elif not isinstance(timeout_seconds, (int, float)) or timeout_seconds <= 0:
-        return {"ok": False, "error": "timeoutSeconds must be a positive number"}
 
     from .sdk_runner import registry, start_sdk_run
     from .sdk_store import get_sdk_run, list_sdk_events
@@ -398,24 +392,14 @@ async def invoke_sdk_runner_tool(
             await _wait_for_sdk_run_completion(
                 run["id"],
                 completion_future=completion_future,
-                timeout_seconds=float(timeout_seconds),
             )
-        except asyncio.TimeoutError:
+        except asyncio.CancelledError:
             registry.cancel(run["id"])
-            try:
-                await _wait_for_sdk_run_completion(
-                    run["id"],
-                    completion_future=completion_future,
-                    timeout_seconds=5,
-                )
-            except asyncio.TimeoutError:
-                pass
             current_run = get_sdk_run(run["id"]) or run
             return _build_failed_run_summary(
                 run=current_run,
                 tool_name=definition.tool_name,
-                error=f"{definition.display_name} timed out after {int(timeout_seconds)} seconds.",
-                timed_out=True,
+                error=f"{definition.display_name} was cancelled.",
             )
 
         return summarize_sdk_run_result(
