@@ -137,13 +137,15 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       reorder: async (ids) => {
-        set({ error: null });
+        const prev = get().providers;
+        const reordered = ids.map((id) => prev.find((p) => p.id === id)!).filter(Boolean);
+        set({ providers: reordered, error: null });
         try {
           const providers = await api.reorder(ids);
           set({ providers, error: null });
           return true;
         } catch (error) {
-          set({ error: resolveSettingsError(error, "Failed to reorder providers") });
+          set({ providers: prev, error: resolveSettingsError(error, "Failed to reorder providers") });
           return false;
         }
       },
@@ -231,13 +233,15 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       reorderTrackers: async (ids) => {
-        set({ trackerError: null });
+        const prev = get().usageTrackers;
+        const reordered = ids.map((id) => prev.find((t) => t.id === id)!).filter(Boolean);
+        set({ usageTrackers: reordered, trackerError: null });
         try {
           const usageTrackers = await trackerApi.reorder(ids);
           set({ usageTrackers, trackerError: null });
           return true;
         } catch (error) {
-          set({ trackerError: resolveSettingsError(error, "Failed to reorder trackers") });
+          set({ usageTrackers: prev, trackerError: resolveSettingsError(error, "Failed to reorder trackers") });
           return false;
         }
       },
