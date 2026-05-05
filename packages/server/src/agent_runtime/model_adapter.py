@@ -4,9 +4,9 @@ import html
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, AsyncGenerator
 
-from ..llm import chat_complete
+from ..llm import chat_complete, stream_chat
 from ..sdk_runner.sdk_tools import sdk_runner_known_tool_names
 from .debug_logging import agent_debug_log, debug_text, debug_value_summary
 from .tool_types import AgentTool
@@ -46,37 +46,29 @@ TOOL_META_KEYS = {
 
 JSON_ENVELOPE_INSTRUCTION = """你是任务工作台里的 Agentic Chat 运行时。
 
-你必须始终只输出一个 JSON 对象，不要输出 Markdown、解释文字或代码块。
+回复规则：
+- 如果你已有足够信息回答用户，直接输出纯文本回复，不要包裹 JSON 或 Markdown 代码块。
+- 如果你需要调用工具，输出一个 JSON 对象：
+  {"assistant_text": "给用户看的简短说明", "tool_calls": [{"toolName": "...", "input": {...}}]}
 
-输出 JSON schema：
-{
-  "assistant_text": "给用户看的最终回复，可为空字符串",
-  "tool_calls": [
-    {
-      "toolName": "只能从可用工具中选择",
-      "input": {}
-    }
-  ]
-}
+工具调用规则：
+1. toolName 必须严格来自可用工具列表，input 必须是 JSON 对象。
+2. 可以同时给出简短 assistant_text，但不要写成长篇解释。
+3. 不要臆造工具结果，不要请求 workspace 之外的路径。
+4. 如果工具结果已经足够，请直接输出纯文本回复。
 
-规则：
-1. 如果已有信息足够回答，就输出 assistant_text，并省略 tool_calls 或返回空数组。
-2. 如果需要读取更多信息，就输出 tool_calls；可以同时给一个简短 assistant_text，但不要写成长篇解释。
-3. toolName 必须严格来自可用工具列表，input 必须是 JSON 对象。
-4. 不要臆造工具结果，不要请求 workspace 之外的路径。
-5. 如果工具结果已经足够，请在下一轮直接返回 assistant_text。
-6. 首轮对话默认先通过 assistant_text 与用户沟通，优先补齐目标、范围、环境和复现信息；不要一上来就调用工具。
-7. 当前任务的 workspace 在开始阶段通常是空的；不要为了“先了解情况”就读取当前 workspace。
-8. 如果调用的是会等待完成的异步工具（例如 invoke_claude_code_runner），请直接等待该工具返回最终结果，不要额外调用 terminal_snapshot 去猜测它的输出。
-9. 如果你打算调用、使用、执行、运行任何可用工具，必须输出 tool_calls；不要用 assistant_text 承诺“马上调用”“我会执行”，然后不提供 tool_calls。
+交互规则：
+1. 首轮对话默认先与用户沟通，优先补齐目标、范围、环境和复现信息；不要一上来就调用工具。
+2. 当前任务的 workspace 在开始阶段通常是空的；不要为了"先了解情况"就读取当前 workspace。
+3. 如果调用的是会等待完成的异步工具（例如 invoke_claude_code_runner），请直接等待该工具返回最终结果，不要额外调用 terminal_snapshot 去猜测它的输出。
+4. 如果你打算调用任何可用工具，必须输出 JSON 格式并提供 tool_calls；不要用纯文本承诺"马上调用""我会执行"而不提供 tool_calls。
 """
 
-TOOL_PROTOCOL_REPAIR_INSTRUCTION = """上一条回复没有遵守 Agentic Chat 的 JSON 工具协议。
+TOOL_PROTOCOL_REPAIR_INSTRUCTION = """上一条回复没有遵守 Agentic Chat 的回复格式协议。
 
-请把上一条回复改写为一个严格 JSON 对象，不要输出 Markdown、解释文字或代码块。
-
-如果上一条回复是在承诺调用、使用、执行、运行某个可用工具，必须把它改写为 tool_calls；不要仅用 assistant_text 承诺未来会调用工具。
-如果无需调用工具，则把最终回复放入 assistant_text，并返回空 tool_calls 或省略 tool_calls。
+如果上一条回复是在承诺调用、使用、执行、运行某个可用工具，必须把它改写为 JSON 格式并提供 tool_calls：
+{"assistant_text": "简短说明", "tool_calls": [{"toolName": "...", "input": {...}}]}
+如果无需调用工具，则直接输出纯文本最终回复，不要包裹 JSON。
 """
 
 
@@ -526,3 +518,190 @@ async def next_agent_step(
         "content": step.assistant_text or step.raw_text.strip(),
         "degraded": not step.structured,
     }
+
+
+async def stream_complete_agent_turn(
+    provider_id: str,
+    messages: list[dict[str, str]],
+    tools: list[AgentTool],
+) -> AsyncGenerator[dict[str, Any], None]:
+    """流式完成 Agent 回合，纯文本模式逐 delta 推送，JSON 模式缓冲后解析。"""
+    prompt_messages = [
+        *messages,
+        _tool_protocol_system_message(tools),
+    ]
+    agent_debug_log(
+        "stream.model.request",
+        provider_id=provider_id,
+        message_count=len(messages),
+        system_message_count=sum(1 for message in messages if message.get("role") == "system"),
+        user_message_count=sum(1 for message in messages if message.get("role") == "user"),
+        assistant_message_count=sum(1 for message in messages if message.get("role") == "assistant"),
+        tool_names=[tool.name for tool in tools],
+        latest_user_prompt=_latest_user_prompt(messages),
+    )
+
+    accumulated: list[str] = []
+    is_json_mode: bool | None = None
+    pending_text_buffer: list[str] = []
+
+    async for delta in stream_chat(prompt_messages, provider_id):
+        accumulated.append(delta)
+
+        if is_json_mode is None:
+            pending_text_buffer.append(delta)
+            text_so_far = "".join(pending_text_buffer)
+            stripped = text_so_far.lstrip()
+            if not stripped:
+                continue
+            is_json_mode = stripped[0] == "{"
+            if not is_json_mode:
+                yield {"type": "delta", "text": text_so_far}
+                pending_text_buffer.clear()
+            continue
+
+        if is_json_mode:
+            continue
+
+        yield {"type": "delta", "text": delta}
+
+    raw_text = "".join(accumulated)
+    agent_debug_log(
+        "stream.model.raw_response",
+        provider_id=provider_id,
+        is_json_mode=is_json_mode,
+        raw=debug_text(raw_text),
+    )
+
+    if is_json_mode:
+        parsed = parse_agent_model_response(raw_text)
+        if not parsed.structured and tools:
+            agent_debug_log(
+                "stream.model.protocol_repair.request",
+                provider_id=provider_id,
+                previous_raw=debug_text(raw_text),
+            )
+            repaired_raw = await chat_complete(
+                [
+                    *prompt_messages,
+                    {"role": "assistant", "content": raw_text},
+                    {"role": "user", "content": TOOL_PROTOCOL_REPAIR_INSTRUCTION},
+                ],
+                provider_id,
+            )
+            agent_debug_log(
+                "stream.model.protocol_repair.raw_response",
+                provider_id=provider_id,
+                raw=debug_text(repaired_raw),
+            )
+            repaired = parse_agent_model_response(repaired_raw)
+            parsed = repaired if repaired.structured else parsed
+    else:
+        parsed = AgentModelResponse(
+            assistant_text=raw_text.strip(),
+            tool_calls=[],
+            raw_text=raw_text,
+            structured=False,
+        )
+
+    agent_debug_log(
+        "stream.model.parsed_response",
+        provider_id=provider_id,
+        is_json_mode=is_json_mode,
+        structured=parsed.structured,
+        assistant_text=debug_text(parsed.assistant_text),
+        tool_calls=_summarize_tool_calls(parsed.tool_calls),
+    )
+    yield {"type": "complete", "response": parsed}
+
+
+async def stream_next_agent_step(
+    provider_id: str,
+    *,
+    system_messages: list[dict[str, str]] | None,
+    history: list[dict[str, str]],
+    tool_schemas: list[dict[str, Any]],
+    tool_transcript: list[dict[str, Any]],
+) -> AsyncGenerator[dict[str, Any], None]:
+    """流式执行 Agent 单步，透传 delta 并在完成后转换为 step dict。"""
+    tools = [
+        AgentTool(
+            name=str(tool["name"]),
+            description=str(tool.get("description") or ""),
+            input_schema=tool.get("inputSchema") if isinstance(tool.get("inputSchema"), dict) else {},
+            execute=lambda *_args, **_kwargs: None,  # type: ignore[arg-type]
+        )
+        for tool in tool_schemas
+        if isinstance(tool, dict) and isinstance(tool.get("name"), str)
+    ]
+    transcript_messages = [
+        {
+            "role": "assistant" if item.get("type") == "tool_call" else "user",
+            "content": json.dumps(item, ensure_ascii=False),
+        }
+        for item in tool_transcript
+    ]
+    agent_debug_log(
+        "stream.step.request",
+        provider_id=provider_id,
+        history_count=len(history),
+        latest_user_prompt=_latest_user_prompt(history),
+        system_message_count=len(system_messages or []),
+        tool_names=[tool.name for tool in tools],
+        tool_transcript_count=len(tool_transcript),
+        tool_transcript_summary=[
+            {
+                "type": item.get("type"),
+                "toolName": item.get("toolName"),
+            }
+            for item in tool_transcript
+        ],
+    )
+
+    final_response: AgentModelResponse | None = None
+    async for event in stream_complete_agent_turn(
+        provider_id,
+        [*(system_messages or []), *history, *transcript_messages],
+        tools,
+    ):
+        if event["type"] == "delta":
+            yield event
+        elif event["type"] == "complete":
+            final_response = event["response"]
+
+    if final_response is None:
+        raise RuntimeError("stream_complete_agent_turn did not yield a complete event")
+
+    agent_debug_log(
+        "stream.step.response",
+        provider_id=provider_id,
+        structured=final_response.structured,
+        assistant_text=debug_text(final_response.assistant_text),
+        tool_calls=_summarize_tool_calls(final_response.tool_calls),
+    )
+
+    step: dict[str, Any]
+    if final_response.tool_calls:
+        serialized_tool_calls = [
+            {
+                "toolName": item.tool_name,
+                "input": item.input_data,
+            }
+            for item in final_response.tool_calls
+        ]
+        first = final_response.tool_calls[0]
+        step = {
+            "type": "tool_calls" if len(final_response.tool_calls) > 1 else "tool_call",
+            "toolName": first.tool_name,
+            "input": first.input_data,
+            "toolCalls": serialized_tool_calls,
+            "assistantText": final_response.assistant_text,
+            "degraded": not final_response.structured,
+        }
+    else:
+        step = {
+            "type": "assistant_text",
+            "content": final_response.assistant_text or final_response.raw_text.strip(),
+            "degraded": not final_response.structured,
+        }
+    yield {"type": "complete", "step": step}
