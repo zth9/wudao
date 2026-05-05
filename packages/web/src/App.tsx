@@ -15,6 +15,7 @@ import { cn } from "./utils/cn";
 import {
   buildAppLocation,
   parseAppRoute,
+  resolveViewChange,
   routeEquals,
   type AppRoute,
   type ViewKey,
@@ -61,10 +62,10 @@ function AppInner() {
   }, [fetchProviders]);
 
   useEffect(() => {
-    if (route.taskId) {
+    if (route.view === "tasks") {
       lastTaskIdRef.current = route.taskId;
     }
-  }, [route.taskId]);
+  }, [route.view, route.taskId]);
 
   useEffect(() => {
     const normalized = buildAppLocation(route, window.location.pathname);
@@ -95,12 +96,12 @@ function AppInner() {
   }, []);
 
   const handleViewChange = useCallback((view: ViewKey) => {
-    navigate({
-      view,
-      taskId: view === "tasks" ? (route.taskId || lastTaskIdRef.current) : null,
-      autoStartChat: false,
-    });
-  }, [navigate, route.taskId]);
+    navigate(resolveViewChange({
+      currentRoute: route,
+      lastTaskCenterTaskId: lastTaskIdRef.current,
+      targetView: view,
+    }));
+  }, [navigate, route]);
 
   const handleSelectTask = useCallback((taskId: string, options?: { autoStartChat?: boolean; historyMode?: "push" | "replace" }) => {
     navigate(

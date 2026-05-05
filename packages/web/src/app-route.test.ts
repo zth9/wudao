@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAppLocation, buildAppRouteSearch, parseAppRoute, routeEquals } from "./app-route";
+import { buildAppLocation, buildAppRouteSearch, parseAppRoute, resolveViewChange, routeEquals } from "./app-route";
 
 describe("app-route", () => {
   it("defaults to dashboard route", () => {
@@ -51,5 +51,59 @@ describe("app-route", () => {
       { view: "tasks", taskId: "a", autoStartChat: false },
       { view: "tasks", taskId: null, autoStartChat: false },
     )).toBe(false);
+  });
+});
+
+describe("resolveViewChange", () => {
+  const taskListRoute = { view: "tasks", taskId: null, autoStartChat: false } as const;
+  const taskDetailRoute = { view: "tasks", taskId: "a", autoStartChat: false } as const;
+  const memoriesRoute = { view: "memories", taskId: null, autoStartChat: false } as const;
+
+  it("从任务列表切到其他菜单时丢弃 taskId", () => {
+    expect(resolveViewChange({
+      currentRoute: taskListRoute,
+      lastTaskCenterTaskId: null,
+      targetView: "memories",
+    })).toEqual({ view: "memories", taskId: null, autoStartChat: false });
+  });
+
+  it("从任务详情切到其他菜单时丢弃 taskId", () => {
+    expect(resolveViewChange({
+      currentRoute: taskDetailRoute,
+      lastTaskCenterTaskId: "a",
+      targetView: "settings",
+    })).toEqual({ view: "settings", taskId: null, autoStartChat: false });
+  });
+
+  it("当任务中心最后停留在列表时，从其他菜单切回 tasks 应保持列表", () => {
+    expect(resolveViewChange({
+      currentRoute: memoriesRoute,
+      lastTaskCenterTaskId: null,
+      targetView: "tasks",
+    })).toEqual({ view: "tasks", taskId: null, autoStartChat: false });
+  });
+
+  it("当任务中心最后停留在详情页时，从其他菜单切回 tasks 应回到详情页", () => {
+    expect(resolveViewChange({
+      currentRoute: memoriesRoute,
+      lastTaskCenterTaskId: "a",
+      targetView: "tasks",
+    })).toEqual({ view: "tasks", taskId: "a", autoStartChat: false });
+  });
+
+  it("当前已在任务详情页且再次点击 tasks 菜单时保持详情页", () => {
+    expect(resolveViewChange({
+      currentRoute: taskDetailRoute,
+      lastTaskCenterTaskId: "a",
+      targetView: "tasks",
+    })).toEqual({ view: "tasks", taskId: "a", autoStartChat: false });
+  });
+
+  it("autoStartChat 在切换菜单后总是被清除", () => {
+    expect(resolveViewChange({
+      currentRoute: { view: "tasks", taskId: "a", autoStartChat: true },
+      lastTaskCenterTaskId: "a",
+      targetView: "tasks",
+    })).toEqual({ view: "tasks", taskId: "a", autoStartChat: false });
   });
 });
