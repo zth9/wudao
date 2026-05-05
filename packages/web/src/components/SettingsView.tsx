@@ -18,8 +18,6 @@ import { Spinner } from "@heroui/react/spinner";
 import { TextArea } from "@heroui/react/textarea";
 import { Tooltip } from "@heroui/react/tooltip";
 
-type SettingsSection = "profile" | "assistant" | "appearance" | "providers";
-
 const EMPTY_FORM = {
   name: "",
   endpoint: "",
@@ -78,7 +76,6 @@ export default function SettingsView() {
     theme,
     setTheme,
   } = useSettingsStore();
-  const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -86,18 +83,14 @@ export default function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingAssistant, setUploadingAssistant] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("profile");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assistantFileInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Default avatar options
   const defaultAvatars = ["👨‍💻", "👩‍💻", "🤖", "🐱", "🐶", "🦊", "🦁", "🐧", "🎨", "🚀"];
   const defaultAssistantAvatars = ["🤖", "🧠", "💡", "🔮", "⚡", "🌟", "🎯", "🚀", "💎", "🎨"];
-
-  const settingsNavItems: Array<{ key: SettingsSection; label: string; icon: typeof User }> = [
-    { key: "profile", label: t("settings.user_profile"), icon: User },
-    { key: "assistant", label: t("settings.assistant_profile"), icon: Bot },
-    { key: "appearance", label: t("settings.appearance"), icon: Languages },
-    { key: "providers", label: t("settings.model_providers"), icon: Cpu },
-  ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,187 +229,201 @@ export default function SettingsView() {
     }
   };
 
+  const menuItems = [
+    { key: "profile", icon: User, label: t("settings.user_profile") },
+    { key: "assistant", icon: Bot, label: t("settings.assistant_profile") },
+    { key: "appearance", icon: Sun, label: t("settings.appearance") },
+    { key: "providers", icon: Cpu, label: t("settings.model_providers") },
+  ];
+
+  // Reset scroll position when switching sections
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 });
+  }, [activeSection]);
+
   return (
-    <div className="flex-1 flex min-h-0 bg-background-secondary dark:bg-black">
-      {/* Left Sidebar */}
-      <aside className="w-56 shrink-0 border-r border-border flex flex-col bg-surface-secondary dark:bg-black/40">
-        <div className="px-5 pt-8 pb-6">
-          <p className="text-[11px] font-bold text-accent uppercase tracking-[0.2em] mb-1">{t("settings.preferences")}</p>
-          <h1 className="text-xl font-extrabold tracking-tight">{t("nav.settings")}</h1>
-        </div>
-        <nav className="flex-1 px-3 pb-4 space-y-0.5">
-          {settingsNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeSection === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => setActiveSection(item.key)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-colors text-left w-full",
-                  isActive
-                    ? "bg-accent/10 text-accent font-semibold"
-                    : "text-muted hover:text-foreground hover:bg-default/60",
-                )}
-              >
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
+    <div className="flex-1 flex flex-col min-h-0 bg-background-secondary dark:bg-black">
+      <header className="px-8 pt-8 pb-4 shrink-0">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          <p className="text-[11px] font-bold text-accent uppercase tracking-[0.2em] mb-1">{t('settings.preferences')}</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{t('nav.settings')}</h1>
+        </motion.div>
+      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-8 py-8">
-          {/* Profile Section */}
-          {activeSection === "profile" && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-extrabold tracking-tight">{t("settings.user_profile")}</h2>
-              <Card className="overflow-hidden p-6">
-                <div className="flex flex-col md:flex-row gap-8 items-start">
-                  {/* Avatar Preview & Selection */}
-                  <div className="flex flex-col items-center gap-4 shrink-0">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                    <Button
-                      onPress={() => fileInputRef.current?.click()}
-                      variant="ghost"
-                      className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
-                      aria-label={t("common.avatar")}
-                    >
-                      <Avatar size="lg" className="h-24 w-24 text-4xl">
-                        {user.avatar && (user.avatar.includes("/") || user.avatar.includes("\\") || user.avatar.startsWith("http") || user.avatar.startsWith("file:") || user.avatar.startsWith("data:")) ? (
-                          <Avatar.Image src={user.avatar} alt={t("common.avatar")} />
-                        ) : null}
-                        <Avatar.Fallback>{user.avatar || "👨‍💻"}</Avatar.Fallback>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="max-w-5xl mx-auto flex gap-8 items-start">
+          {/* Left Navigation Menu */}
+          <nav className="w-52 shrink-0 sticky top-6">
+            <ul className="space-y-1">
+              {menuItems.map(({ key, icon: Icon, label }) => (
+                <li key={key}>
+                  <button
+                    onClick={() => setActiveSection(key)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all text-left",
+                      activeSection === key
+                        ? "bg-accent/10 text-accent font-semibold"
+                        : "text-muted font-medium hover:text-foreground hover:bg-default",
+                    )}
+                  >
+                    <Icon size={16} />
+                    <span>{label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {/* Right Content Panel */}
+          <div className="flex-1 min-w-0 space-y-6">
+            {/* User Profile Section */}
+            {activeSection === "profile" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+                <SettingsIcon size={16} className="text-accent" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.user_profile')}</h2>
+              </div>
+              <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
+                <div className="flex flex-col items-center gap-4 shrink-0">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    onPress={() => fileInputRef.current?.click()}
+                    variant="ghost"
+                    className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
+                    aria-label={t("common.avatar")}
+                  >
+                    <Avatar size="lg" className="h-24 w-24 text-4xl">
+                      {user.avatar && (user.avatar.includes('/') || user.avatar.includes('\\') || user.avatar.startsWith('http') || user.avatar.startsWith('file:') || user.avatar.startsWith('data:')) ? (
+                        <Avatar.Image src={user.avatar} alt={t("common.avatar")} />
+                      ) : null}
+                      <Avatar.Fallback>{user.avatar || "👨‍💻"}</Avatar.Fallback>
+                    </Avatar>
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {uploading ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
+                    </div>
+                  </Button>
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
+                    {defaultAvatars.map(av => (
+                      <Avatar
+                        key={av}
+                        size="sm"
+                        className={cn(
+                          "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
+                          user.avatar === av ? "ring-2 ring-accent" : ""
+                        )}
+                        onClick={() => setUser({ avatar: av })}
+                      >
+                        <Avatar.Fallback>{av}</Avatar.Fallback>
                       </Avatar>
-                      <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        {uploading ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
-                      </div>
-                    </Button>
-                    <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
-                      {defaultAvatars.map((av) => (
-                        <Avatar
-                          key={av}
-                          size="sm"
-                          className={cn(
-                            "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
-                            user.avatar === av ? "ring-2 ring-accent" : "",
-                          )}
-                          onClick={() => setUser({ avatar: av })}
-                        >
-                          <Avatar.Fallback>{av}</Avatar.Fallback>
-                        </Avatar>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Profile Fields */}
-                  <div className="flex-1 space-y-4 w-full">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t("settings.nickname")}</label>
-                      <Input
-                        className="w-full"
-                        placeholder="Your Nickname"
-                        value={user.nickname}
-                        onChange={(e) => setUser({ nickname: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t("settings.avatar_url")}</label>
-                      <Input
-                        className="w-full"
-                        placeholder="https://example.com/avatar.png"
-                        value={user.avatar && user.avatar.startsWith("http") ? user.avatar : ""}
-                        onChange={(e) => setUser({ avatar: e.target.value })}
-                      />
-                    </div>
+                    ))}
                   </div>
                 </div>
-              </Card>
-            </div>
-          )}
-
-          {/* Assistant Section */}
-          {activeSection === "assistant" && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-extrabold tracking-tight">{t("settings.assistant_profile")}</h2>
-              <Card className="overflow-hidden p-6">
-                <div className="flex flex-col md:flex-row gap-8 items-start">
-                  {/* Assistant Avatar Preview & Selection */}
-                  <div className="flex flex-col items-center gap-4 shrink-0">
-                    <input
-                      ref={assistantFileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleAssistantFileChange}
+                <div className="flex-1 space-y-4 w-full">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.nickname')}</label>
+                    <Input
+                      className="w-full"
+                      placeholder="Your Nickname"
+                      value={user.nickname}
+                      onChange={(e) => setUser({ nickname: e.target.value })}
                     />
-                    <Button
-                      onPress={() => assistantFileInputRef.current?.click()}
-                      variant="ghost"
-                      className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
-                      aria-label={t("settings.assistant_avatar")}
-                    >
-                      <Avatar size="lg" className="h-24 w-24 text-4xl">
-                        {assistant.avatar && (assistant.avatar.includes("/") || assistant.avatar.includes("\\") || assistant.avatar.startsWith("http") || assistant.avatar.startsWith("file:") || assistant.avatar.startsWith("data:")) ? (
-                          <Avatar.Image src={assistant.avatar} alt={t("settings.assistant_avatar")} />
-                        ) : null}
-                        <Avatar.Fallback>{assistant.avatar || "🤖"}</Avatar.Fallback>
-                      </Avatar>
-                      <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        {uploadingAssistant ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
-                      </div>
-                    </Button>
-                    <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
-                      {defaultAssistantAvatars.map((av) => (
-                        <Avatar
-                          key={av}
-                          size="sm"
-                          className={cn(
-                            "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
-                            assistant.avatar === av ? "ring-2 ring-accent" : "",
-                          )}
-                          onClick={() => setAssistant({ avatar: av })}
-                        >
-                          <Avatar.Fallback>{av}</Avatar.Fallback>
-                        </Avatar>
-                      ))}
-                    </div>
                   </div>
-
-                  {/* Assistant Avatar URL Field */}
-                  <div className="flex-1 space-y-4 w-full">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t("settings.assistant_avatar_url")}</label>
-                      <Input
-                        className="w-full"
-                        placeholder="https://example.com/assistant-avatar.png"
-                        value={assistant.avatar && assistant.avatar.startsWith("http") ? assistant.avatar : ""}
-                        onChange={(e) => setAssistant({ avatar: e.target.value })}
-                      />
-                    </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.avatar_url')}</label>
+                    <Input
+                      className="w-full"
+                      placeholder="https://example.com/avatar.png"
+                      value={user.avatar && user.avatar.startsWith('http') ? user.avatar : ""}
+                      onChange={(e) => setUser({ avatar: e.target.value })}
+                    />
                   </div>
                 </div>
-              </Card>
-            </div>
-          )}
+              </div>
+            </Card>
+            )}
 
-          {/* Appearance Section */}
-          {activeSection === "appearance" && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-extrabold tracking-tight">{t("settings.appearance")}</h2>
-              <Card className="overflow-hidden p-6 space-y-6">
-                {/* Theme */}
+            {/* Assistant Profile Section */}
+            {activeSection === "assistant" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+                <Bot size={16} className="text-accent" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.assistant_profile')}</h2>
+              </div>
+              <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
+                <div className="flex flex-col items-center gap-4 shrink-0">
+                  <input
+                    ref={assistantFileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleAssistantFileChange}
+                  />
+                  <Button
+                    onPress={() => assistantFileInputRef.current?.click()}
+                    variant="ghost"
+                    className="group relative flex h-24 min-h-0 w-24 items-center justify-center overflow-hidden rounded-full p-0"
+                    aria-label={t("settings.assistant_avatar")}
+                  >
+                    <Avatar size="lg" className="h-24 w-24 text-4xl">
+                      {assistant.avatar && (assistant.avatar.includes('/') || assistant.avatar.includes('\\') || assistant.avatar.startsWith('http') || assistant.avatar.startsWith('file:') || assistant.avatar.startsWith('data:')) ? (
+                        <Avatar.Image src={assistant.avatar} alt={t("settings.assistant_avatar")} />
+                      ) : null}
+                      <Avatar.Fallback>{assistant.avatar || "🤖"}</Avatar.Fallback>
+                    </Avatar>
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {uploadingAssistant ? <Spinner size="sm" className="text-white" /> : <Plus size={24} className="text-white" />}
+                    </div>
+                  </Button>
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
+                    {defaultAssistantAvatars.map(av => (
+                      <Avatar
+                        key={av}
+                        size="sm"
+                        className={cn(
+                          "cursor-pointer text-lg transition-all hover:ring-2 hover:ring-accent/30",
+                          assistant.avatar === av ? "ring-2 ring-accent" : ""
+                        )}
+                        onClick={() => setAssistant({ avatar: av })}
+                      >
+                        <Avatar.Fallback>{av}</Avatar.Fallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-4 w-full">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.assistant_avatar_url')}</label>
+                    <Input
+                      className="w-full"
+                      placeholder="https://example.com/assistant-avatar.png"
+                      value={assistant.avatar && assistant.avatar.startsWith('http') ? assistant.avatar : ""}
+                      onChange={(e) => setAssistant({ avatar: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </Card>
+            )}
+
+            {/* Appearance Settings */}
+            {activeSection === "appearance" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary">
+                <Languages size={16} className="text-accent" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.appearance')}</h2>
+              </div>
+              <div className="p-6 space-y-6">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t("settings.theme_label")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.theme_label')}</label>
                   <div className="flex gap-2">
                     {[
                       { key: "light" as const, icon: Sun, label: t("theme.light") },
@@ -444,10 +451,8 @@ export default function SettingsView() {
                     })}
                   </div>
                 </div>
-
-                {/* Language */}
                 <div className="space-y-3">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t("settings.language_label")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted px-1">{t('settings.language_label')}</label>
                   <div className="flex gap-2">
                     {[
                       { key: "zh", label: "中文" },
@@ -473,164 +478,170 @@ export default function SettingsView() {
                     })}
                   </div>
                 </div>
-              </Card>
-            </div>
-          )}
+              </div>
+            </Card>
+            )}
 
-          {/* Providers Section */}
-          {activeSection === "providers" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-extrabold tracking-tight">{t("settings.model_providers")}</h2>
+            {/* Model Providers */}
+            {activeSection === "providers" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-secondary">
+                <div className="flex items-center gap-2">
+                  <Cpu size={16} className="text-accent" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.model_providers')}</h2>
+                </div>
                 <Button
                   onPress={openCreate}
                   variant="primary"
                   className="flex items-center gap-1.5 px-3 py-1 text-xs shadow-sm"
                 >
                   <Plus size={14} />
-                  <span>{t("settings.add_provider")}</span>
+                  <span>{t('settings.add_provider')}</span>
                 </Button>
               </div>
 
-              <Card className="overflow-hidden">
-                <div className="divide-y divide-border">
-                  {error && (
-                    <div className="mx-4 mt-4">
-                      <Alert color="danger">
-                        <Alert.Indicator>
-                          <AlertCircle size={16} />
-                        </Alert.Indicator>
-                        <Alert.Content>
-                          <Alert.Description>{error}</Alert.Description>
-                        </Alert.Content>
-                      </Alert>
-                    </div>
-                  )}
+              <div className="divide-y divide-border">
+                {error && (
+                  <div className="mx-4 mt-4">
+                    <Alert color="danger">
+                      <Alert.Indicator>
+                        <AlertCircle size={16} />
+                      </Alert.Indicator>
+                      <Alert.Content>
+                        <Alert.Description>{error}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  </div>
+                )}
 
-                  {loading && (
-                    <div className="p-12 text-center text-muted">
-                      <Spinner size="sm" className="mx-auto mb-2" />
-                      <p className="text-xs font-medium uppercase tracking-widest">{t("settings.loading_providers")}</p>
-                    </div>
-                  )}
+                {loading && (
+                  <div className="p-12 text-center text-muted">
+                    <Spinner size="sm" className="mx-auto mb-2" />
+                    <p className="text-xs font-medium uppercase tracking-widest">{t('settings.loading_providers')}</p>
+                  </div>
+                )}
 
-                  {!loading && providers.length === 0 && (
-                    <div className="p-12 text-center text-muted">
-                      <SettingsIcon size={32} className="mx-auto mb-3 opacity-20" />
-                      <p className="text-sm font-medium">{t("settings.no_providers")}</p>
-                    </div>
-                  )}
+                {!loading && providers.length === 0 && (
+                  <div className="p-12 text-center text-muted">
+                    <SettingsIcon size={32} className="mx-auto mb-3 opacity-20" />
+                    <p className="text-sm font-medium">{t('settings.no_providers')}</p>
+                  </div>
+                )}
 
-                  {!loading && providers.length > 0 && (
-                    <div className="p-2 space-y-1">
-                      {providers.map((p, index) => {
-                        const providerSummary = [p.model || p.id, p.endpoint || ""].filter(Boolean).join(" • ");
-                        return (
-                          <motion.div
-                            layout
-                            key={p.id}
-                            className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all"
+                {!loading && providers.length > 0 && (
+                <div className="p-2 space-y-1">
+                  {providers.map((p, index) => {
+                    const providerSummary = [p.model || p.id, p.endpoint || ""].filter(Boolean).join(" • ");
+                    return (
+                    <motion.div
+                      layout
+                      key={p.id}
+                      className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all"
+                    >
+                      <div className="min-w-0 flex items-center gap-4">
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
+                          p.is_default ? "bg-accent" : "bg-default"
+                        )}>
+                          <ProviderIcon providerId={p.id} size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold truncate tracking-tight">{p.name}</p>
+                            {p.is_default ? (
+                              <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest">{t('theme.auto')}</Chip>
+                            ) : null}
+                          </div>
+                          <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
+                            {providerSummary}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => void handleMove(index, -1)}
+                            isDisabled={index === 0 || reordering}
+                            className="h-8 w-8 text-muted hover:text-foreground"
+                            aria-label={t("common.move_up")}
                           >
-                            <div className="min-w-0 flex items-center gap-4">
-                              <div className={cn(
-                                "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
-                                p.is_default ? "bg-accent" : "bg-default",
-                              )}>
-                                <ProviderIcon providerId={p.id} size={20} />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-bold truncate tracking-tight">{p.name}</p>
-                                  {p.is_default ? (
-                                    <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest">{t("theme.auto")}</Chip>
-                                  ) : null}
-                                </div>
-                                <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
-                                  {providerSummary}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Tooltip delay={300} closeDelay={0}>
-                                <Button
-                                  isIconOnly
-                                  variant="ghost"
-                                  onPress={() => void handleMove(index, -1)}
-                                  isDisabled={index === 0 || reordering}
-                                  className="h-8 w-8 text-muted hover:text-foreground"
-                                  aria-label={t("common.move_up")}
-                                >
-                                  <ChevronUp size={16} />
-                                </Button>
-                                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                                  <Tooltip.Arrow className="fill-overlay" />
-                                  {t("common.move_up")}
-                                </Tooltip.Content>
-                              </Tooltip>
-                              <Tooltip delay={300} closeDelay={0}>
-                                <Button
-                                  isIconOnly
-                                  variant="ghost"
-                                  onPress={() => void handleMove(index, 1)}
-                                  isDisabled={index === providers.length - 1 || reordering}
-                                  className="h-8 w-8 text-muted hover:text-foreground"
-                                  aria-label={t("common.move_down")}
-                                >
-                                  <ChevronDown size={16} />
-                                </Button>
-                                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                                  <Tooltip.Arrow className="fill-overlay" />
-                                  {t("common.move_down")}
-                                </Tooltip.Content>
-                              </Tooltip>
-                              <div className="w-[1px] h-4 bg-border mx-1" />
-                              <Tooltip delay={300} closeDelay={0}>
-                                <Button
-                                  isIconOnly
-                                  variant="ghost"
-                                  onPress={() => openEdit(p)}
-                                  className="h-8 w-8 text-muted hover:text-accent"
-                                  aria-label={t("common.edit")}
-                                >
-                                  <Edit size={16} />
-                                </Button>
-                                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                                  <Tooltip.Arrow className="fill-overlay" />
-                                  {t("common.edit")}
-                                </Tooltip.Content>
-                              </Tooltip>
-                              <Tooltip delay={300} closeDelay={0}>
-                                <Button
-                                  isIconOnly
-                                  variant="ghost"
-                                  onPress={() => {
-                                    void remove(p.id);
-                                  }}
-                                  className="h-8 w-8 text-muted hover:text-danger"
-                                  aria-label={t("common.delete")}
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
-                                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                                  <Tooltip.Arrow className="fill-overlay" />
-                                  {t("common.delete")}
-                                </Tooltip.Content>
-                              </Tooltip>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
+                            <ChevronUp size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.move_up")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => void handleMove(index, 1)}
+                            isDisabled={index === providers.length - 1 || reordering}
+                            className="h-8 w-8 text-muted hover:text-foreground"
+                            aria-label={t("common.move_down")}
+                          >
+                            <ChevronDown size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.move_down")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                        <div className="w-[1px] h-4 bg-border mx-1" />
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => openEdit(p)}
+                            className="h-8 w-8 text-muted hover:text-accent"
+                            aria-label={t("common.edit")}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.edit")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => {
+                              void remove(p.id);
+                            }}
+                            className="h-8 w-8 text-muted hover:text-danger"
+                            aria-label={t("common.delete")}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.delete")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                      </div>
+                    </motion.div>
+                    );
+                  })}
                 </div>
-              </Card>
-            </div>
-          )}
-        </div>
-      </main>
+                )}
+              </div>
+            </Card>
+            )}
 
-      {/* Provider Create/Edit Modal */}
+            <footer className="text-center py-8 opacity-30">
+              <div className="w-1 bg-default h-6 mb-4 rounded-full mx-auto" />
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em]">{t('settings.config_panel')}</p>
+            </footer>
+          </div>
+        </div>
+      </div>
+
       <Modal.Backdrop
         isOpen={dialogOpen}
         onOpenChange={(open) => {
@@ -640,118 +651,118 @@ export default function SettingsView() {
         <Modal.Container placement="center" className="w-full max-w-lg">
           <Modal.Dialog>
             <Modal.Header className="flex-row items-center justify-between">
-              <h3 className="text-lg font-bold">{editingId ? t("settings.edit_provider") : t("settings.new_provider")}</h3>
-              <Tooltip delay={300} closeDelay={0}>
-                <Button isIconOnly variant="ghost" onPress={closeDialog} className="h-8 w-8" aria-label={t("common.close")}>
-                  <X size={18} />
-                </Button>
-                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                  <Tooltip.Arrow className="fill-overlay" />
-                  {t("common.close")}
-                </Tooltip.Content>
-              </Tooltip>
+               <h3 className="text-lg font-bold">{editingId ? t('settings.edit_provider') : t('settings.new_provider')}</h3>
+               <Tooltip delay={300} closeDelay={0}>
+                 <Button isIconOnly variant="ghost" onPress={closeDialog} className="h-8 w-8" aria-label={t("common.close")}>
+                    <X size={18} />
+                 </Button>
+                 <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                   <Tooltip.Arrow className="fill-overlay" />
+                   {t("common.close")}
+                 </Tooltip.Content>
+               </Tooltip>
             </Modal.Header>
 
             <Modal.Body className="max-h-[70vh] space-y-4 overflow-y-auto px-1 py-1">
-              {error && (
-                <div className="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
+               {error && (
+                  <div className="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+                     <div className="flex items-start gap-2">
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                        <span>{error}</span>
+                     </div>
                   </div>
-                </div>
-              )}
+               )}
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t("settings.name")}</label>
-                    <Input
-                      className="w-full"
-                      placeholder="Ollama Local"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    />
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.name')}</label>
+                        <Input
+                          className="w-full"
+                          placeholder="Ollama Local"
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        />
+                     </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.model_id')}</label>
+                        <Input
+                          className="w-full"
+                          placeholder="qwen2.5"
+                          value={form.model}
+                          onChange={(e) => setForm({ ...form, model: e.target.value })}
+                        />
+                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t("settings.model_id")}</label>
-                    <Input
-                      className="w-full"
-                      placeholder="qwen2.5"
-                      value={form.model}
-                      onChange={(e) => setForm({ ...form, model: e.target.value })}
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t("settings.endpoint_url")}</label>
-                  <Input
-                    className="w-full"
-                    placeholder="http://localhost:11434"
-                    value={form.endpoint}
-                    onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.endpoint_url')}</label>
+                     <Input
+                       className="w-full"
+                       placeholder="http://localhost:11434"
+                       value={form.endpoint}
+                       onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
+                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.api_key')}</label>
+                     <Input
+                       className="w-full"
+                       placeholder="••••••••••••"
+                       type="password"
+                       value={form.api_key}
+                       onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+                     />
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-default border border-border space-y-4">
+                     <div className="flex items-center gap-2 mb-2">
+                        <Shield size={14} className="text-accent" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{t('settings.usage_tracking')}</span>
+                     </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-muted">{t('settings.usage_auth_token')}</label>
+                        <Input
+                          className="w-full"
+                          placeholder="JWT Token or similar"
+                          type="password"
+                          value={form.usage_auth_token}
+                          onChange={(e) => setForm({ ...form, usage_auth_token: e.target.value })}
+                        />
+                     </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-muted">{t('settings.usage_cookie')}</label>
+                        <TextArea
+                          className="min-h-[60px] w-full resize-none"
+                          placeholder="Full cookie string..."
+                          value={form.usage_cookie}
+                          onChange={(e) => setForm({ ...form, usage_cookie: e.target.value })}
+                        />
+                     </div>
+                  </div>
+
+                  <DefaultProviderToggle
+                    checked={!!form.is_default}
+                    label={t('settings.set_default')}
+                    onChange={(checked) => setForm({ ...form, is_default: checked ? 1 : 0 })}
                   />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t("settings.api_key")}</label>
-                  <Input
-                    className="w-full"
-                    placeholder="••••••••••••"
-                    type="password"
-                    value={form.api_key}
-                    onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-                  />
-                </div>
-
-                <div className="p-4 rounded-xl bg-default border border-border space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Shield size={14} className="text-accent" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{t("settings.usage_tracking")}</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted">{t("settings.usage_auth_token")}</label>
-                    <Input
-                      className="w-full"
-                      placeholder="JWT Token or similar"
-                      type="password"
-                      value={form.usage_auth_token}
-                      onChange={(e) => setForm({ ...form, usage_auth_token: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted">{t("settings.usage_cookie")}</label>
-                    <TextArea
-                      className="min-h-[60px] w-full resize-none"
-                      placeholder="Full cookie string..."
-                      value={form.usage_cookie}
-                      onChange={(e) => setForm({ ...form, usage_cookie: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <DefaultProviderToggle
-                  checked={!!form.is_default}
-                  label={t("settings.set_default")}
-                  onChange={(checked) => setForm({ ...form, is_default: checked ? 1 : 0 })}
-                />
-              </div>
+               </div>
             </Modal.Body>
 
             <Modal.Footer>
-              {hasChanges && (
-                <Button onPress={handleCancelChanges} variant="secondary" className="px-6">{t("settings.discard")}</Button>
-              )}
-              <Button
-                onPress={() => void handleSave()}
-                isDisabled={!canSave || saving}
-                variant="primary"
-                className="inline-flex min-w-[120px] items-center justify-center gap-2 px-8"
-              >
-                {saving ? <Spinner size="sm" /> : null}
-                {saving ? t("common.loading") : editingId ? t("common.update") : t("common.save")}
-              </Button>
+               {hasChanges && (
+                  <Button onPress={handleCancelChanges} variant="secondary" className="px-6">{t('settings.discard')}</Button>
+               )}
+               <Button
+                 onPress={() => void handleSave()}
+                 isDisabled={!canSave || saving}
+                 variant="primary"
+                 className="inline-flex min-w-[120px] items-center justify-center gap-2 px-8"
+               >
+                 {saving ? <Spinner size="sm" /> : null}
+                 {saving ? t('common.loading') : editingId ? t('common.update') : t('common.save')}
+               </Button>
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>
