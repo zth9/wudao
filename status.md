@@ -118,7 +118,7 @@
 
 - 工程质量：服务端现已补齐 Python 版 `FastAPI` 入口、SQLite 初始化、任务路由、记忆路由、用量聚合、头像上传、本地路径守卫与 `/ws/terminal` 会话管理；后端自动化测试已迁到 `pytest + TestClient`，前端 `taskStore` 继续保留请求竞态保护与统一任务状态合并逻辑
 - 性能：主导航下的 Dashboard / TaskList / Memories / TaskWorkspace / Settings 已切到按视图懒加载；任务工作台内部进一步拆为 `TaskWorkspaceView` / `TiledTerminalPanel` / `TerminalView` / 抽屉 / 弹窗等独立 chunk，当前主入口约 `453 kB`、记忆页 chunk 约 `10 kB`、工作台主 chunk 约 `225 kB`、终端视图 chunk 约 `367 kB`，生产构建已无大包告警
-- 稳定性：当前根级测试基线已通过，其中服务端 Python `pytest` 当前为 115 个关键链路 / 协议用例；前端 vitest 现为 95 个用例。本轮已执行 `pnpm --filter server test` 全绿；任务列表切换为全量任务后前端筛选，同时 Dashboard 已改为调用后端 `GET /api/tasks/stats` 摘要接口，并新增 30 秒静默自动刷新、窗口重新聚焦自动同步与手动刷新合并行为，已修复“进行中 / 已完成”数量在切换 tab、跨页面查看或任务超过一页时失真的问题
+- 稳定性：当前根级测试基线已通过，其中服务端 Python `pytest` 当前为 129 个关键链路 / 协议用例；前端 vitest 现为 115 个用例。Dashboard 用量统计已改为 per-tracker 独立请求（`GET /api/usage/{tracker_id}`），慢接口不再阻塞整体渲染；同时 Dashboard 已改为调用后端 `GET /api/tasks/stats` 摘要接口，并新增 30 秒静默自动刷新、窗口重新聚焦自动同步与手动刷新合并行为
 - 时间基线：统一采用 `Asia/Shanghai` 时区处理，修复了 UTC 误判及列表显示问题
 
 > 历史已完成事项不再在本文件逐条维护；如需查看演进记录，请参考 `README.md` 与 `docs/changelog.md`。

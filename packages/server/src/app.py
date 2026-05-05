@@ -56,7 +56,7 @@ from .task_service import (
     validate_transition,
 )
 from .terminal import terminal_manager
-from .usage_adapters import fetch_all_providers
+from .usage_adapters import fetch_all_providers, fetch_tracker
 from .usage_trackers import (
     create_tracker,
     delete_tracker,
@@ -273,6 +273,16 @@ def create_app() -> FastAPI:
     @app.get("/api/usage")
     async def usage() -> list[dict[str, Any]]:
         return await fetch_all_providers()
+
+    @app.get("/api/usage/{tracker_id}")
+    async def usage_one(tracker_id: str) -> dict[str, Any]:
+        tracker = db.query_one(
+            "SELECT id, provider, name, auth_token, cookie, curl_command, url FROM usage_trackers WHERE id = ?",
+            (tracker_id,),
+        )
+        if not tracker:
+            raise HTTPException(status_code=404, detail="usage tracker not found")
+        return await fetch_tracker(tracker)
 
     # Usage Tracker CRUD
     @app.get("/api/usage-trackers")

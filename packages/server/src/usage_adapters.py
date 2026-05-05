@@ -454,38 +454,39 @@ ADAPTERS: dict[str, UsageAdapter] = {
 }
 
 
+async def fetch_tracker(tracker: dict[str, Any]) -> dict[str, Any]:
+    """根据单条 tracker 记录抓取用量，返回带 tracker_id/tracker_name 的 dict。"""
+    adapter = ADAPTERS.get(tracker["provider"])
+    if not adapter:
+        return {
+            "tracker_id": tracker["id"],
+            "tracker_name": tracker["name"],
+            "provider": tracker["provider"],
+            "status": "error",
+            "error": f"未知的供应商类型: {tracker['provider']}",
+            "url": tracker.get("url") or "",
+            "items": [],
+        }
+
+    result = await adapter.fetch(
+        str_or_empty(tracker.get("auth_token")),
+        str_or_empty(tracker.get("cookie")),
+        curl_command=str_or_empty(tracker.get("curl_command")),
+    )
+    result["tracker_id"] = tracker["id"]
+    result["tracker_name"] = tracker["name"]
+    if tracker.get("url"):
+        result["url"] = tracker["url"]
+    return result
+
+
 async def fetch_all_trackers() -> list[dict[str, Any]]:
     trackers = db.query_all(
         "SELECT id, provider, name, auth_token, cookie, curl_command, url FROM usage_trackers WHERE enabled = 1 ORDER BY sort_order ASC, created_at ASC"
     )
     if not trackers:
         return []
-
-    async def _fetch_one(tracker: dict[str, Any]) -> dict[str, Any]:
-        adapter = ADAPTERS.get(tracker["provider"])
-        if not adapter:
-            return {
-                "tracker_id": tracker["id"],
-                "tracker_name": tracker["name"],
-                "provider": tracker["provider"],
-                "status": "error",
-                "error": f"未知的供应商类型: {tracker['provider']}",
-                "url": tracker.get("url") or "",
-                "items": [],
-            }
-
-        result = await adapter.fetch(
-            str_or_empty(tracker.get("auth_token")),
-            str_or_empty(tracker.get("cookie")),
-            curl_command=str_or_empty(tracker.get("curl_command")),
-        )
-        result["tracker_id"] = tracker["id"]
-        result["tracker_name"] = tracker["name"]
-        if tracker.get("url"):
-            result["url"] = tracker["url"]
-        return result
-
-    return list(await asyncio.gather(*[_fetch_one(t) for t in trackers]))
+    return list(await asyncio.gather(*[fetch_tracker(t) for t in trackers]))
 
 
 async def fetch_all_providers() -> list[dict[str, Any]]:

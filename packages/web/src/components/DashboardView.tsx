@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../stores/settingsStore";
-import { tasks as tasksApi, usage as usageApi, type ProviderUsage, type TaskStatsSummary } from "../services/api";
+import {
+  tasks as tasksApi,
+  usage as usageApi,
+  usageTrackers,
+  type ProviderUsage,
+  type TaskStatsSummary,
+} from "../services/api";
 import {
   CheckCircle2,
   Activity,
@@ -28,18 +34,29 @@ interface Props {
 const AUTO_REFRESH_MS = 30_000;
 const AUTO_REFRESH_SECONDS = Math.ceil(AUTO_REFRESH_MS / 1000);
 
+interface TrackerUsageState {
+  trackerId: string;
+  trackerName: string;
+  provider: string;
+  status: "loading" | "ok" | "error";
+  data?: ProviderUsage;
+  error?: string;
+}
+
 export default function DashboardView({ onNavigate }: Props) {
   const { t } = useTranslation();
   const user = useSettingsStore((state) => state.user);
   const [taskStats, setTaskStats] = useState<TaskStatsSummary>({ active: 0, done: 0, high_priority: 0, all: 0 });
   const [loadingTaskStats, setLoadingTaskStats] = useState(false);
-  const [usageData, setUsageData] = useState<ProviderUsage[]>([]);
-  const [loadingUsage, setLoadingUsage] = useState(false);
-  const [usageError, setUsageError] = useState<string | null>(null);
   const [hasLoadedTaskStats, setHasLoadedTaskStats] = useState(false);
+  const [trackerStates, setTrackerStates] = useState<Record<string, TrackerUsageState>>({});
+  const [trackerOrder, setTrackerOrder] = useState<string[]>([]);
+  const [hasLoadedTrackers, setHasLoadedTrackers] = useState(false);
+  const [trackersLoadFailed, setTrackersLoadFailed] = useState(false);
   const [nextRefreshSeconds, setNextRefreshSeconds] = useState(AUTO_REFRESH_SECONDS);
   const nextRefreshAtRef = useRef(Date.now() + AUTO_REFRESH_MS);
   const refreshInFlightRef = useRef(false);
+  const inFlightTrackersRef = useRef<Set<string>>(new Set());
 
   const scheduleNextRefresh = useCallback(() => {
     nextRefreshAtRef.current = Date.now() + AUTO_REFRESH_MS;
@@ -64,20 +81,71 @@ export default function DashboardView({ onNavigate }: Props) {
 
   const fetchUsage = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
-    if (!silent) {
-      setLoadingUsage(true);
-    }
-    setUsageError(null);
     try {
-      const data = await usageApi.fetch();
-      setUsageData(data);
+      const trackers = await usageTrackers.list();
+      const enabled = trackers.filter((t) => t.enabled === 1);
+      setTrackerOrder(enabled.map((t) => t.id));
+      setTrackersLoadFailed(false);
+      setHasLoadedTrackers(true);
+
+      setTrackerStates((prev) => {
+        const next: Record<string, TrackerUsageState> = {};
+        for (const tracker of enabled) {
+          const existing = prev[tracker.id];
+          if (existing) {
+            next[tracker.id] = silent
+              ? { ...existing, status: "loading" }
+              : existing;
+          } else {
+            next[tracker.id] = {
+              trackerId: tracker.id,
+              trackerName: tracker.name,
+              provider: tracker.provider,
+              status: "loading",
+            };
+          }
+        }
+        return next;
+      });
+
+      await Promise.allSettled(
+        enabled.map(async (tracker) => {
+          if (inFlightTrackersRef.current.has(tracker.id)) return;
+          inFlightTrackersRef.current.add(tracker.id);
+          try {
+            const data = await usageApi.fetchOne(tracker.id);
+            setTrackerStates((prev) => ({
+              ...prev,
+              [tracker.id]: {
+                trackerId: tracker.id,
+                trackerName: tracker.name,
+                provider: tracker.provider,
+                status: data.status === "ok" ? "ok" : "error",
+                data,
+                error: data.status === "error" ? data.error : undefined,
+              },
+            }));
+          } catch (err) {
+            setTrackerStates((prev) => ({
+              ...prev,
+              [tracker.id]: {
+                ...(prev[tracker.id] ?? {
+                  trackerId: tracker.id,
+                  trackerName: tracker.name,
+                  provider: tracker.provider,
+                }),
+                status: "error",
+                error: err instanceof Error ? err.message : t("dashboard.usage_load_failed"),
+              },
+            }));
+          } finally {
+            inFlightTrackersRef.current.delete(tracker.id);
+          }
+        })
+      );
     } catch {
-      setUsageError(t("dashboard.usage_load_failed"));
-      setUsageData([]);
-    } finally {
-      if (!silent) {
-        setLoadingUsage(false);
-      }
+      setTrackersLoadFailed(true);
+      setHasLoadedTrackers(true);
     }
   }, [t]);
 
@@ -138,7 +206,106 @@ export default function DashboardView({ onNavigate }: Props) {
   }, [taskStats, t]);
 
   const displayName = user.nickname.trim() || t("common.user");
-  const refreshBusy = loadingUsage || loadingTaskStats;
+  const refreshBusy = loadingTaskStats || inFlightTrackersRef.current.size > 0;
+
+  const renderTrackerCard = (state: TrackerUsageState) => {
+    const usage = state.data;
+
+    return (
+      <Card
+        key={state.trackerId}
+        className="relative flex flex-col overflow-hidden rounded-2xl bg-surface-secondary p-5 shadow-none min-h-[200px]"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center overflow-hidden">
+              <ProviderIcon providerId={state.provider} size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-bold tracking-tight">{state.trackerName}</p>
+              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                {state.status === "ok"
+                  ? t("dashboard.provider_connected")
+                  : state.status === "error"
+                    ? t("dashboard.provider_error")
+                    : t("dashboard.provider_loading")}
+              </p>
+            </div>
+          </div>
+          {usage?.url && (
+            <a
+              href={usage.url}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2 rounded-full hover:bg-accent/10 text-default-foreground hover:text-accent transition-all"
+            >
+              <ExternalLink size={14} />
+            </a>
+          )}
+        </div>
+
+        {state.status === "loading" && (
+          <div className="flex-1 flex items-center justify-center">
+            <LoadingIndicator size={16} />
+          </div>
+        )}
+
+        {state.status === "ok" && usage && (
+          <div className="space-y-6 flex-1">
+            {usage.items.map((item) => (
+              <div key={item.label} className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-bold text-muted uppercase tracking-tight">{item.label}</span>
+                  <span className="text-xs font-black tabular-nums">{item.used}{item.total ? ` / ${item.total}` : ""}</span>
+                </div>
+
+                {item.total && (
+                  <ProgressBar
+                    aria-label={item.label}
+                    value={Math.min(100, (item.used / item.total) * 100)}
+                    color={(item.used / item.total) > 0.9 ? "danger" : "accent"}
+                    className="h-2"
+                  >
+                    <ProgressBar.Track>
+                      <ProgressBar.Fill />
+                    </ProgressBar.Track>
+                  </ProgressBar>
+                )}
+
+                {item.detail && (
+                  <div className="flex items-start gap-1.5 px-1 pt-1">
+                    <Clock size={10} className="text-muted mt-0.5 shrink-0" />
+                    <p className="text-[10px] leading-relaxed text-muted font-medium">
+                      {item.detail.split(" · ").map((part, index) => (
+                        <span key={index} className={cn(/刷新|重置|refresh/i.test(part) ? "text-accent font-bold" : "")}>
+                          {index > 0 && " · "}
+                          {part}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {state.status === "error" && (
+          <div className="absolute inset-0 bg-overlay/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+            <AlertCircle size={32} className="text-danger mb-2" />
+            <p className="text-xs font-bold text-danger px-4 leading-tight">{state.error || t("dashboard.auth_failed")}</p>
+            <Button
+              variant="ghost"
+              onPress={() => onNavigate("settings")}
+              className="mt-4 h-auto p-0 text-[10px] font-black uppercase tracking-widest text-accent hover:underline"
+            >
+              {t("dashboard.fix_in_settings")}
+            </Button>
+          </div>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-surface-secondary dark:bg-background overflow-y-auto">
@@ -217,104 +384,23 @@ export default function DashboardView({ onNavigate }: Props) {
                 </div>
               </div>
 
-              {loadingUsage && usageData.length === 0 ? (
+              {!hasLoadedTrackers ? (
                 <div className="flex-1 py-20 flex justify-center">
-                   <LoadingIndicator text={t("dashboard.loading_usage")} />
+                  <LoadingIndicator text={t("dashboard.loading_usage")} />
                 </div>
-              ) : usageData.length > 0 ? (
+              ) : trackerOrder.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {usageData.map((usage) => (
-                    <Card
-                      key={usage.tracker_id || usage.provider}
-                      className="relative flex flex-col overflow-hidden rounded-2xl bg-surface-secondary p-5 shadow-none"
-                    >
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center overflow-hidden">
-                            <ProviderIcon providerId={usage.provider} size={24} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold tracking-tight">{usage.tracker_name || usage.provider}</p>
-                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
-                              {usage.status === "ok" ? t("dashboard.provider_connected") : t("dashboard.provider_error")}
-                            </p>
-                          </div>
-                        </div>
-                        {usage.url && (
-                          <a href={usage.url} target="_blank" rel="noreferrer" className="p-2 rounded-full hover:bg-accent/10 text-default-foreground hover:text-accent transition-all">
-                            <ExternalLink size={14} />
-                          </a>
-                        )}
-                      </div>
-
-                      <div className="space-y-6 flex-1">
-                        {usage.items.map((item) => (
-                          <div key={item.label} className="space-y-2">
-                            <div className="flex items-center justify-between px-1">
-                              <span className="text-[11px] font-bold text-muted uppercase tracking-tight">{item.label}</span>
-                              <span className="text-xs font-black tabular-nums">{item.used}{item.total ? ` / ${item.total}` : ""}</span>
-                            </div>
-
-                            {item.total && (
-                              <ProgressBar
-                                aria-label={item.label}
-                                value={Math.min(100, (item.used / item.total) * 100)}
-                                color={(item.used / item.total) > 0.9 ? "danger" : "accent"}
-                                className="h-2"
-                              >
-                                <ProgressBar.Track>
-                                  <ProgressBar.Fill />
-                                </ProgressBar.Track>
-                              </ProgressBar>
-                            )}
-
-                            {item.detail && (
-                              <div className="flex items-start gap-1.5 px-1 pt-1">
-                                <Clock size={10} className="text-muted mt-0.5 shrink-0" />
-                                <p className="text-[10px] leading-relaxed text-muted font-medium">
-                                  {item.detail.split(" · ").map((part, index) => (
-                                    <span key={index} className={cn(/刷新|重置|refresh/i.test(part) ? "text-accent font-bold" : "")}>
-                                      {index > 0 && " · "}
-                                      {part}
-                                    </span>
-                                  ))}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {usage.status === "error" && (
-                        <div className="absolute inset-0 bg-overlay/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                          <AlertCircle size={32} className="text-danger mb-2" />
-                          <p className="text-xs font-bold text-danger px-4 leading-tight">{usage.error || t("dashboard.auth_failed")}</p>
-                          <Button
-                            variant="ghost"
-                            onPress={() => onNavigate("settings")}
-                            className="mt-4 h-auto p-0 text-[10px] font-black uppercase tracking-widest text-accent hover:underline"
-                          >
-                            {t("dashboard.fix_in_settings")}
-                          </Button>
-                        </div>
-                      )}
-                    </Card>
-                  ))}
+                  {trackerOrder.map((id) => renderTrackerCard(trackerStates[id]))}
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 py-20">
-                  {loadingUsage ? (
-                    <LoadingIndicator text={t("dashboard.loading_usage")} />
-                  ) : (
-                    <>
-                      <div className="w-16 h-1 bg-default rounded-full mb-4" />
-                      <p className="text-xs font-medium uppercase tracking-widest">{usageError || t("dashboard.no_usage")}</p>
-                    </>
-                  )}
+                  <div className="w-16 h-1 bg-default rounded-full mb-4" />
+                  <p className="text-xs font-medium uppercase tracking-widest">
+                    {trackersLoadFailed ? t("dashboard.usage_load_failed") : t("dashboard.no_usage")}
+                  </p>
                 </div>
               )}
             </Card>
-
           </div>
         </div>
       </div>
