@@ -101,7 +101,9 @@ export const useSettingsStore = create<SettingsState>()(
         set({ error: null });
         try {
           await api.create(data);
-          return await get().fetch();
+          const providers = await api.list();
+          set({ providers, error: null });
+          return true;
         } catch (error) {
           set({ error: resolveSettingsError(error, "Failed to save provider") });
           return false;
@@ -112,7 +114,9 @@ export const useSettingsStore = create<SettingsState>()(
         set({ error: null });
         try {
           await api.update(id, data);
-          return await get().fetch();
+          const providers = await api.list();
+          set({ providers, error: null });
+          return true;
         } catch (error) {
           set({ error: resolveSettingsError(error, "Failed to save provider") });
           return false;

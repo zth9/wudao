@@ -478,8 +478,8 @@ export default function SettingsView() {
               )}
 
               {loading && (
-                 <div className="p-12 text-center text-muted">
-                    <Spinner size="sm" className="mx-auto mb-2" />
+                 <div className="py-8 text-center text-muted">
+                    <Spinner size="sm" className="mx-auto mb-2 scale-75" />
                     <p className="text-xs font-medium uppercase tracking-widest">{t('settings.loading_providers')}</p>
                  </div>
               )}
@@ -497,7 +497,7 @@ export default function SettingsView() {
                     const providerSummary = [p.model || p.id, p.endpoint || ""].filter(Boolean).join(" • ");
                     return (
                     <motion.div
-                      layout
+                      layout="position"
                       key={p.id}
                       className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all"
                     >
