@@ -56,6 +56,14 @@ from .task_service import (
 )
 from .terminal import terminal_manager
 from .usage_adapters import fetch_all_providers
+from .usage_trackers import (
+    create_tracker,
+    delete_tracker,
+    get_tracker,
+    list_trackers,
+    reorder_trackers,
+    update_tracker,
+)
 from .llm import LlmApiError, stream_chat
 
 
@@ -264,6 +272,51 @@ def create_app() -> FastAPI:
     @app.get("/api/usage")
     async def usage() -> list[dict[str, Any]]:
         return await fetch_all_providers()
+
+    # Usage Tracker CRUD
+    @app.get("/api/usage-trackers")
+    async def list_usage_trackers() -> list[dict[str, Any]]:
+        return list_trackers()
+
+    @app.post("/api/usage-trackers")
+    async def create_usage_tracker(request: Request) -> JSONResponse:
+        body = await request.json()
+        if not body.get("provider") or not body.get("name"):
+            return JSONResponse({"error": "provider and name are required"}, status_code=400)
+        try:
+            tracker = create_tracker(body)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409)
+        return JSONResponse(tracker, status_code=201)
+
+    @app.put("/api/usage-trackers/order")
+    async def reorder_usage_trackers(request: Request) -> JSONResponse:
+        body = await request.json()
+        ids = body.get("ids")
+        if not isinstance(ids, list) or not ids or any(not isinstance(item, str) or not item.strip() for item in ids) or len(set(ids)) != len(ids):
+            return JSONResponse({"error": "ids must be a non-empty string array without duplicates"}, status_code=400)
+        try:
+            result = reorder_trackers(ids)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse(result)
+
+    @app.put("/api/usage-trackers/{tracker_id}")
+    async def update_usage_tracker(tracker_id: str, request: Request) -> JSONResponse:
+        body = await request.json()
+        try:
+            tracker = update_tracker(tracker_id, body)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=409)
+        if not tracker:
+            return JSONResponse({"error": "Tracker not found"}, status_code=404)
+        return JSONResponse(tracker)
+
+    @app.delete("/api/usage-trackers/{tracker_id}")
+    async def delete_usage_tracker(tracker_id: str) -> JSONResponse:
+        if not delete_tracker(tracker_id):
+            return JSONResponse({"error": "Tracker not found"}, status_code=404)
+        return JSONResponse({"ok": True})
 
     async def _get_current_avatar_file() -> Path | None:
         for file in PROFILE_DIR.iterdir():

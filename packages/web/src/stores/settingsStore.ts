@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { providers as api, type Provider } from "../services/api";
+import { providers as api, type Provider, usageTrackers as trackerApi, type UsageTracker } from "../services/api";
 import type { SortOption } from "../components/task-panel/constants";
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -34,6 +34,15 @@ interface SettingsState {
   update: (id: string, data: Partial<Provider>) => Promise<boolean>;
   reorder: (ids: string[]) => Promise<boolean>;
   remove: (id: string) => Promise<boolean>;
+  usageTrackers: UsageTracker[];
+  trackerLoading: boolean;
+  trackerError: string | null;
+  clearTrackerError: () => void;
+  fetchTrackers: () => Promise<boolean>;
+  addTracker: (data: Omit<UsageTracker, "id" | "created_at" | "sort_order">) => Promise<boolean>;
+  updateTracker: (id: string, data: Partial<UsageTracker>) => Promise<boolean>;
+  reorderTrackers: (ids: string[]) => Promise<boolean>;
+  removeTracker: (id: string) => Promise<boolean>;
 }
 
 function resolveSettingsError(error: unknown, fallback: string): string {
@@ -142,6 +151,75 @@ export const useSettingsStore = create<SettingsState>()(
           return await get().fetch();
         } catch (error) {
           set({ error: resolveSettingsError(error, "Failed to delete provider") });
+          return false;
+        }
+      },
+
+      usageTrackers: [],
+      trackerLoading: false,
+      trackerError: null,
+      clearTrackerError: () => set({ trackerError: null }),
+
+      fetchTrackers: async () => {
+        set({ trackerLoading: true, trackerError: null });
+        try {
+          const usageTrackers = await trackerApi.list();
+          set({ usageTrackers, trackerLoading: false, trackerError: null });
+          return true;
+        } catch (error) {
+          set({
+            trackerLoading: false,
+            trackerError: resolveSettingsError(error, "Failed to load trackers"),
+          });
+          return false;
+        }
+      },
+
+      addTracker: async (data) => {
+        set({ trackerError: null });
+        try {
+          await trackerApi.create(data);
+          const usageTrackers = await trackerApi.list();
+          set({ usageTrackers, trackerError: null });
+          return true;
+        } catch (error) {
+          set({ trackerError: resolveSettingsError(error, "Failed to create tracker") });
+          return false;
+        }
+      },
+
+      updateTracker: async (id, data) => {
+        set({ trackerError: null });
+        try {
+          await trackerApi.update(id, data);
+          const usageTrackers = await trackerApi.list();
+          set({ usageTrackers, trackerError: null });
+          return true;
+        } catch (error) {
+          set({ trackerError: resolveSettingsError(error, "Failed to update tracker") });
+          return false;
+        }
+      },
+
+      reorderTrackers: async (ids) => {
+        set({ trackerError: null });
+        try {
+          const usageTrackers = await trackerApi.reorder(ids);
+          set({ usageTrackers, trackerError: null });
+          return true;
+        } catch (error) {
+          set({ trackerError: resolveSettingsError(error, "Failed to reorder trackers") });
+          return false;
+        }
+      },
+
+      removeTracker: async (id) => {
+        set({ trackerError: null });
+        try {
+          await trackerApi.delete(id);
+          return await get().fetchTrackers();
+        } catch (error) {
+          set({ trackerError: resolveSettingsError(error, "Failed to delete tracker") });
           return false;
         }
       },

@@ -163,7 +163,19 @@
     "language_label": "Language",
     "tab_profile": "Profile",
     "tab_appearance": "Appearance",
-    "tab_providers": "Model Providers"
+    "tab_providers": "Model Providers",
+    "usage_tracking_section": "Usage Tracking",
+    "add_tracker": "Add Tracker",
+    "edit_tracker": "Edit Tracker",
+    "new_tracker": "New Tracker",
+    "tracker_name": "Tracker Name",
+    "tracker_provider": "Provider Type",
+    "tracker_auth_token": "Auth Token",
+    "tracker_cookie": "Cookie",
+    "tracker_url": "Custom URL (Optional)",
+    "tracker_enabled": "Enabled",
+    "no_trackers": "No usage trackers configured",
+    "loading_trackers": "Loading..."
   },
   "memories": {
     "kicker": "Memory",

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import type { Provider } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Shield, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User } from "lucide-react";
+import type { Provider, UsageTracker } from "../services/api";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3 } from "lucide-react";
 import { ProviderIcon } from "./ProviderIcon";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -22,8 +22,6 @@ const EMPTY_FORM = {
   name: "",
   endpoint: "",
   api_key: "",
-  usage_auth_token: "",
-  usage_cookie: "",
   model: "",
   is_default: 0,
 };
@@ -75,6 +73,15 @@ export default function SettingsView() {
     setAssistant,
     theme,
     setTheme,
+    usageTrackers,
+    trackerLoading,
+    trackerError,
+    clearTrackerError,
+    fetchTrackers,
+    addTracker,
+    updateTracker,
+    reorderTrackers,
+    removeTracker,
   } = useSettingsStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -87,6 +94,11 @@ export default function SettingsView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assistantFileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [trackerDialogOpen, setTrackerDialogOpen] = useState(false);
+  const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null);
+  const [trackerForm, setTrackerForm] = useState({ provider: "codex", name: "", auth_token: "", cookie: "", url: "", enabled: 1 });
+  const [trackerReordering, setTrackerReordering] = useState(false);
+  const [trackerSaving, setTrackerSaving] = useState(false);
 
   // Default avatar options
   const defaultAvatars = ["👨‍💻", "👩‍💻", "🤖", "🐱", "🐶", "🦊", "🦁", "🐧", "🎨", "🚀"];
@@ -159,8 +171,6 @@ export default function SettingsView() {
       name: p.name,
       endpoint: p.endpoint,
       api_key: p.api_key || "",
-      usage_auth_token: p.usage_auth_token || "",
-      usage_cookie: p.usage_cookie || "",
       model: p.model,
       is_default: p.is_default,
     });
@@ -204,8 +214,6 @@ export default function SettingsView() {
       form.name !== p.name ||
       form.endpoint !== p.endpoint ||
       form.api_key !== (p.api_key || "") ||
-      form.usage_auth_token !== (p.usage_auth_token || "") ||
-      form.usage_cookie !== (p.usage_cookie || "") ||
       form.model !== p.model ||
       form.is_default !== p.is_default
     );
@@ -229,11 +237,68 @@ export default function SettingsView() {
     }
   };
 
+  useEffect(() => {
+    void fetchTrackers();
+  }, [fetchTrackers]);
+
+  const openCreateTracker = () => {
+    clearTrackerError();
+    setTrackerForm({ provider: "codex", name: "", auth_token: "", cookie: "", url: "", enabled: 1 });
+    setEditingTrackerId(null);
+    setTrackerDialogOpen(true);
+  };
+
+  const openEditTracker = (t: UsageTracker) => {
+    clearTrackerError();
+    setTrackerForm({
+      provider: t.provider,
+      name: t.name,
+      auth_token: t.auth_token || "",
+      cookie: t.cookie || "",
+      url: t.url || "",
+      enabled: t.enabled,
+    });
+    setEditingTrackerId(t.id);
+    setTrackerDialogOpen(true);
+  };
+
+  const closeTrackerDialog = () => {
+    clearTrackerError();
+    setTrackerDialogOpen(false);
+    setEditingTrackerId(null);
+    setTrackerSaving(false);
+    setTrackerForm({ provider: "codex", name: "", auth_token: "", cookie: "", url: "", enabled: 1 });
+  };
+
+  const handleSaveTracker = async () => {
+    setTrackerSaving(true);
+    const ok = editingTrackerId
+      ? await updateTracker(editingTrackerId, trackerForm)
+      : await addTracker(trackerForm);
+    setTrackerSaving(false);
+    if (ok) closeTrackerDialog();
+  };
+
+  const handleMoveTracker = async (index: number, offset: number) => {
+    const nextIndex = index + offset;
+    if (nextIndex < 0 || nextIndex >= usageTrackers.length || trackerReordering) return;
+    const ids = usageTrackers.map((t) => t.id);
+    const [moved] = ids.splice(index, 1);
+    ids.splice(nextIndex, 0, moved);
+    setTrackerReordering(true);
+    try {
+      await reorderTrackers(ids);
+    } finally {
+      setTrackerReordering(false);
+    }
+  };
+
   const menuItems = [
     { key: "profile", icon: User, label: t("settings.user_profile") },
     { key: "assistant", icon: Bot, label: t("settings.assistant_profile") },
     { key: "appearance", icon: Sun, label: t("settings.appearance") },
     { key: "providers", icon: Cpu, label: t("settings.model_providers") },
+    { key: "usage", icon: BarChart3, label: t("settings.usage_tracking_section") },
   ];
 
   // Reset scroll position when switching sections
@@ -634,6 +699,158 @@ export default function SettingsView() {
             </Card>
             )}
 
+            {/* Usage Tracking */}
+            {activeSection === "usage" && (
+            <Card className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-secondary">
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={16} className="text-accent" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted">{t('settings.usage_tracking_section')}</h2>
+                </div>
+                <Button
+                  onPress={openCreateTracker}
+                  variant="primary"
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs shadow-sm"
+                >
+                  <Plus size={14} />
+                  <span>{t('settings.add_tracker')}</span>
+                </Button>
+              </div>
+
+              <div className="divide-y divide-border">
+                {trackerError && (
+                  <div className="mx-4 mt-4">
+                    <Alert color="danger">
+                      <Alert.Indicator>
+                        <AlertCircle size={16} />
+                      </Alert.Indicator>
+                      <Alert.Content>
+                        <Alert.Description>{trackerError}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  </div>
+                )}
+
+                {trackerLoading && (
+                  <div className="p-12 text-center text-muted">
+                    <Spinner size="sm" className="mx-auto mb-2" />
+                    <p className="text-xs font-medium uppercase tracking-widest">{t('settings.loading_trackers')}</p>
+                  </div>
+                )}
+
+                {!trackerLoading && usageTrackers.length === 0 && (
+                  <div className="p-12 text-center text-muted">
+                    <BarChart3 size={32} className="mx-auto mb-3 opacity-20" />
+                    <p className="text-sm font-medium">{t('settings.no_trackers')}</p>
+                  </div>
+                )}
+
+                {!trackerLoading && usageTrackers.length > 0 && (
+                <div className="p-2 space-y-1">
+                  {usageTrackers.map((tracker, index) => {
+                    const providerLabel = tracker.provider.charAt(0).toUpperCase() + tracker.provider.slice(1);
+                    return (
+                    <motion.div
+                      layout
+                      key={tracker.id}
+                      className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all"
+                    >
+                      <div className="min-w-0 flex items-center gap-4">
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
+                          tracker.enabled ? "bg-accent" : "bg-default opacity-50"
+                        )}>
+                          <ProviderIcon providerId={tracker.provider} size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold truncate tracking-tight">{tracker.name}</p>
+                            {!tracker.enabled && (
+                              <Chip size="sm" color="default" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest opacity-50">OFF</Chip>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
+                            {providerLabel}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => void handleMoveTracker(index, -1)}
+                            isDisabled={index === 0 || trackerReordering}
+                            className="h-8 w-8 text-muted hover:text-foreground"
+                            aria-label={t("common.move_up")}
+                          >
+                            <ChevronUp size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.move_up")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => void handleMoveTracker(index, 1)}
+                            isDisabled={index === usageTrackers.length - 1 || trackerReordering}
+                            className="h-8 w-8 text-muted hover:text-foreground"
+                            aria-label={t("common.move_down")}
+                          >
+                            <ChevronDown size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.move_down")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                        <div className="w-[1px] h-4 bg-border mx-1" />
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => openEditTracker(tracker)}
+                            className="h-8 w-8 text-muted hover:text-accent"
+                            aria-label={t("common.edit")}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.edit")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                        <Tooltip delay={300} closeDelay={0}>
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            onPress={() => {
+                              void removeTracker(tracker.id);
+                            }}
+                            className="h-8 w-8 text-muted hover:text-danger"
+                            aria-label={t("common.delete")}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                            <Tooltip.Arrow className="fill-overlay" />
+                            {t("common.delete")}
+                          </Tooltip.Content>
+                        </Tooltip>
+                      </div>
+                    </motion.div>
+                    );
+                  })}
+                </div>
+                )}
+              </div>
+            </Card>
+            )}
+
             <footer className="text-center py-8 opacity-30">
               <div className="w-1 bg-default h-6 mb-4 rounded-full mx-auto" />
               <p className="text-[9px] font-bold uppercase tracking-[0.2em]">{t('settings.config_panel')}</p>
@@ -716,32 +933,6 @@ export default function SettingsView() {
                      />
                   </div>
 
-                  <div className="p-4 rounded-xl bg-default border border-border space-y-4">
-                     <div className="flex items-center gap-2 mb-2">
-                        <Shield size={14} className="text-accent" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{t('settings.usage_tracking')}</span>
-                     </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-muted">{t('settings.usage_auth_token')}</label>
-                        <Input
-                          className="w-full"
-                          placeholder="JWT Token or similar"
-                          type="password"
-                          value={form.usage_auth_token}
-                          onChange={(e) => setForm({ ...form, usage_auth_token: e.target.value })}
-                        />
-                     </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-muted">{t('settings.usage_cookie')}</label>
-                        <TextArea
-                          className="min-h-[60px] w-full resize-none"
-                          placeholder="Full cookie string..."
-                          value={form.usage_cookie}
-                          onChange={(e) => setForm({ ...form, usage_cookie: e.target.value })}
-                        />
-                     </div>
-                  </div>
-
                   <DefaultProviderToggle
                     checked={!!form.is_default}
                     label={t('settings.set_default')}
@@ -762,6 +953,119 @@ export default function SettingsView() {
                >
                  {saving ? <Spinner size="sm" /> : null}
                  {saving ? t('common.loading') : editingId ? t('common.update') : t('common.save')}
+               </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+
+      <Modal.Backdrop
+        isOpen={trackerDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeTrackerDialog();
+        }}
+      >
+        <Modal.Container placement="center" className="w-full max-w-lg">
+          <Modal.Dialog>
+            <Modal.Header className="flex-row items-center justify-between">
+               <h3 className="text-lg font-bold">{editingTrackerId ? t('settings.edit_tracker') : t('settings.new_tracker')}</h3>
+               <Tooltip delay={300} closeDelay={0}>
+                 <Button isIconOnly variant="ghost" onPress={closeTrackerDialog} className="h-8 w-8" aria-label={t("common.close")}>
+                    <X size={18} />
+                 </Button>
+                 <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                   <Tooltip.Arrow className="fill-overlay" />
+                   {t("common.close")}
+                 </Tooltip.Content>
+               </Tooltip>
+            </Modal.Header>
+
+            <Modal.Body className="max-h-[70vh] space-y-4 overflow-y-auto px-1 py-1">
+               {trackerError && (
+                  <div className="rounded-lg border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+                     <div className="flex items-start gap-2">
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                        <span>{trackerError}</span>
+                     </div>
+                  </div>
+               )}
+
+               <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_name')}</label>
+                        <Input
+                          className="w-full"
+                          placeholder="My Codex"
+                          value={trackerForm.name}
+                          onChange={(e) => setTrackerForm({ ...trackerForm, name: e.target.value })}
+                        />
+                     </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_provider')}</label>
+                        <select
+                          className="w-full h-9 rounded-lg border border-border bg-default px-3 text-sm"
+                          value={trackerForm.provider}
+                          onChange={(e) => setTrackerForm({ ...trackerForm, provider: e.target.value })}
+                          disabled={!!editingTrackerId}
+                        >
+                          <option value="minimax">MiniMax</option>
+                          <option value="glm">GLM</option>
+                          <option value="kimi">Kimi</option>
+                          <option value="mimo">MiMo</option>
+                          <option value="codex">Codex</option>
+                        </select>
+                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_auth_token')}</label>
+                     <Input
+                       className="w-full"
+                       placeholder="JWT Token..."
+                       type="password"
+                       value={trackerForm.auth_token}
+                       onChange={(e) => setTrackerForm({ ...trackerForm, auth_token: e.target.value })}
+                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_cookie')}</label>
+                     <TextArea
+                       className="min-h-[60px] w-full resize-none"
+                       placeholder="Cookie string..."
+                       value={trackerForm.cookie}
+                       onChange={(e) => setTrackerForm({ ...trackerForm, cookie: e.target.value })}
+                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">{t('settings.tracker_url')}</label>
+                     <Input
+                       className="w-full"
+                       placeholder="https://..."
+                       value={trackerForm.url}
+                       onChange={(e) => setTrackerForm({ ...trackerForm, url: e.target.value })}
+                     />
+                  </div>
+
+                  <DefaultProviderToggle
+                    checked={!!trackerForm.enabled}
+                    label={t('settings.tracker_enabled')}
+                    onChange={(checked) => setTrackerForm({ ...trackerForm, enabled: checked ? 1 : 0 })}
+                  />
+               </div>
+            </Modal.Body>
+
+            <Modal.Footer>
+               <Button
+                 onPress={() => void handleSaveTracker()}
+                 isDisabled={!trackerForm.name.trim() || trackerSaving}
+                 variant="primary"
+                 className="inline-flex min-w-[120px] items-center justify-center gap-2 px-8"
+               >
+                 {trackerSaving ? <Spinner size="sm" /> : null}
+                 {trackerSaving ? t('common.loading') : editingTrackerId ? t('common.update') : t('common.save')}
                </Button>
             </Modal.Footer>
           </Modal.Dialog>
