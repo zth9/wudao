@@ -159,7 +159,10 @@
     "select_assistant_avatar": "Select Assistant Avatar",
     "appearance": "Appearance",
     "theme_label": "Theme",
-    "language_label": "Language"
+    "language_label": "Language",
+    "tab_profile": "Profile",
+    "tab_appearance": "Appearance",
+    "tab_providers": "Model Providers"
   },
   "memories": {
     "kicker": "Memory",

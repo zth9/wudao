@@ -159,7 +159,10 @@
     "select_assistant_avatar": "选择助手头像",
     "appearance": "外观",
     "theme_label": "主题模式",
-    "language_label": "语言"
+    "language_label": "语言",
+    "tab_profile": "个人资料",
+    "tab_appearance": "外观",
+    "tab_providers": "模型供应商"
   },
   "memories": {
     "kicker": "Memory",
