@@ -453,8 +453,8 @@ def test_model_adapter_prompt_prefers_first_turn_clarification(tmp_path, monkeyp
     prompt_messages = captured["messages"]
     assert isinstance(prompt_messages, list)
     system_prompt = str(prompt_messages[-1]["content"])
-    assert "首轮对话默认先与用户沟通" in system_prompt
-    assert '不要为了"先了解情况"就读取当前 workspace' in system_prompt
+    assert "首轮对话默认先通过 assistant_text 与用户沟通" in system_prompt
+    assert "不要为了" in system_prompt and "先了解情况" in system_prompt and "读取当前 workspace" in system_prompt
     assert "removed_context_tool" not in system_prompt
 
 
