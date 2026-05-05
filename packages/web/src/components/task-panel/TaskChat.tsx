@@ -622,7 +622,7 @@ export function TaskChat({
             const isRunningToolCall = item.kind === "tool_call" && item.status === "streaming";
 
             const cardHeader = (
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em]">
                 {item.kind === "error" ? (
                   <AlertCircle size={14} className="text-danger" />
                 ) : ToolIcon ? (
