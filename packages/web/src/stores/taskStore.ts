@@ -80,7 +80,7 @@ function maybeRevealSdkRun(taskId: string, content: unknown): void {
     return;
   }
 
-  connectSdkRun(taskId, sdkRunId, { reveal: true });
+  connectSdkRun(taskId, sdkRunId);
 }
 
 function findLatestSdkRunIdInThread(thread: AgentThread | null): string | null {
