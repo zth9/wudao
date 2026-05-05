@@ -545,7 +545,7 @@ async def stream_complete_agent_turn(
     is_json_mode: bool | None = None
     pending_text_buffer: list[str] = []
 
-    async for delta in stream_chat(prompt_messages, provider_id):
+    async for delta in stream_chat(provider_id, prompt_messages):
         accumulated.append(delta)
 
         if is_json_mode is None:
