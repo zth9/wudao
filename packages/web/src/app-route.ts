@@ -53,3 +53,19 @@ export function buildAppLocation(route: AppRoute, pathname = "/"): string {
 export function routeEquals(a: AppRoute, b: AppRoute): boolean {
   return a.view === b.view && a.taskId === b.taskId && a.autoStartChat === b.autoStartChat;
 }
+
+export function resolveViewChange(params: {
+  currentRoute: AppRoute;
+  lastTaskCenterTaskId: string | null;
+  targetView: ViewKey;
+}): AppRoute {
+  const { currentRoute, lastTaskCenterTaskId, targetView } = params;
+  if (targetView !== "tasks") {
+    return { view: targetView, taskId: null, autoStartChat: false };
+  }
+  return {
+    view: "tasks",
+    taskId: currentRoute.taskId || lastTaskCenterTaskId,
+    autoStartChat: false,
+  };
+}
