@@ -6,6 +6,8 @@ from typing import Any
 
 from ..db import db
 from ..sdk_runner.sdk_tools import is_sdk_runner_tool_name, summarize_sdk_run_result
+from .sdk_runner_checkpoint import extract_checkpoint_sdk_run_id
+from .sdk_result_split import split_sdk_runner_result_for_display
 
 
 def _load_json(value: Any) -> Any:
@@ -26,7 +28,7 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
     """
     candidate_rows = db.query_all(
         """
-        SELECT m.id, m.run_id, m.seq, m.content_json, ar.status AS agent_run_status
+        SELECT m.id, m.run_id, m.seq, m.content_json, ar.status AS agent_run_status, ar.checkpoint_json
         FROM task_agent_messages m
         JOIN task_agent_runs ar ON ar.id = m.run_id
         WHERE m.task_id = ? AND m.kind = 'tool_call' AND m.status = 'streaming'
@@ -42,6 +44,12 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
             continue
         tool_name = str(content.get("toolName") or "").strip()
         sdk_run_id = str(content.get("sdk_run_id") or "").strip()
+        if not sdk_run_id:
+            sdk_run_id = extract_checkpoint_sdk_run_id(
+                _load_json(row.get("checkpoint_json")),
+                tool_call_message_id=str(row["id"]),
+                tool_name=tool_name,
+            )
         if not sdk_run_id or not is_sdk_runner_tool_name(tool_name):
             continue
 
@@ -51,6 +59,7 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
             continue
 
         result_status = "failed" if isinstance(output, dict) and output.get("ok") is False else "completed"
+        split_result = split_sdk_runner_result_for_display(tool_name, output)
         tool_call_id = str(row["id"])
         run_id = str(row["run_id"])
         insert_seq = int(row["seq"]) + 1
@@ -86,6 +95,7 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
             )
 
             if existing_result is None:
+                insert_count = 2 if split_result else 1
                 later_rows = conn.execute(
                     """
                     SELECT id, seq FROM task_agent_messages
@@ -97,9 +107,10 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
                 for later_row in later_rows:
                     conn.execute(
                         "UPDATE task_agent_messages SET seq = ?, updated_at = datetime('now') WHERE id = ?",
-                        (int(later_row["seq"]) + 1, str(later_row["id"])),
+                        (int(later_row["seq"]) + insert_count, str(later_row["id"])),
                     )
 
+                result_output = split_result.display_output if split_result else output
                 conn.execute(
                     """
                     INSERT INTO task_agent_messages (id, task_id, run_id, seq, role, kind, status, content_json)
@@ -114,18 +125,38 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
                         json.dumps(
                             {
                                 "toolName": tool_name,
-                                "output": output,
+                                "output": result_output,
                             },
                             ensure_ascii=False,
                         ),
                     ),
                 )
 
+                if split_result:
+                    conn.execute(
+                        """
+                        INSERT INTO task_agent_messages (id, task_id, run_id, seq, role, kind, status, content_json)
+                        VALUES (?, ?, ?, ?, 'assistant', 'text', 'completed', ?)
+                        """,
+                        (
+                            str(uuid.uuid4()),
+                            task_id,
+                            run_id,
+                            insert_seq + 1,
+                            json.dumps(
+                                {
+                                    "content": split_result.final_text,
+                                },
+                                ensure_ascii=False,
+                            ),
+                        ),
+                    )
+
             if result_status == "completed":
                 conn.execute(
                     """
                     UPDATE task_agent_runs
-                    SET status = 'completed', last_error = NULL, updated_at = datetime('now')
+                    SET status = 'completed', checkpoint_json = NULL, last_error = NULL, updated_at = datetime('now')
                     WHERE id = ? AND status = 'running'
                     """,
                     (run_id,),
@@ -134,7 +165,7 @@ def repair_orphaned_sdk_runner_tool_calls(task_id: str) -> int:
                 conn.execute(
                     """
                     UPDATE task_agent_runs
-                    SET status = 'failed', last_error = ?, updated_at = datetime('now')
+                    SET status = 'failed', checkpoint_json = NULL, last_error = ?, updated_at = datetime('now')
                     WHERE id = ? AND status = 'running'
                     """,
                     (str(output.get("error") or output.get("last_error") or "SDK runner failed"), run_id),

@@ -96,6 +96,97 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
     ]
 
 
+def test_runner_persists_sdk_wait_checkpoint_while_runner_is_active(tmp_path, monkeypatch):
+    app_module, runner, _, thread_store, _ = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "Runner checkpoint")
+
+    step_count = 0
+
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        nonlocal step_count
+        step_count += 1
+        if step_count == 1:
+            return {
+                "type": "tool_call",
+                "toolName": "invoke_claude_code_runner",
+                "input": {"prompt": "run tests"},
+            }
+        return {"type": "assistant_text", "content": "Runner 已完成。"}
+
+    async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, provider_id=None, on_started=None):
+        assert tool_name == "invoke_claude_code_runner"
+        if on_started is not None:
+            await on_started(
+                {
+                    "sdk_run_id": "sdk-run-checkpoint-active",
+                    "runner_type": "claude_code",
+                    "tool_name": "invoke_claude_code_runner",
+                    "status": "running",
+                    "message": "Claude Code Runner started and is now running.",
+                }
+            )
+        await release_runner.wait()
+        return {
+            "ok": True,
+            "status": "completed",
+            "sdk_run_id": "sdk-run-checkpoint-active",
+            "runner_type": "claude_code",
+            "tool_name": "invoke_claude_code_runner",
+            "cwd": "/tmp/demo",
+            "prompt": "run tests",
+            "final_text": "All tests passed.",
+            "message": "Claude Code Runner completed successfully.",
+        }
+
+    monkeypatch.setattr(runner, "next_agent_step", fake_next_step)
+    monkeypatch.setattr(runner, "execute_agent_tool", fake_execute_agent_tool)
+
+    run = thread_store.create_agent_run(task_id, "claude", run_id="run-checkpoint")
+    release_runner = None
+
+    async def collect():
+        nonlocal release_runner
+        import asyncio
+
+        release_runner = asyncio.Event()
+        history = [{"role": "user", "content": "跑测试"}]
+        events = []
+        stream = runner.run_agent_loop(
+            task_id=task_id,
+            run_id=run["id"],
+            provider_id="claude",
+            history=history,
+            projected_history=history,
+        )
+
+        events.append(await stream.__anext__())
+        events.append(await stream.__anext__())
+        events.append(await stream.__anext__())
+
+        checkpoint = thread_store.get_agent_run(run["id"])["checkpoint_json"]
+        assert checkpoint == {
+            "type": "sdk_runner_wait",
+            "tool_name": "invoke_claude_code_runner",
+            "tool_input": {"prompt": "run tests"},
+            "tool_call_message_id": events[0]["item"]["id"],
+            "sdk_run_id": "sdk-run-checkpoint-active",
+        }
+
+        release_runner.set()
+        async for event in stream:
+            events.append(event)
+        return events
+
+    import asyncio
+
+    events = asyncio.run(collect())
+
+    assert events[2]["type"] == "message.completed"
+    assert events[2]["item"]["content_json"]["sdk_run_id"] == "sdk-run-checkpoint-active"
+    assert thread_store.get_agent_run(run["id"])["checkpoint_json"] is None
+
+
 def test_runner_degrades_invalid_model_output_to_plain_text_reply(tmp_path, monkeypatch):
     app_module, runner, model_adapter, thread_store, _ = load_modules(tmp_path, monkeypatch)
     client = TestClient(app_module.app)
@@ -348,6 +439,52 @@ def test_model_adapter_prompt_prefers_first_turn_clarification(tmp_path, monkeyp
     assert "首轮对话默认先通过 assistant_text 与用户沟通" in system_prompt
     assert "不要为了“先了解情况”就读取当前 workspace" in system_prompt
     assert "removed_context_tool" not in system_prompt
+
+
+def test_model_adapter_retries_unstructured_tool_protocol_reply(tmp_path, monkeypatch):
+    _, _, model_adapter, _, _ = load_modules(tmp_path, monkeypatch)
+    captured_messages: list[list[dict[str, str]]] = []
+    raw_replies = iter(
+        [
+            "我会调用工具查看目录。",
+            '{"tool_calls":[{"toolName":"workspace_list","input":{"path":"."}}]}',
+        ]
+    )
+
+    async def fake_chat_complete(messages, provider_id):
+        captured_messages.append(messages)
+        return next(raw_replies)
+
+    async def fake_execute(_task_id, _input_data):
+        return {}
+
+    monkeypatch.setattr(model_adapter, "chat_complete", fake_chat_complete)
+
+    tool = model_adapter.AgentTool(
+        name="workspace_list",
+        description="列出 workspace",
+        input_schema={},
+        execute=fake_execute,
+    )
+
+    import asyncio
+
+    response = asyncio.run(
+        model_adapter.complete_agent_turn(
+            "glm",
+            [{"role": "user", "content": "查看目录"}],
+            [tool],
+        )
+    )
+
+    assert response.structured is True
+    assert [
+        {"toolName": item.tool_name, "input": item.input_data}
+        for item in response.tool_calls
+    ] == [{"toolName": "workspace_list", "input": {"path": "."}}]
+    assert len(captured_messages) == 2
+    assert captured_messages[1][-2] == {"role": "assistant", "content": "我会调用工具查看目录。"}
+    assert "必须把它改写为 tool_calls" in captured_messages[1][-1]["content"]
 
 
 def test_model_adapter_parses_minimax_tool_call_markup(tmp_path, monkeypatch):

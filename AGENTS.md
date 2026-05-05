@@ -31,6 +31,8 @@
 - 用户视角变更记录：`docs/changelog.md`
 - 前端开发规范：`docs/design/frontend-guidelines.md`
 - HeroUI 前端重构计划：`docs/design/heroui-frontend-refactor-plan.md`
+- Claude Code Runner 独立状态：`docs/design/claude-code-runner-independent-state.md`
+- Claude Code Runner 结果拆分：`docs/design/invoke-claude-code-runner-result-split.md`
 - 大功能或临时计划：优先新建到 `docs/design/`，并在本节补索引
 
 不要引用已经不存在的设计文档；如果需要恢复某个长期设计说明，先创建明确命名的文档，再把入口补到这里。

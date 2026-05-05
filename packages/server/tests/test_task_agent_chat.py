@@ -395,17 +395,119 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
     assert payloads[6]["item"]["kind"] == "tool_call"
     assert payloads[6]["item"]["status"] == "completed"
     assert payloads[7]["item"]["kind"] == "tool_result"
-    assert payloads[7]["item"]["content_json"]["output"]["final_text"] == "Sun Mar 22 09:00:00 CST 2026"
+    assert payloads[7]["item"]["content_json"]["output"]["sdk_run_id"] == "sdk-run-time"
+    assert payloads[7]["item"]["content_json"]["output"]["final_text_split"] is True
+    assert "final_text" not in payloads[7]["item"]["content_json"]["output"]
+    assert payloads[9]["item"]["kind"] == "text"
+    assert payloads[9]["item"]["content_json"]["content"] == "Sun Mar 22 09:00:00 CST 2026"
     assert payloads[-2]["item"]["content_json"]["content"] == "当前时间是 Sun Mar 22 09:00:00 CST 2026。"
 
     thread = client.get(f"/api/tasks/{task_id}/agent-chat/thread").json()
-    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "text"]
+    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "text", "text"]
     assert thread["messages"][2]["content_json"]["sdk_run_id"] == "sdk-run-time"
-    assert thread["messages"][3]["content_json"]["output"]["final_text"] == "Sun Mar 22 09:00:00 CST 2026"
-    assert thread["messages"][4]["content_json"]["content"] == "当前时间是 Sun Mar 22 09:00:00 CST 2026。"
+    assert thread["messages"][3]["content_json"]["output"]["final_text_split"] is True
+    assert "final_text" not in thread["messages"][3]["content_json"]["output"]
+    assert thread["messages"][4]["content_json"]["content"] == "Sun Mar 22 09:00:00 CST 2026"
+    assert thread["messages"][5]["content_json"]["content"] == "当前时间是 Sun Mar 22 09:00:00 CST 2026。"
 
     history = json.loads(client.get(f"/api/tasks/{task_id}").json()["chat_messages"])
     assert history[-1] == {"role": "assistant", "content": "当前时间是 Sun Mar 22 09:00:00 CST 2026。"}
+
+
+def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path, monkeypatch):
+    app_module, runner, _, _ = load_modules(tmp_path, monkeypatch)
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "Claude Code 失败后继续回答")
+
+    step_count = 0
+
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+        nonlocal step_count
+        step_count += 1
+        if step_count == 1:
+            return {
+                "type": "tool_call",
+                "toolName": "invoke_claude_code_runner",
+                "input": {"prompt": "运行失败的测试"},
+            }
+
+        assert tool_transcript == [
+            {"type": "tool_call", "toolName": "invoke_claude_code_runner", "input": {"prompt": "运行失败的测试"}},
+            {
+                "type": "tool_result",
+                "toolName": "invoke_claude_code_runner",
+                "output": {
+                    "ok": False,
+                    "status": "failed",
+                    "sdk_run_id": "sdk-run-failed",
+                    "runner_type": "claude_code",
+                    "tool_name": "invoke_claude_code_runner",
+                    "cwd": "/tmp/demo",
+                    "prompt": "运行失败的测试",
+                    "last_error": "pytest failed",
+                    "error": "pytest failed",
+                    "message": "pytest failed",
+                },
+            },
+        ]
+        return {"type": "assistant_text", "content": "Runner 执行失败：pytest failed。"}
+
+    async def fake_execute_agent_tool(task_id, tool_name, input_data, *, agent_run_id=None, provider_id=None, on_started=None):
+        assert tool_name == "invoke_claude_code_runner"
+        if on_started is not None:
+            await on_started(
+                {
+                    "sdk_run_id": "sdk-run-failed",
+                    "runner_type": "claude_code",
+                    "tool_name": "invoke_claude_code_runner",
+                    "status": "running",
+                    "message": "Claude Code Runner started and is now running.",
+                }
+            )
+        return {
+            "ok": False,
+            "status": "failed",
+            "sdk_run_id": "sdk-run-failed",
+            "runner_type": "claude_code",
+            "tool_name": "invoke_claude_code_runner",
+            "cwd": "/tmp/demo",
+            "prompt": "运行失败的测试",
+            "last_error": "pytest failed",
+            "error": "pytest failed",
+            "message": "pytest failed",
+        }
+
+    monkeypatch.setattr(runner, "next_agent_step", fake_next_agent_step)
+    monkeypatch.setattr(runner, "execute_agent_tool", fake_execute_agent_tool)
+
+    payloads = start_run_and_collect_events(
+        client,
+        task_id,
+        {"message": "试一下", "providerId": "openai"},
+    )
+
+    tool_result_payloads = [
+        payload for payload in payloads
+        if payload["type"] == "message.completed" and payload["item"]["kind"] == "tool_result"
+    ]
+    assert len(tool_result_payloads) == 1
+    output = tool_result_payloads[0]["item"]["content_json"]["output"]
+    assert output["ok"] is False
+    assert output["error"] == "pytest failed"
+    assert "final_text_split" not in output
+    assert all(
+        not (
+            payload["type"] == "message.completed"
+            and payload["item"]["kind"] == "text"
+            and payload["item"]["content_json"].get("content") == "pytest failed"
+        )
+        for payload in payloads
+    )
+
+    thread = client.get(f"/api/tasks/{task_id}/agent-chat/thread").json()
+    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "text"]
+    assert thread["messages"][3]["content_json"]["output"]["error"] == "pytest failed"
+    assert "final_text_split" not in thread["messages"][3]["content_json"]["output"]
 
 
 def test_thread_endpoint_repairs_orphaned_completed_sdk_runner_tool_call(tmp_path, monkeypatch):
@@ -476,12 +578,74 @@ def test_thread_endpoint_repairs_orphaned_completed_sdk_runner_tool_call(tmp_pat
     thread = response.json()
 
     assert thread["runs"][0]["status"] == "completed"
-    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result"]
+    assert [item["kind"] for item in thread["messages"]] == ["text", "text", "tool_call", "tool_result", "text"]
     assert thread["messages"][2]["status"] == "completed"
     assert thread["messages"][2]["content_json"]["sdk_run_id"] == "sdk-run-1"
     assert thread["messages"][3]["status"] == "completed"
     assert thread["messages"][3]["content_json"]["output"]["sdk_run_id"] == "sdk-run-1"
-    assert thread["messages"][3]["content_json"]["output"]["final_text"] == "Sunday, March 22, 2026 — 01:08:18 CST"
+    assert thread["messages"][3]["content_json"]["output"]["final_text_split"] is True
+    assert "final_text" not in thread["messages"][3]["content_json"]["output"]
+    assert thread["messages"][4]["role"] == "assistant"
+    assert thread["messages"][4]["content_json"]["content"] == "Sunday, March 22, 2026 — 01:08:18 CST"
+
+
+def test_thread_endpoint_repairs_sdk_runner_tool_call_from_checkpoint(tmp_path, monkeypatch):
+    app_module, _, thread_store, sdk_store = load_modules(tmp_path, monkeypatch)
+    checkpoint_mod = importlib.import_module("src.agent_runtime.sdk_runner_checkpoint")
+    client = TestClient(app_module.app)
+    task_id = create_task(client, "从 checkpoint 修复 runner 工具调用")
+
+    run = thread_store.create_agent_run(
+        task_id,
+        "openai",
+        run_id="agent-run-checkpoint",
+        checkpoint_json=checkpoint_mod.build_sdk_runner_wait_checkpoint(
+            tool_name="invoke_claude_code_runner",
+            tool_input={"prompt": "print current time"},
+            tool_call_message_id="tool-call-checkpoint",
+            sdk_run_id="sdk-run-checkpoint",
+        ),
+    )
+    thread_store.append_agent_message(
+        task_id,
+        run["id"],
+        role="assistant",
+        kind="tool_call",
+        status="streaming",
+        content_json={
+            "toolName": "invoke_claude_code_runner",
+            "input": {"prompt": "print current time"},
+        },
+        message_id="tool-call-checkpoint",
+    )
+
+    sdk_store.create_sdk_run(
+        task_id,
+        prompt="print current time",
+        cwd="/tmp/demo",
+        agent_run_id=run["id"],
+        runner_type="claude_code",
+        status="completed",
+        run_id="sdk-run-checkpoint",
+    )
+    sdk_store.append_sdk_event(
+        "sdk-run-checkpoint",
+        event_type="sdk.text_completed",
+        payload_json={"text": "Runner completed after page refresh."},
+    )
+
+    response = client.get(f"/api/tasks/{task_id}/agent-chat/thread")
+    assert response.status_code == 200
+    thread = response.json()
+
+    assert thread["runs"][0]["status"] == "completed"
+    assert thread["runs"][0]["checkpoint_json"] is None
+    assert [item["kind"] for item in thread["messages"]] == ["tool_call", "tool_result", "text"]
+    assert thread["messages"][0]["status"] == "completed"
+    assert thread["messages"][0]["content_json"]["sdk_run_id"] == "sdk-run-checkpoint"
+    assert thread["messages"][1]["content_json"]["output"]["sdk_run_id"] == "sdk-run-checkpoint"
+    assert thread["messages"][1]["content_json"]["output"]["final_text_split"] is True
+    assert thread["messages"][2]["content_json"]["content"] == "Runner completed after page refresh."
 
 
 def test_agent_chat_run_marks_failed_run_and_keeps_legacy_projection_consistent(tmp_path, monkeypatch):

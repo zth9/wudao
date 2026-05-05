@@ -28,7 +28,12 @@ import MarkdownContent from "../MarkdownContent";
 import { TASK_WORKSPACE_HEADER_HEIGHT_PX, TaskWorkspacePanelHeader } from "../TaskWorkspacePanelHeader";
 import { cn } from "../../utils/cn";
 import { shouldSubmitOnEnter } from "../../utils/ime";
-import { extractSdkRunIdFromToolOutput, shortSdkRunId } from "../../utils/sdk-runner";
+import {
+  SDK_RUNNER_TOOL_NAMES,
+  extractSdkRunIdFromToolOutput,
+  isSplitSdkRunnerToolOutput,
+  shortSdkRunId,
+} from "../../utils/sdk-runner";
 import {
   isTaskChatScrolledNearBottom,
   shouldShowTaskChatScrollButton,
@@ -294,6 +299,7 @@ function resolveToolIcon(toolName: string) {
   if (toolName === "workspace_write_file") return FileText;
   if (toolName === "workspace_apply_patch") return FileCode;
   if (toolName === "terminal_snapshot") return TerminalSquare;
+  if (SDK_RUNNER_TOOL_NAMES.has(toolName)) return Bot;
   return Wrench;
 }
 
@@ -309,6 +315,12 @@ function buildRenderItems(items: AgentTimelineItem[]): TaskChatRenderItem[] {
       next?.kind === "tool_result" &&
       current.toolName === next.toolName
     ) {
+      if (isSplitSdkRunnerToolOutput(current.toolName, next.output)) {
+        renderItems.push(current);
+        index += 1;
+        continue;
+      }
+
       renderItems.push({
         kind: "tool_exchange",
         id: `${current.id}__${next.id}`,

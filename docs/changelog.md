@@ -4,6 +4,31 @@
 
 ## Unreleased
 
+- **Claude Code Runner 现不再被进度事件误取消**：
+  - 修复 `invoke_claude_code_runner` 在 Runner 启动并回传 `sdk_run_id` 后，Agent Runtime 误把仍在等待完成的工具任务取消的问题
+  - 后端现在只取消用于等待进度队列的临时 task，不会因为前端刷新、事件流重连或进度事件到达而取消 Runner 工具等待
+  - Agent run 在等待 Claude Code Runner 时会把 `sdk_run_id` 写入 `checkpoint_json`，刷新后即使 tool_call 错过实时进度，也能从 Runner 自身状态修复
+  - 已补充服务端回归测试，覆盖 Runner 等待 checkpoint 和从 checkpoint 修复 orphan tool_call
+
+- **Agentic Chat 现补充 Debug 级运行时日志**：
+  - 设置 `WUDAO_LOG_LEVEL=DEBUG` 后，后端会输出 AgentLoop 的用户 prompt 摘要、模型调用元数据、模型输出摘要、解析后的助手文本 / `tool_calls` 摘要、工具输入/进度/结果摘要和 run 终态
+  - 日志不再打印完整 message 历史，只记录消息数量、最后一个用户 prompt preview、工具名列表、tool transcript 摘要等排障信息
+  - 日志使用统一的 `agent_runtime.<event>` 前缀和 JSON 字段，方便按事件检索
+  - 文本 preview 默认最多 800 字符，可用 `WUDAO_AGENT_DEBUG_TEXT_PREVIEW_CHARS` 调整；单条 JSON 日志默认最多 20000 字符，可用 `WUDAO_AGENT_DEBUG_LOG_MAX_CHARS` 调整
+
+- **Agentic Chat 工具调用协议现会做统一纠错**：
+  - 当模型在工具可用时没有按 JSON 协议输出，而是用普通文本承诺“马上调用 / 会执行”之类内容，后端会追加一次通用协议纠错请求
+  - 纠错请求不按工具名做特殊分支，只要求模型把“调用任何可用工具”的意图改写为统一的 `tool_calls`
+  - Agent Runner 仍只是普通工具之一，和 workspace / terminal 工具走同一套 AgentLoop 工具调用机制
+  - 已补充服务端回归测试，覆盖非结构化工具承诺被纠正为标准 `tool_calls`
+
+- **Agent Runner 成功结果现会拆成助手消息气泡**：
+  - 当 `invoke_claude_code_runner` 成功返回 `final_text` 时，任务聊天会把最终文本作为助手 Markdown 气泡展示，不再塞进工具结果 JSON
+  - 工具结果只保留状态、`sdk_run_id`、成本、token、耗时等精简元数据，并继续提供打开 Agent Runner 的入口
+  - 失败结果和旧历史结果不会被隐藏，仍按工具结果卡片展示，避免错误信息或历史 `final_text` 消失
+  - 刷新时自动修复孤儿 Runner 工具调用的路径也采用同一拆分规则
+  - 已补充后端与前端回归测试，覆盖成功拆分、失败保留、旧历史保留和 thread repair
+
 - **Agent Runner 现会沿用 Agentic Chat 选择的模型配置**：
   - 当 Agentic Chat 调用 `invoke_claude_code_runner` 时，后端会把本轮用户选择的 provider 继续传给 Agent Runner
   - Claude Agent SDK 子进程会使用该 provider 的模型和转换后的 `ANTHROPIC_BASE_URL`；自定义 base 会把 provider `api_key` 注入为 `ANTHROPIC_AUTH_TOKEN`，官方 Anthropic base 则注入为 `ANTHROPIC_API_KEY`

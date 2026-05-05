@@ -12,7 +12,11 @@ from ..task_helpers import (
     persist_task_chat_history,
     persist_task_chat_result,
 )
+from ..sdk_runner.sdk_tools import is_sdk_runner_tool_name
 from . import model_adapter
+from .debug_logging import agent_debug_log, debug_text, debug_value_summary
+from .sdk_runner_checkpoint import build_sdk_runner_wait_checkpoint
+from .sdk_result_split import split_sdk_runner_result_for_display
 from .thread_store import append_agent_message, create_agent_run, update_agent_message, update_agent_run
 from .tool_registry import execute_agent_tool, serialize_tool_schemas
 
@@ -236,6 +240,14 @@ async def _process_tool_execution(
     tool_transcript: list[dict[str, Any]],
 ) -> AsyncGenerator[dict[str, Any], None]:
     """执行工具并 yield 事件；致命失败会终止 run，可恢复失败会回流为 failed tool_result。"""
+    agent_debug_log(
+        "tool.start",
+        task_id=task_id,
+        run_id=run_id,
+        provider_id=provider_id,
+        tool_name=tool_name,
+        tool_input_summary=debug_value_summary(tool_input),
+    )
     call_item = append_agent_message(
         task_id,
         run_id,
@@ -244,6 +256,16 @@ async def _process_tool_execution(
         status="streaming",
         content_json=_build_tool_call_content(tool_name, tool_input),
     )
+    sdk_runner_checkpoint_active = is_sdk_runner_tool_name(tool_name)
+    if sdk_runner_checkpoint_active:
+        update_agent_run(
+            run_id,
+            checkpoint_json=build_sdk_runner_wait_checkpoint(
+                tool_name=tool_name,
+                tool_input=tool_input,
+                tool_call_message_id=call_item["id"],
+            ),
+        )
 
     yield {"type": "message.completed", "item": call_item}
     yield {"type": "tool.started", "item": call_item}
@@ -252,11 +274,30 @@ async def _process_tool_execution(
 
     async def handle_tool_progress(metadata: dict[str, Any]) -> None:
         nonlocal call_item
+        agent_debug_log(
+            "tool.progress",
+            task_id=task_id,
+            run_id=run_id,
+            provider_id=provider_id,
+            tool_name=tool_name,
+            metadata_summary=debug_value_summary(metadata),
+        )
         call_item = _update_tool_call_message(
             call_item,
             status="streaming",
             metadata=metadata,
         )
+        if sdk_runner_checkpoint_active:
+            sdk_run_id = str(metadata.get("sdk_run_id") or "").strip()
+            update_agent_run(
+                run_id,
+                checkpoint_json=build_sdk_runner_wait_checkpoint(
+                    tool_name=tool_name,
+                    tool_input=tool_input,
+                    tool_call_message_id=call_item["id"],
+                    sdk_run_id=sdk_run_id or None,
+                ),
+            )
         await progress_queue.put({"type": "message.completed", "item": call_item})
 
     tool_task = asyncio.create_task(
@@ -281,7 +322,8 @@ async def _process_tool_execution(
         else:
             queue_task.cancel()
         for pending_task in pending:
-            pending_task.cancel()
+            if pending_task is queue_task:
+                pending_task.cancel()
 
     while not progress_queue.empty():
         yield await progress_queue.get()
@@ -290,10 +332,21 @@ async def _process_tool_execution(
         output = await tool_task
     except Exception as exc:
         err = error_message(exc)
+        agent_debug_log(
+            "tool.exception",
+            task_id=task_id,
+            run_id=run_id,
+            provider_id=provider_id,
+            tool_name=tool_name,
+            error=err,
+            recoverable=_is_recoverable_tool_error(exc),
+        )
         call_item = _update_tool_call_message(call_item, status="failed")
         yield {"type": "message.completed", "item": call_item}
         if _is_recoverable_tool_error(exc):
             result_item = _build_failed_tool_result(task_id, run_id, tool_name, err)
+            if sdk_runner_checkpoint_active:
+                update_agent_run(run_id, checkpoint_json=None)
             yield {"type": "message.completed", "item": result_item}
             yield {"type": "tool.completed", "item": result_item}
             tool_transcript.extend([
@@ -308,23 +361,55 @@ async def _process_tool_execution(
         return
 
     result_status = "failed" if isinstance(output, dict) and output.get("ok") is False else "completed"
+    agent_debug_log(
+        "tool.output",
+        task_id=task_id,
+        run_id=run_id,
+        provider_id=provider_id,
+        tool_name=tool_name,
+        status=result_status,
+        output_summary=debug_value_summary(output),
+    )
     call_item = _update_tool_call_message(call_item, status=result_status)
     yield {"type": "message.completed", "item": call_item}
 
+    split_result = split_sdk_runner_result_for_display(tool_name, output)
+    result_output = split_result.display_output if split_result else output
     result_item = append_agent_message(
         task_id,
         run_id,
         role="tool",
         kind="tool_result",
         status=result_status,
-        content_json={"toolName": tool_name, "output": output},
+        content_json={"toolName": tool_name, "output": result_output},
     )
+    if sdk_runner_checkpoint_active:
+        update_agent_run(run_id, checkpoint_json=None)
     yield {"type": "message.completed", "item": result_item}
     yield {"type": "tool.completed", "item": result_item}
 
+    if split_result:
+        agent_debug_log(
+            "assistant.tool_final_text",
+            task_id=task_id,
+            run_id=run_id,
+            provider_id=provider_id,
+            tool_name=tool_name,
+            content=debug_text(split_result.final_text),
+        )
+        text_item = append_agent_message(
+            task_id,
+            run_id,
+            role="assistant",
+            kind="text",
+            status="completed",
+            content_json={"content": split_result.final_text},
+        )
+        yield {"type": "message.completed", "item": text_item}
+
     tool_transcript.extend([
         {"type": "tool_call", "toolName": tool_name, "input": tool_input},
-        {"type": "tool_result", "toolName": tool_name, "output": result_item["content_json"]["output"]},
+        {"type": "tool_result", "toolName": tool_name, "output": output},
     ])
 
 
@@ -364,6 +449,31 @@ async def run_agent_loop(
 
     try:
         for _ in range(MAX_TOOL_ROUNDS):
+            agent_debug_log(
+                "loop.step_start",
+                task_id=task_id,
+                run_id=run_id,
+                provider_id=provider_id,
+                history_count=len(history),
+                projected_history_count=len(projected_history),
+                latest_user_prompt=next(
+                    (
+                        debug_text(item.get("content", ""))
+                        for item in reversed(history)
+                        if item.get("role") == "user"
+                    ),
+                    None,
+                ),
+                system_message_count=len(effective_system_messages or []),
+                tool_transcript_count=len(tool_transcript),
+                tool_transcript_summary=[
+                    {
+                        "type": item.get("type"),
+                        "toolName": item.get("toolName"),
+                    }
+                    for item in tool_transcript
+                ],
+            )
             step = await next_agent_step(
                 provider_id,
                 system_messages=effective_system_messages,
@@ -375,6 +485,14 @@ async def run_agent_loop(
             tool_calls = _extract_tool_calls_from_step(step)
             if tool_calls is None:
                 full_response = _final_response_from_step(step)
+                agent_debug_log(
+                    "assistant.final_response",
+                    task_id=task_id,
+                    run_id=run_id,
+                    provider_id=provider_id,
+                    content=debug_text(full_response),
+                    degraded=step.get("degraded"),
+                )
                 assistant_message_id = str(uuid.uuid4())
                 for delta in _chunk_text(full_response):
                     yield {"type": "message.delta", "itemId": assistant_message_id, "delta": delta}
@@ -386,11 +504,24 @@ async def run_agent_loop(
                     full_response,
                 )
                 yield {"type": "message.completed", "item": assistant_item}
+                agent_debug_log(
+                    "run.completed",
+                    task_id=task_id,
+                    run_id=run_id,
+                    provider_id=provider_id,
+                )
                 yield {"type": "run.completed", "runId": run_id}
                 return
 
             assistant_text = _assistant_text_from_step(step)
             if assistant_text:
+                agent_debug_log(
+                    "assistant.intermediate_text",
+                    task_id=task_id,
+                    run_id=run_id,
+                    provider_id=provider_id,
+                    content=debug_text(assistant_text),
+                )
                 assistant_item = _persist_assistant_text(task_id, run_id, assistant_text)
                 yield {"type": "message.completed", "item": assistant_item}
 
@@ -405,6 +536,13 @@ async def run_agent_loop(
         raise RuntimeError("tool round limit exceeded")
     except Exception as exc:
         err = error_message(exc)
+        agent_debug_log(
+            "run.failed",
+            task_id=task_id,
+            run_id=run_id,
+            provider_id=provider_id,
+            error=err,
+        )
         failed_item = _persist_run_error(task_id, run_id, err)
         update_agent_run(run_id, status="failed", checkpoint_json=None, last_error=err)
         yield {"type": "message.completed", "item": failed_item}
@@ -447,9 +585,27 @@ async def stream_task_agent_run(
     new_history_items = history[len(existing_history) :]
 
     run = create_agent_run(task_id, provider_id)
+    agent_debug_log(
+        "run.started",
+        task_id=task_id,
+        run_id=run["id"],
+        provider_id=provider_id,
+        message=debug_text(message),
+        seed_message=debug_text(seed_message) if seed_message is not None else None,
+        existing_history_count=len(existing_history),
+        new_history_count=len(new_history_items),
+    )
     yield {"type": "run.started", "runId": run["id"], "run": run}
 
     for item in new_history_items:
+        agent_debug_log(
+            "user.message",
+            task_id=task_id,
+            run_id=run["id"],
+            provider_id=provider_id,
+            role=item["role"],
+            content=debug_text(item["content"]),
+        )
         persisted = append_agent_message(
             task_id,
             run["id"],

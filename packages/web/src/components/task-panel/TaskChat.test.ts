@@ -173,6 +173,121 @@ describe("TaskChat", () => {
     expect(html).toContain("sdk-run-");
   });
 
+  it("将已拆分的 SDK Runner 结果隐藏，只渲染工具调用和助手结果气泡", () => {
+    const html = renderToStaticMarkup(
+      createElement(TaskChat, {
+        taskId: "2026-03-21-1",
+        taskProviderId: "provider-1",
+        items: [
+          {
+            id: "tool-call",
+            kind: "tool_call",
+            toolName: "invoke_claude_code_runner",
+            input: { prompt: "执行一次测试" },
+            sdkRunId: "sdk-run-12345678",
+            status: "completed",
+          },
+          {
+            id: "tool-result",
+            kind: "tool_result",
+            toolName: "invoke_claude_code_runner",
+            output: { ok: true, sdk_run_id: "sdk-run-12345678", final_text_split: true },
+            status: "completed",
+          },
+          {
+            id: "assistant-final-text",
+            kind: "assistant_text",
+            content: "测试已经通过。",
+            status: "completed",
+            streaming: false,
+          },
+        ],
+        streaming: false,
+        onSend: () => undefined,
+        onProviderChange: () => undefined,
+        onAbort: () => undefined,
+        onOpenSdkRun: () => undefined,
+      })
+    );
+
+    expect(html).toContain("tasks.tool_call_label");
+    expect(html).not.toContain("tasks.tool_message_label");
+    expect(html).not.toContain("tasks.tool_result_label");
+    expect(html).not.toContain("final_text_split");
+    expect(html).toContain('data-sdk-run-link="sdk-run-12345678"');
+    expect(html).toContain("测试已经通过。");
+  });
+
+  it("保留旧历史中的 SDK Runner 完整结果，避免 final_text 消失", () => {
+    const html = renderToStaticMarkup(
+      createElement(TaskChat, {
+        taskId: "2026-03-21-1",
+        taskProviderId: "provider-1",
+        items: [
+          {
+            id: "tool-call",
+            kind: "tool_call",
+            toolName: "invoke_claude_code_runner",
+            input: { prompt: "获取当前时间" },
+            status: "completed",
+          },
+          {
+            id: "tool-result",
+            kind: "tool_result",
+            toolName: "invoke_claude_code_runner",
+            output: {
+              ok: true,
+              sdk_run_id: "sdk-run-old",
+              final_text: "Sunday, March 22, 2026 01:08:18 CST",
+            },
+            status: "completed",
+          },
+        ],
+        streaming: false,
+        onSend: () => undefined,
+        onProviderChange: () => undefined,
+        onAbort: () => undefined,
+        onOpenSdkRun: () => undefined,
+      })
+    );
+
+    expect(html).toContain('data-tool-kind="tool_exchange"');
+    expect(html).toContain("Sunday, March 22, 2026 01:08:18 CST");
+  });
+
+  it("保留失败的 SDK Runner 工具结果，避免错误信息被隐藏", () => {
+    const html = renderToStaticMarkup(
+      createElement(TaskChat, {
+        taskId: "2026-03-21-1",
+        taskProviderId: "provider-1",
+        items: [
+          {
+            id: "tool-call",
+            kind: "tool_call",
+            toolName: "invoke_claude_code_runner",
+            input: { prompt: "运行测试" },
+            status: "failed",
+          },
+          {
+            id: "tool-result",
+            kind: "tool_result",
+            toolName: "invoke_claude_code_runner",
+            output: { ok: false, sdk_run_id: "sdk-run-failed", error: "pytest failed" },
+            status: "failed",
+          },
+        ],
+        streaming: false,
+        onSend: () => undefined,
+        onProviderChange: () => undefined,
+        onAbort: () => undefined,
+        onOpenSdkRun: () => undefined,
+      })
+    );
+
+    expect(html).toContain('data-tool-kind="tool_exchange"');
+    expect(html).toContain("pytest failed");
+  });
+
   it("在工具执行中展示 loading 状态，并允许从 tool_call 直接打开对应 Agent Runner", () => {
     const html = renderToStaticMarkup(
       createElement(TaskChat, {

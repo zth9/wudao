@@ -8,6 +8,7 @@ from typing import Any
 
 from ..llm import chat_complete
 from ..sdk_runner.sdk_tools import sdk_runner_known_tool_names
+from .debug_logging import agent_debug_log, debug_text, debug_value_summary
 from .tool_types import AgentTool
 
 JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.DOTALL)
@@ -67,6 +68,15 @@ JSON_ENVELOPE_INSTRUCTION = """你是任务工作台里的 Agentic Chat 运行�
 6. 首轮对话默认先通过 assistant_text 与用户沟通，优先补齐目标、范围、环境和复现信息；不要一上来就调用工具。
 7. 当前任务的 workspace 在开始阶段通常是空的；不要为了“先了解情况”就读取当前 workspace。
 8. 如果调用的是会等待完成的异步工具（例如 invoke_claude_code_runner），请直接等待该工具返回最终结果，不要额外调用 terminal_snapshot 去猜测它的输出。
+9. 如果你打算调用、使用、执行、运行任何可用工具，必须输出 tool_calls；不要用 assistant_text 承诺“马上调用”“我会执行”，然后不提供 tool_calls。
+"""
+
+TOOL_PROTOCOL_REPAIR_INSTRUCTION = """上一条回复没有遵守 Agentic Chat 的 JSON 工具协议。
+
+请把上一条回复改写为一个严格 JSON 对象，不要输出 Markdown、解释文字或代码块。
+
+如果上一条回复是在承诺调用、使用、执行、运行某个可用工具，必须把它改写为 tool_calls；不要仅用 assistant_text 承诺未来会调用工具。
+如果无需调用工具，则把最终回复放入 assistant_text，并返回空 tool_calls 或省略 tool_calls。
 """
 
 
@@ -348,6 +358,34 @@ def _format_tools_for_prompt(tools: list[AgentTool]) -> str:
     return json.dumps(schemas, ensure_ascii=False, indent=2)
 
 
+def _summarize_tool_calls(tool_calls: list[AgentToolCall]) -> list[dict[str, Any]]:
+    return [
+        {
+            "toolName": item.tool_name,
+            "inputSummary": debug_value_summary(item.input_data),
+        }
+        for item in tool_calls
+    ]
+
+
+def _latest_user_prompt(messages: list[dict[str, str]]) -> dict[str, Any] | None:
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            return debug_text(message.get("content", ""))
+    return None
+
+
+def _tool_protocol_system_message(tools: list[AgentTool]) -> dict[str, str]:
+    return {
+        "role": "system",
+        "content": (
+            f"{JSON_ENVELOPE_INSTRUCTION}\n\n可用工具列表：\n{_format_tools_for_prompt(tools)}"
+            if tools
+            else f"{JSON_ENVELOPE_INSTRUCTION}\n\n当前没有可用工具，请只输出 assistant_text。"
+        ),
+    }
+
+
 async def complete_agent_turn(
     provider_id: str,
     messages: list[dict[str, str]],
@@ -355,17 +393,62 @@ async def complete_agent_turn(
 ) -> AgentModelResponse:
     prompt_messages = [
         *messages,
-        {
-            "role": "system",
-            "content": (
-                f"{JSON_ENVELOPE_INSTRUCTION}\n\n可用工具列表：\n{_format_tools_for_prompt(tools)}"
-                if tools
-                else f"{JSON_ENVELOPE_INSTRUCTION}\n\n当前没有可用工具，请只输出 assistant_text。"
-            ),
-        },
+        _tool_protocol_system_message(tools),
     ]
+    agent_debug_log(
+        "model.request",
+        provider_id=provider_id,
+        message_count=len(messages),
+        system_message_count=sum(1 for message in messages if message.get("role") == "system"),
+        user_message_count=sum(1 for message in messages if message.get("role") == "user"),
+        assistant_message_count=sum(1 for message in messages if message.get("role") == "assistant"),
+        tool_names=[tool.name for tool in tools],
+        latest_user_prompt=_latest_user_prompt(messages),
+    )
     raw = await chat_complete(prompt_messages, provider_id)
-    return parse_agent_model_response(raw)
+    agent_debug_log(
+        "model.raw_response",
+        provider_id=provider_id,
+        raw=debug_text(raw),
+    )
+    parsed = parse_agent_model_response(raw)
+    agent_debug_log(
+        "model.parsed_response",
+        provider_id=provider_id,
+        structured=parsed.structured,
+        assistant_text=debug_text(parsed.assistant_text),
+        tool_calls=_summarize_tool_calls(parsed.tool_calls),
+    )
+    if parsed.structured or not tools:
+        return parsed
+
+    agent_debug_log(
+        "model.protocol_repair.request",
+        provider_id=provider_id,
+        previous_raw=debug_text(raw),
+    )
+    repaired_raw = await chat_complete(
+        [
+            *prompt_messages,
+            {"role": "assistant", "content": raw},
+            {"role": "user", "content": TOOL_PROTOCOL_REPAIR_INSTRUCTION},
+        ],
+        provider_id,
+    )
+    agent_debug_log(
+        "model.protocol_repair.raw_response",
+        provider_id=provider_id,
+        raw=debug_text(repaired_raw),
+    )
+    repaired = parse_agent_model_response(repaired_raw)
+    agent_debug_log(
+        "model.protocol_repair.parsed_response",
+        provider_id=provider_id,
+        structured=repaired.structured,
+        assistant_text=debug_text(repaired.assistant_text),
+        tool_calls=_summarize_tool_calls(repaired.tool_calls),
+    )
+    return repaired if repaired.structured else parsed
 
 
 async def next_agent_step(
@@ -393,10 +476,33 @@ async def next_agent_step(
         }
         for item in tool_transcript
     ]
+    agent_debug_log(
+        "step.request",
+        provider_id=provider_id,
+        history_count=len(history),
+        latest_user_prompt=_latest_user_prompt(history),
+        system_message_count=len(system_messages or []),
+        tool_names=[tool.name for tool in tools],
+        tool_transcript_count=len(tool_transcript),
+        tool_transcript_summary=[
+            {
+                "type": item.get("type"),
+                "toolName": item.get("toolName"),
+            }
+            for item in tool_transcript
+        ],
+    )
     step = await complete_agent_turn(
         provider_id,
         [*(system_messages or []), *history, *transcript_messages],
         tools,
+    )
+    agent_debug_log(
+        "step.response",
+        provider_id=provider_id,
+        structured=step.structured,
+        assistant_text=debug_text(step.assistant_text),
+        tool_calls=_summarize_tool_calls(step.tool_calls),
     )
     if step.tool_calls:
         serialized_tool_calls = [

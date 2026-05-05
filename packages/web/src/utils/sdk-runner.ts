@@ -25,6 +25,13 @@ export function extractSdkRunIdFromToolOutput(toolName: string, output: unknown)
   return extractSdkRunId(output);
 }
 
+export function isSplitSdkRunnerToolOutput(toolName: string, output: unknown): boolean {
+  if (!SDK_RUNNER_TOOL_NAMES.has(toolName)) {
+    return false;
+  }
+  return asRecord(output)?.final_text_split === true;
+}
+
 export function extractSdkRunIdFromToolContent(content: unknown): string | null {
   const record = asRecord(content);
   if (!record) {

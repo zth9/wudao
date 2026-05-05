@@ -50,3 +50,5 @@ env/
 workspace/*/
 packages/workspace/
 workspace/
+
+.claude/worktrees
