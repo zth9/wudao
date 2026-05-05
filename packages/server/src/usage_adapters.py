@@ -32,6 +32,7 @@ PROVIDER_LINKS = {
     "MiniMax": "https://platform.minimaxi.com/user-center/payment/coding-plan",
     "GLM": "https://bigmodel.cn/usercenter/glm-coding/usage",
     "Kimi": "https://www.kimi.com/code/console",
+    "MiMo": "https://platform.xiaomimimo.com/console/plan-manage",
 }
 DEFAULT_TIME_ZONE = "Asia/Shanghai"
 KIMI_SCOPE = "FEATURE_CODING"
@@ -293,5 +294,67 @@ async def _fetch_kimi() -> dict[str, Any]:
     return _finalize(provider, result, parse)
 
 
+async def _fetch_mimo() -> dict[str, Any]:
+    provider = "MiMo"
+    config = _get_provider_usage_config("mimo")
+    cookie = normalize_cookie_header(config["usageCookie"] or _get_env("MIMO_COOKIE"))
+    if not cookie:
+        return _provider_error(provider, "MIMO_COOKIE 未设置")
+
+    headers = {
+        "accept": "*/*",
+        "accept-language": "zh",
+        "content-type": "application/json",
+        "x-timezone": _get_env("MIMO_TIMEZONE") or DEFAULT_TIME_ZONE,
+        "cookie": cookie,
+    }
+
+    result = await _fetch_json(
+        provider,
+        "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage",
+        headers=headers,
+    )
+
+    def parse(data: Any) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        usage_data = (data or {}).get("data") or {}
+
+        usage_items = _first_array((usage_data.get("usage") or {}).get("items"))
+        plan_item = next(
+            (item for item in usage_items if item.get("name") == "plan_total_token"),
+            usage_items[0] if usage_items else None,
+        )
+        if plan_item:
+            used = to_number(plan_item.get("used"))
+            limit = to_number(plan_item.get("limit"))
+            if limit is not None and limit > 0:
+                items.append({
+                    "label": "套餐额度",
+                    "used": percent_from(None, used, limit),
+                    "total": 100,
+                    "detail": safe_count_detail(used, limit, "tokens"),
+                })
+
+        month_items = _first_array((usage_data.get("monthUsage") or {}).get("items"))
+        month_item = next(
+            (item for item in month_items if item.get("name") == "month_total_token"),
+            month_items[0] if month_items else None,
+        )
+        if month_item:
+            used = to_number(month_item.get("used"))
+            limit = to_number(month_item.get("limit"))
+            if limit is not None and limit > 0:
+                items.append({
+                    "label": "月度用量",
+                    "used": percent_from(None, used, limit),
+                    "total": 100,
+                    "detail": safe_count_detail(used, limit, "tokens"),
+                })
+
+        return items
+
+    return _finalize(provider, result, parse)
+
+
 async def fetch_all_providers() -> list[dict[str, Any]]:
-    return await asyncio.gather(_fetch_minimax(), _fetch_glm(), _fetch_kimi())
+    return await asyncio.gather(_fetch_minimax(), _fetch_glm(), _fetch_kimi(), _fetch_mimo())

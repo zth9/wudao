@@ -9,6 +9,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   minimax: "/providers/minimax.png",
   deepseek: "/providers/deepseek.png",
   qwen: "/providers/qwen.png",
+  mimo: "/providers/mimo.png",
 };
 
 const NAME_TO_ID: Record<string, string> = {
@@ -24,6 +25,7 @@ const NAME_TO_ID: Record<string, string> = {
   deepseek: "deepseek",
   qwen: "qwen",
   "通义千问": "qwen",
+  mimo: "mimo",
 };
 
 export function getProviderIconSrc(providerIdOrName: string): string | undefined {

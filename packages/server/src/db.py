@@ -65,6 +65,12 @@ DEFAULT_PROVIDERS = [
         is_default=0,
         sort_order=7,
     ),
+    DefaultProviderSeed(
+        id="mimo",
+        name="MiMo",
+        is_default=0,
+        sort_order=8,
+    ),
 ]
 
 
