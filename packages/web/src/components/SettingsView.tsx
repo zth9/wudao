@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider, UsageTracker } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, ChevronUp, ChevronDown, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3 } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3, GripVertical } from "lucide-react";
 import { ProviderIcon } from "./ProviderIcon";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,21 @@ import { Modal } from "@heroui/react/modal";
 import { Spinner } from "@heroui/react/spinner";
 import { TextArea } from "@heroui/react/textarea";
 import { Tooltip } from "@heroui/react/tooltip";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const EMPTY_FORM = {
   name: "",
@@ -52,6 +67,174 @@ export function DefaultProviderToggle({ checked, label, onChange }: DefaultProvi
         </span>
       </Checkbox.Content>
     </Checkbox>
+  );
+}
+
+function SortableProviderItem({ provider, onEdit, onDelete }: {
+  provider: Provider;
+  onEdit: (p: Provider) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: provider.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    position: "relative" as const,
+  };
+  const providerSummary = [provider.model || provider.id, provider.endpoint || ""].filter(Boolean).join(" • ");
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(
+      "group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all",
+      isDragging && "bg-surface-secondary shadow-lg opacity-90",
+    )}>
+      <div className="min-w-0 flex items-center gap-4">
+        <button
+          className="cursor-grab text-muted/40 hover:text-muted p-1 opacity-0 group-hover:opacity-100 transition-opacity active:cursor-grabbing"
+          aria-label={t("common.drag_to_reorder")}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={16} />
+        </button>
+        <div className={cn(
+          "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
+          provider.is_default ? "bg-accent" : "bg-default"
+        )}>
+          <ProviderIcon providerId={provider.id} size={20} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold truncate tracking-tight">{provider.name}</p>
+            {provider.is_default ? (
+              <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest">{t('theme.auto')}</Chip>
+            ) : null}
+          </div>
+          <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
+            {providerSummary}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Tooltip delay={300} closeDelay={0}>
+          <Button
+            isIconOnly
+            variant="ghost"
+            onPress={() => onEdit(provider)}
+            className="h-8 w-8 text-muted hover:text-accent"
+            aria-label={t("common.edit")}
+          >
+            <Edit size={16} />
+          </Button>
+          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+            <Tooltip.Arrow className="fill-overlay" />
+            {t("common.edit")}
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={300} closeDelay={0}>
+          <Button
+            isIconOnly
+            variant="ghost"
+            onPress={() => onDelete(provider.id)}
+            className="h-8 w-8 text-muted hover:text-danger"
+            aria-label={t("common.delete")}
+          >
+            <Trash2 size={16} />
+          </Button>
+          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+            <Tooltip.Arrow className="fill-overlay" />
+            {t("common.delete")}
+          </Tooltip.Content>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+function SortableTrackerItem({ tracker, onEdit, onDelete }: {
+  tracker: UsageTracker;
+  onEdit: (t: UsageTracker) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tracker.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    position: "relative" as const,
+  };
+  const providerLabel = tracker.provider.charAt(0).toUpperCase() + tracker.provider.slice(1);
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(
+      "group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all",
+      isDragging && "bg-surface-secondary shadow-lg opacity-90",
+    )}>
+      <div className="min-w-0 flex items-center gap-4">
+        <button
+          className="cursor-grab text-muted/40 hover:text-muted p-1 opacity-0 group-hover:opacity-100 transition-opacity active:cursor-grabbing"
+          aria-label={t("common.drag_to_reorder")}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={16} />
+        </button>
+        <div className={cn(
+          "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
+          tracker.enabled ? "bg-accent" : "bg-default opacity-50"
+        )}>
+          <ProviderIcon providerId={tracker.provider} size={20} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold truncate tracking-tight">{tracker.name}</p>
+            {!tracker.enabled && (
+              <Chip size="sm" color="default" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest opacity-50">OFF</Chip>
+            )}
+          </div>
+          <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
+            {providerLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Tooltip delay={300} closeDelay={0}>
+          <Button
+            isIconOnly
+            variant="ghost"
+            onPress={() => onEdit(tracker)}
+            className="h-8 w-8 text-muted hover:text-accent"
+            aria-label={t("common.edit")}
+          >
+            <Edit size={16} />
+          </Button>
+          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+            <Tooltip.Arrow className="fill-overlay" />
+            {t("common.edit")}
+          </Tooltip.Content>
+        </Tooltip>
+        <Tooltip delay={300} closeDelay={0}>
+          <Button
+            isIconOnly
+            variant="ghost"
+            onPress={() => onDelete(tracker.id)}
+            className="h-8 w-8 text-muted hover:text-danger"
+            aria-label={t("common.delete")}
+          >
+            <Trash2 size={16} />
+          </Button>
+          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+            <Tooltip.Arrow className="fill-overlay" />
+            {t("common.delete")}
+          </Tooltip.Content>
+        </Tooltip>
+      </div>
+    </div>
   );
 }
 
@@ -207,7 +390,6 @@ export default function SettingsView() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [reordering, setReordering] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingAssistant, setUploadingAssistant] = useState(false);
@@ -218,8 +400,35 @@ export default function SettingsView() {
   const [trackerDialogOpen, setTrackerDialogOpen] = useState(false);
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null);
   const [trackerForm, setTrackerForm] = useState({ provider: "codex", name: "", auth_token: "", cookie: "", curl_command: "", url: "", enabled: 1 });
-  const [trackerReordering, setTrackerReordering] = useState(false);
   const [trackerSaving, setTrackerSaving] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleProviderDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = providers.findIndex((p) => p.id === active.id);
+    const newIndex = providers.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(providers, oldIndex, newIndex);
+    await reorder(reordered.map((p) => p.id));
+  }, [providers, reorder]);
+
+  const handleTrackerDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = usageTrackers.findIndex((t) => t.id === active.id);
+    const newIndex = usageTrackers.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(usageTrackers, oldIndex, newIndex);
+    await reorderTrackers(reordered.map((t) => t.id));
+  }, [usageTrackers, reorderTrackers]);
 
   // Default avatar options
   const defaultAvatars = ["👨‍💻", "👩‍💻", "🤖", "🐱", "🐶", "🦊", "🦁", "🐧", "🎨", "🚀"];
@@ -342,22 +551,6 @@ export default function SettingsView() {
 
   const canSave = Boolean(form.name.trim() && form.endpoint.trim() && form.model.trim());
 
-  const handleMove = async (index: number, offset: number) => {
-    const nextIndex = index + offset;
-    if (nextIndex < 0 || nextIndex >= providers.length || reordering) return;
-
-    const ids = providers.map((p) => p.id);
-    const [moved] = ids.splice(index, 1);
-    ids.splice(nextIndex, 0, moved);
-
-    setReordering(true);
-    try {
-      await reorder(ids);
-    } finally {
-      setReordering(false);
-    }
-  };
-
   useEffect(() => {
     void fetchTrackers();
   }, [fetchTrackers]);
@@ -399,20 +592,6 @@ export default function SettingsView() {
       : await addTracker(trackerForm);
     setTrackerSaving(false);
     if (ok) closeTrackerDialog();
-  };
-
-  const handleMoveTracker = async (index: number, offset: number) => {
-    const nextIndex = index + offset;
-    if (nextIndex < 0 || nextIndex >= usageTrackers.length || trackerReordering) return;
-    const ids = usageTrackers.map((t) => t.id);
-    const [moved] = ids.splice(index, 1);
-    ids.splice(nextIndex, 0, moved);
-    setTrackerReordering(true);
-    try {
-      await reorderTrackers(ids);
-    } finally {
-      setTrackerReordering(false);
-    }
   };
 
   const menuItems = [
@@ -717,106 +896,24 @@ export default function SettingsView() {
                 )}
 
                 {!loading && providers.length > 0 && (
-                <div className="p-2 space-y-1">
-                  {providers.map((p, index) => {
-                    const providerSummary = [p.model || p.id, p.endpoint || ""].filter(Boolean).join(" • ");
-                    return (
-                    <motion.div
-                      layout
-                      key={p.id}
-                      className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all"
-                    >
-                      <div className="min-w-0 flex items-center gap-4">
-                        <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
-                          p.is_default ? "bg-accent" : "bg-default"
-                        )}>
-                          <ProviderIcon providerId={p.id} size={20} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold truncate tracking-tight">{p.name}</p>
-                            {p.is_default ? (
-                              <Chip size="sm" color="accent" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest">{t('theme.auto')}</Chip>
-                            ) : null}
-                          </div>
-                          <p className="text-[11px] text-muted font-medium truncate mt-0.5 opacity-80">
-                            {providerSummary}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => void handleMove(index, -1)}
-                            isDisabled={index === 0 || reordering}
-                            className="h-8 w-8 text-muted hover:text-foreground"
-                            aria-label={t("common.move_up")}
-                          >
-                            <ChevronUp size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.move_up")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => void handleMove(index, 1)}
-                            isDisabled={index === providers.length - 1 || reordering}
-                            className="h-8 w-8 text-muted hover:text-foreground"
-                            aria-label={t("common.move_down")}
-                          >
-                            <ChevronDown size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.move_down")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                        <div className="w-[1px] h-4 bg-border mx-1" />
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => openEdit(p)}
-                            className="h-8 w-8 text-muted hover:text-accent"
-                            aria-label={t("common.edit")}
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.edit")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => {
-                              void remove(p.id);
-                            }}
-                            className="h-8 w-8 text-muted hover:text-danger"
-                            aria-label={t("common.delete")}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.delete")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                      </div>
-                    </motion.div>
-                    );
-                  })}
-                </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleProviderDragEnd}
+                >
+                  <SortableContext items={providers.map((p) => p.id)} strategy={rectSortingStrategy}>
+                    <div className="p-2 space-y-1">
+                      {providers.map((p) => (
+                        <SortableProviderItem
+                          key={p.id}
+                          provider={p}
+                          onEdit={openEdit}
+                          onDelete={(id) => void remove(id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
                 )}
               </div>
             </Card>
@@ -873,106 +970,24 @@ export default function SettingsView() {
                 )}
 
                 {!trackerLoading && usageTrackers.length > 0 && (
-                <div className="p-2 space-y-1">
-                  {usageTrackers.map((tracker, index) => {
-                    const providerLabel = tracker.provider.charAt(0).toUpperCase() + tracker.provider.slice(1);
-                    return (
-                    <motion.div
-                      layout
-                      key={tracker.id}
-                      className="group flex items-center justify-between px-4 py-3 rounded-lg hover:bg-default transition-all"
-                    >
-                      <div className="min-w-0 flex items-center gap-4">
-                        <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm",
-                          tracker.enabled ? "bg-accent" : "bg-default opacity-50"
-                        )}>
-                          <ProviderIcon providerId={tracker.provider} size={20} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold truncate tracking-tight">{tracker.name}</p>
-                            {!tracker.enabled && (
-                              <Chip size="sm" color="default" variant="soft" className="text-[9px] font-extrabold uppercase tracking-widest opacity-50">OFF</Chip>
-                            )}
-                          </div>
-                          <p className="text-{11px} text-muted font-medium truncate mt-0.5 opacity-80">
-                            {providerLabel}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => void handleMoveTracker(index, -1)}
-                            isDisabled={index === 0 || trackerReordering}
-                            className="h-8 w-8 text-muted hover:text-foreground"
-                            aria-label={t("common.move_up")}
-                          >
-                            <ChevronUp size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.move_up")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => void handleMoveTracker(index, 1)}
-                            isDisabled={index === usageTrackers.length - 1 || trackerReordering}
-                            className="h-8 w-8 text-muted hover:text-foreground"
-                            aria-label={t("common.move_down")}
-                          >
-                            <ChevronDown size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.move_down")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                        <div className="w-[1px] h-4 bg-border mx-1" />
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => openEditTracker(tracker)}
-                            className="h-8 w-8 text-muted hover:text-accent"
-                            aria-label={t("common.edit")}
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.edit")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                        <Tooltip delay={300} closeDelay={0}>
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            onPress={() => {
-                              void removeTracker(tracker.id);
-                            }}
-                            className="h-8 w-8 text-muted hover:text-danger"
-                            aria-label={t("common.delete")}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                          <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
-                            <Tooltip.Arrow className="fill-overlay" />
-                            {t("common.delete")}
-                          </Tooltip.Content>
-                        </Tooltip>
-                      </div>
-                    </motion.div>
-                    );
-                  })}
-                </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleTrackerDragEnd}
+                >
+                  <SortableContext items={usageTrackers.map((t) => t.id)} strategy={rectSortingStrategy}>
+                    <div className="p-2 space-y-1">
+                      {usageTrackers.map((tracker) => (
+                        <SortableTrackerItem
+                          key={tracker.id}
+                          tracker={tracker}
+                          onEdit={openEditTracker}
+                          onDelete={(id) => void removeTracker(id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
                 )}
               </div>
             </Card>

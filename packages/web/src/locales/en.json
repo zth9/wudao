@@ -38,6 +38,7 @@
     "rename": "Rename",
     "move_up": "Move up",
     "move_down": "Move down",
+    "drag_to_reorder": "Drag to reorder",
     "user": "User",
     "avatar": "Avatar",
     "stop_generation": "Stop generation",

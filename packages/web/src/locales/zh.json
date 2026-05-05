@@ -38,6 +38,7 @@
     "rename": "重命名",
     "move_up": "上移",
     "move_down": "下移",
+    "drag_to_reorder": "拖拽排序",
     "user": "用户",
     "avatar": "头像",
     "stop_generation": "停止生成",
