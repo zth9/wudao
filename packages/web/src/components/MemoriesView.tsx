@@ -204,14 +204,6 @@ export default function MemoriesView() {
                     <span>{t("memories.open_file")}</span>
                   </Button>
                   <Button
-                    variant="secondary"
-                    onPress={() => setUserMemory("")}
-                    isDisabled={userMemorySaving}
-                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
-                  >
-                    <span>{t("memories.clear_user_memory")}</span>
-                  </Button>
-                  <Button
                     variant="primary"
                     onPress={() => void handleSaveUserMemory()}
                     isDisabled={userMemorySaving || userMemoryLoading}
@@ -280,14 +272,6 @@ export default function MemoriesView() {
                   >
                     <FolderOpen size={16} />
                     <span>{t("memories.open_file")}</span>
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onPress={() => setAgentMemory("")}
-                    isDisabled={agentMemorySaving}
-                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
-                  >
-                    <span>{t("memories.clear_agent_memory")}</span>
                   </Button>
                   <Button
                     variant="primary"

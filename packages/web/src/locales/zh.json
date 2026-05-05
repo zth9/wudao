@@ -174,7 +174,7 @@
     "agent_memory_hint": "保存后会写入 `~/.wudao/profile/wudao-agent-memory.md`。",
     "save_agent_memory": "保存记忆",
     "saving_agent_memory": "保存中...",
-    "clear_agent_memory": "清空编辑框",
+
     "agent_memory_saved": "Wudao Agent 全局记忆已保存。后续新任务对话会自动注入这份上下文。",
     "agent_memory_save_failed": "保存 Wudao Agent 记忆失败",
     "agent_memory_load_failed": "加载 Wudao Agent 记忆失败",
@@ -191,7 +191,7 @@
     "user_memory_hint": "保存后会写入 `~/.wudao/profile/user-memory.md`。",
     "save_user_memory": "保存用户记忆",
     "saving_user_memory": "保存中...",
-    "clear_user_memory": "清空用户记忆",
+
     "user_memory_saved": "用户记忆已保存。后续新任务对话会自动注入这份上下文。",
     "user_memory_save_failed": "保存用户记忆失败",
     "user_memory_load_failed": "加载用户记忆失败"

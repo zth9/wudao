@@ -174,7 +174,7 @@
     "agent_memory_hint": "Saving writes to `~/.wudao/profile/wudao-agent-memory.md`.",
     "save_agent_memory": "Save Memory",
     "saving_agent_memory": "Saving...",
-    "clear_agent_memory": "Clear Editor",
+
     "agent_memory_saved": "Wudao Agent global memory has been saved. New task conversations will inject it automatically.",
     "agent_memory_save_failed": "Failed to save Wudao Agent memory",
     "agent_memory_load_failed": "Failed to load Wudao Agent memory",
@@ -191,7 +191,7 @@
     "user_memory_hint": "Saving writes to `~/.wudao/profile/user-memory.md`.",
     "save_user_memory": "Save User Memory",
     "saving_user_memory": "Saving...",
-    "clear_user_memory": "Clear User Memory",
+
     "user_memory_saved": "User memory has been saved. New task conversations will inject it automatically.",
     "user_memory_save_failed": "Failed to save user memory",
     "user_memory_load_failed": "Failed to load user memory"
