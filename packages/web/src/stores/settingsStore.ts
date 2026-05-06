@@ -52,6 +52,8 @@ interface SettingsState {
   assistantSystemPromptSaving: boolean;
   fetchAssistantSystemPrompt: () => Promise<boolean>;
   saveAssistantSystemPrompt: (content: string) => Promise<boolean>;
+  defaultSystemPrompt: string;
+  fetchDefaultSystemPrompt: () => Promise<boolean>;
 }
 
 function resolveSettingsError(error: unknown, fallback: string): string {
@@ -292,6 +294,19 @@ export const useSettingsStore = create<SettingsState>()(
           return true;
         } catch {
           set({ assistantSystemPromptSaving: false });
+          return false;
+        }
+      },
+
+      defaultSystemPrompt: "",
+
+      fetchDefaultSystemPrompt: async () => {
+        try {
+          const resp = await fetch("/api/contexts/default-system-prompt");
+          const data = await resp.json();
+          set({ defaultSystemPrompt: data.content || "" });
+          return true;
+        } catch {
           return false;
         }
       },

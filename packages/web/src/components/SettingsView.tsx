@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider, UsageTracker } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3, GripVertical, FileText } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3, GripVertical, FileText, Eye, Copy, Check } from "lucide-react";
 import { ProviderIcon } from "./ProviderIcon";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -408,6 +408,11 @@ export default function SettingsView() {
   const [trackerSaving, setTrackerSaving] = useState(false);
   const [systemPromptDraft, setSystemPromptDraft] = useState<string>("");
   const [systemPromptDirty, setSystemPromptDirty] = useState(false);
+  const [defaultPromptModalOpen, setDefaultPromptModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const defaultSystemPrompt = useSettingsStore((s) => s.defaultSystemPrompt);
+  const fetchDefaultSystemPrompt = useSettingsStore((s) => s.fetchDefaultSystemPrompt);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -825,7 +830,26 @@ export default function SettingsView() {
                   }}
                 />
               </div>
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <Tooltip delay={300} closeDelay={0}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted"
+                    onPress={() => {
+                      setCopied(false);
+                      void fetchDefaultSystemPrompt();
+                      setDefaultPromptModalOpen(true);
+                    }}
+                  >
+                    <Eye size={14} />
+                    <span>{t("settings.view_default_prompt")}</span>
+                  </Button>
+                  <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                    <Tooltip.Arrow className="fill-overlay" />
+                    {t("settings.view_default_prompt_hint")}
+                  </Tooltip.Content>
+                </Tooltip>
                 <Button
                   onPress={() => void handleSaveSystemPrompt()}
                   variant="primary"
@@ -1280,6 +1304,51 @@ export default function SettingsView() {
                  {trackerSaving ? <Spinner size="sm" /> : null}
                  {trackerSaving ? t('common.loading') : editingTrackerId ? t('common.update') : t('common.save')}
                </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+
+      <Modal.Backdrop
+        isOpen={defaultPromptModalOpen}
+        onOpenChange={(open) => {
+          if (!open) setDefaultPromptModalOpen(false);
+        }}
+      >
+        <Modal.Container placement="center" className="w-full max-w-2xl">
+          <Modal.Dialog>
+            <Modal.Header className="flex-row items-center justify-between">
+              <h3 className="text-lg font-bold">{t("settings.default_system_prompt")}</h3>
+              <Tooltip delay={300} closeDelay={0}>
+                <Button isIconOnly variant="ghost" onPress={() => setDefaultPromptModalOpen(false)} className="h-8 w-8" aria-label={t("common.close")}>
+                  <X size={18} />
+                </Button>
+                <Tooltip.Content className="rounded-lg border border-border bg-overlay px-2.5 py-1.5 text-xs font-semibold text-overlay-foreground shadow-md" placement="top" showArrow>
+                  <Tooltip.Arrow className="fill-overlay" />
+                  {t("common.close")}
+                </Tooltip.Content>
+              </Tooltip>
+            </Modal.Header>
+
+            <Modal.Body className="max-h-[60vh] space-y-4 overflow-y-auto px-1 py-1">
+              <pre className="whitespace-pre-wrap text-xs text-foreground bg-default/80 dark:bg-default/70 border border-border rounded-xl p-4 font-mono leading-relaxed">
+                {defaultSystemPrompt}
+              </pre>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button
+                variant="primary"
+                className="inline-flex items-center gap-2"
+                onPress={() => {
+                  navigator.clipboard.writeText(defaultSystemPrompt);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? t("settings.copied") : t("settings.copy")}
+              </Button>
             </Modal.Footer>
           </Modal.Dialog>
         </Modal.Container>

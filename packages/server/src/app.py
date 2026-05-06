@@ -426,6 +426,11 @@ def create_app() -> FastAPI:
             return JSONResponse({"error": "content is required"}, status_code=400)
         return JSONResponse(await save_assistant_system_prompt(body["content"]))
 
+    @app.get("/api/contexts/default-system-prompt")
+    async def get_default_system_prompt() -> dict[str, Any]:
+        from .agent_runtime.model_adapter import JSON_ENVELOPE_INSTRUCTION
+        return {"content": JSON_ENVELOPE_INSTRUCTION}
+
     @app.post("/api/open-path")
     async def open_path(request: Request) -> JSONResponse:
         body = await request.json()
