@@ -281,10 +281,10 @@ def test_app_repairs_runtime_tables_still_referencing_tasks_legacy_migration(tmp
     assert sdk_store.get_sdk_run("legacy-sdk-1")["task_id"] == "2026-04-02-1"
     assert [item["id"] for item in sdk_store.list_sdk_events("legacy-sdk-1")] == ["legacy-sdk-event-1"]
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return {"type": "assistant_text", "content": "修复后可以继续对话。"}
 
-    async def fake_stream_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_stream_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         step = await fake_next_agent_step(provider_id, system_messages=system_messages, history=history, tool_schemas=tool_schemas, tool_transcript=tool_transcript)
         yield {"type": "delta", "text": step["content"]}
         yield {"type": "complete", "step": step}

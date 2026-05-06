@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
 import type { Provider, UsageTracker } from "../services/api";
-import { Plus, Settings as SettingsIcon, Trash2, Edit, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3, GripVertical } from "lucide-react";
+import { Plus, Settings as SettingsIcon, Trash2, Edit, X, Cpu, AlertCircle, Sun, Moon, Monitor, Languages, Bot, User, BarChart3, GripVertical, FileText } from "lucide-react";
 import { ProviderIcon } from "./ProviderIcon";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -386,6 +386,11 @@ export default function SettingsView() {
     updateTracker,
     reorderTrackers,
     removeTracker,
+    assistantSystemPrompt,
+    assistantSystemPromptLoading,
+    assistantSystemPromptSaving,
+    fetchAssistantSystemPrompt,
+    saveAssistantSystemPrompt,
   } = useSettingsStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -401,6 +406,8 @@ export default function SettingsView() {
   const [editingTrackerId, setEditingTrackerId] = useState<string | null>(null);
   const [trackerForm, setTrackerForm] = useState({ provider: "codex", name: "", auth_token: "", cookie: "", curl_command: "", url: "", enabled: 1 });
   const [trackerSaving, setTrackerSaving] = useState(false);
+  const [systemPromptDraft, setSystemPromptDraft] = useState<string>("");
+  const [systemPromptDirty, setSystemPromptDirty] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -487,6 +494,22 @@ export default function SettingsView() {
   useEffect(() => {
     void fetchProviders();
   }, [fetchProviders]);
+
+  useEffect(() => {
+    void fetchAssistantSystemPrompt();
+  }, [fetchAssistantSystemPrompt]);
+
+  useEffect(() => {
+    if (!assistantSystemPromptLoading) {
+      setSystemPromptDraft(assistantSystemPrompt);
+      setSystemPromptDirty(false);
+    }
+  }, [assistantSystemPrompt, assistantSystemPromptLoading]);
+
+  const handleSaveSystemPrompt = async () => {
+    const ok = await saveAssistantSystemPrompt(systemPromptDraft);
+    if (ok) setSystemPromptDirty(false);
+  };
 
   const openCreate = () => {
     clearError();
@@ -718,8 +741,9 @@ export default function SettingsView() {
             </Card>
             )}
 
-            {/* Assistant Profile Section */}
+            {/* Assistant Settings Section */}
             {activeSection === "assistant" && (
+            <>
             <Card className="overflow-hidden rounded-xl">
               <div className="px-6 py-4 border-b border-border flex items-center gap-2 bg-surface-secondary rounded-t-xl rounded-b-xl">
                 <Bot size={16} className="text-accent" />
@@ -779,6 +803,41 @@ export default function SettingsView() {
                 </div>
               </div>
             </Card>
+
+            <Card className="p-6 space-y-4 border border-border bg-surface/50 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <FileText size={16} className="text-accent" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold">{t("settings.assistant_system_prompt")}</h2>
+                  <p className="text-[11px] text-muted">{t("settings.assistant_system_prompt_desc")}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <TextArea
+                  className="min-h-[200px] w-full resize-y font-mono text-xs border border-border bg-default/80 dark:border-white/10 dark:bg-default/70"
+                  placeholder={t("settings.assistant_system_prompt_placeholder")}
+                  value={systemPromptDraft}
+                  onChange={(e) => {
+                    setSystemPromptDraft(e.target.value);
+                    setSystemPromptDirty(e.target.value !== assistantSystemPrompt);
+                  }}
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onPress={() => void handleSaveSystemPrompt()}
+                  variant="primary"
+                  size="sm"
+                  isDisabled={!systemPromptDirty || assistantSystemPromptSaving}
+                  className="rounded-lg"
+                >
+                  {assistantSystemPromptSaving ? <Spinner size="sm" /> : t("common.save")}
+                </Button>
+              </div>
+            </Card>
+            </>
             )}
 
             {/* Appearance Settings */}

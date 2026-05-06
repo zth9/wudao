@@ -4,7 +4,7 @@ import asyncio
 import uuid
 from typing import Any, AsyncGenerator, Awaitable, Callable
 
-from ..memories import get_global_memory_system_messages
+from ..memories import get_assistant_system_prompt_content, get_global_memory_system_messages
 from ..task_service import error_message
 from ..task_helpers import (
     build_task_chat_history,
@@ -214,6 +214,7 @@ async def next_agent_step(
     history: list[dict[str, str]],
     tool_schemas: list[dict[str, Any]],
     tool_transcript: list[dict[str, Any]],
+    custom_system_prompt: str | None = None,
 ) -> dict[str, Any]:
     return await model_adapter.next_agent_step(
         provider_id,
@@ -221,6 +222,7 @@ async def next_agent_step(
         history=history,
         tool_schemas=tool_schemas,
         tool_transcript=tool_transcript,
+        custom_system_prompt=custom_system_prompt,
     )
 
 
@@ -442,6 +444,7 @@ async def run_agent_loop(
     history: list[dict[str, str]],
     projected_history: list[dict[str, str]],
     system_messages: list[dict[str, str]] | None = None,
+    custom_system_prompt: str | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     tool_schemas = serialize_tool_schemas()
     tool_transcript: list[dict[str, Any]] = []
@@ -484,6 +487,7 @@ async def run_agent_loop(
                 history=history,
                 tool_schemas=tool_schemas,
                 tool_transcript=tool_transcript,
+                custom_system_prompt=custom_system_prompt,
             ):
                 if event["type"] == "delta":
                     yield {"type": "message.delta", "itemId": assistant_message_id, "delta": event["text"]}
@@ -575,6 +579,7 @@ async def run_agent_chat(
         history=history,
         projected_history=projected_history,
         system_messages=system_messages,
+        custom_system_prompt=get_assistant_system_prompt_content(),
     ):
         await emit(event)
 
@@ -635,5 +640,6 @@ async def stream_task_agent_run(
         history=history,
         projected_history=projected_history,
         system_messages=get_global_memory_system_messages(),
+        custom_system_prompt=get_assistant_system_prompt_content(),
     ):
         yield event

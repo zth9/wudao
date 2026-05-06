@@ -47,6 +47,11 @@ interface SettingsState {
   updateTracker: (id: string, data: Partial<UsageTracker>) => Promise<boolean>;
   reorderTrackers: (ids: string[]) => Promise<boolean>;
   removeTracker: (id: string) => Promise<boolean>;
+  assistantSystemPrompt: string;
+  assistantSystemPromptLoading: boolean;
+  assistantSystemPromptSaving: boolean;
+  fetchAssistantSystemPrompt: () => Promise<boolean>;
+  saveAssistantSystemPrompt: (content: string) => Promise<boolean>;
 }
 
 function resolveSettingsError(error: unknown, fallback: string): string {
@@ -253,6 +258,40 @@ export const useSettingsStore = create<SettingsState>()(
           return await get().fetchTrackers();
         } catch (error) {
           set({ trackerError: resolveSettingsError(error, "Failed to delete tracker") });
+          return false;
+        }
+      },
+
+      assistantSystemPrompt: "",
+      assistantSystemPromptLoading: false,
+      assistantSystemPromptSaving: false,
+
+      fetchAssistantSystemPrompt: async () => {
+        set({ assistantSystemPromptLoading: true });
+        try {
+          const resp = await fetch("/api/contexts/assistant-system-prompt");
+          const data = await resp.json();
+          set({ assistantSystemPrompt: data.content || "", assistantSystemPromptLoading: false });
+          return true;
+        } catch {
+          set({ assistantSystemPromptLoading: false });
+          return false;
+        }
+      },
+
+      saveAssistantSystemPrompt: async (content: string) => {
+        set({ assistantSystemPromptSaving: true });
+        try {
+          const resp = await fetch("/api/contexts/assistant-system-prompt", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+          });
+          const data = await resp.json();
+          set({ assistantSystemPrompt: data.content || "", assistantSystemPromptSaving: false });
+          return true;
+        } catch {
+          set({ assistantSystemPromptSaving: false });
           return false;
         }
       },

@@ -372,13 +372,14 @@ def _latest_user_prompt(messages: list[dict[str, str]]) -> dict[str, Any] | None
     return None
 
 
-def _tool_protocol_system_message(tools: list[AgentTool]) -> dict[str, str]:
+def _tool_protocol_system_message(tools: list[AgentTool], custom_system_prompt: str | None = None) -> dict[str, str]:
+    instruction = custom_system_prompt or JSON_ENVELOPE_INSTRUCTION
     return {
         "role": "system",
         "content": (
-            f"{JSON_ENVELOPE_INSTRUCTION}\n\n可用工具列表：\n{_format_tools_for_prompt(tools)}"
+            f"{instruction}\n\n可用工具列表：\n{_format_tools_for_prompt(tools)}"
             if tools
-            else f"{JSON_ENVELOPE_INSTRUCTION}\n\n当前没有可用工具，请只输出 assistant_text。"
+            else f"{instruction}\n\n当前没有可用工具，请只输出 assistant_text。"
         ),
     }
 
@@ -387,10 +388,12 @@ async def complete_agent_turn(
     provider_id: str,
     messages: list[dict[str, str]],
     tools: list[AgentTool],
+    *,
+    custom_system_prompt: str | None = None,
 ) -> AgentModelResponse:
     prompt_messages = [
         *messages,
-        _tool_protocol_system_message(tools),
+        _tool_protocol_system_message(tools, custom_system_prompt=custom_system_prompt),
     ]
     agent_debug_log(
         "model.request",
@@ -455,6 +458,7 @@ async def next_agent_step(
     history: list[dict[str, str]],
     tool_schemas: list[dict[str, Any]],
     tool_transcript: list[dict[str, Any]],
+    custom_system_prompt: str | None = None,
 ) -> dict[str, Any]:
     tools = [
         AgentTool(
@@ -493,6 +497,7 @@ async def next_agent_step(
         provider_id,
         [*(system_messages or []), *history, *transcript_messages],
         tools,
+        custom_system_prompt=custom_system_prompt,
     )
     agent_debug_log(
         "step.response",
@@ -529,11 +534,13 @@ async def stream_complete_agent_turn(
     provider_id: str,
     messages: list[dict[str, str]],
     tools: list[AgentTool],
+    *,
+    custom_system_prompt: str | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """流式完成 Agent 回合，纯文本模式逐 delta 推送，JSON 模式缓冲后解析。"""
     prompt_messages = [
         *messages,
-        _tool_protocol_system_message(tools),
+        _tool_protocol_system_message(tools, custom_system_prompt=custom_system_prompt),
     ]
     agent_debug_log(
         "stream.model.request",
@@ -627,6 +634,7 @@ async def stream_next_agent_step(
     history: list[dict[str, str]],
     tool_schemas: list[dict[str, Any]],
     tool_transcript: list[dict[str, Any]],
+    custom_system_prompt: str | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """流式执行 Agent 单步，透传 delta 并在完成后转换为 step dict。"""
     tools = [
@@ -668,6 +676,7 @@ async def stream_next_agent_step(
         provider_id,
         [*(system_messages or []), *history, *transcript_messages],
         tools,
+        custom_system_prompt=custom_system_prompt,
     ):
         if event["type"] == "delta":
             yield event

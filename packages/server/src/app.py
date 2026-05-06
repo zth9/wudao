@@ -15,8 +15,10 @@ from .db import db
 from .logger import logger
 from .memories import (
     get_global_memory_system_messages,
+    read_assistant_system_prompt,
     read_wudao_agent_memory,
     read_wudao_user_memory,
+    save_assistant_system_prompt,
     save_wudao_agent_memory,
     save_wudao_user_memory,
 )
@@ -412,6 +414,17 @@ def create_app() -> FastAPI:
         if not isinstance(body.get("content"), str):
             return JSONResponse({"error": "content is required"}, status_code=400)
         return JSONResponse(await save_wudao_agent_memory(body["content"]))
+
+    @app.get("/api/contexts/assistant-system-prompt")
+    async def get_assistant_system_prompt() -> dict[str, Any]:
+        return read_assistant_system_prompt()
+
+    @app.put("/api/contexts/assistant-system-prompt")
+    async def update_assistant_system_prompt(request: Request) -> JSONResponse:
+        body = await request.json()
+        if not isinstance(body.get("content"), str):
+            return JSONResponse({"error": "content is required"}, status_code=400)
+        return JSONResponse(await save_assistant_system_prompt(body["content"]))
 
     @app.post("/api/open-path")
     async def open_path(request: Request) -> JSONResponse:

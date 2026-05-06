@@ -8,6 +8,7 @@ WORKSPACE_DIR = WUDAO_HOME / "workspace"
 PROFILE_DIR = WUDAO_HOME / "profile"
 WUDAO_AGENT_MEMORY_FILE = PROFILE_DIR / "wudao-agent-memory.md"
 WUDAO_USER_MEMORY_FILE = PROFILE_DIR / "user-memory.md"
+ASSISTANT_SYSTEM_PROMPT_FILE = PROFILE_DIR / "assistant-system-prompt.md"
 
 
 def ensure_runtime_dirs() -> None:

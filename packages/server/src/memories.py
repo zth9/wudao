@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .paths import WUDAO_AGENT_MEMORY_FILE, WUDAO_USER_MEMORY_FILE
+from .paths import ASSISTANT_SYSTEM_PROMPT_FILE, WUDAO_AGENT_MEMORY_FILE, WUDAO_USER_MEMORY_FILE
 
 
 def _read_memory_file(path: Path) -> dict[str, str]:
@@ -51,6 +51,19 @@ async def save_wudao_user_memory(content: str) -> dict[str, str]:
 
 async def save_wudao_agent_memory(content: str) -> dict[str, str]:
     return _write_memory_file(WUDAO_AGENT_MEMORY_FILE, content)
+
+
+def read_assistant_system_prompt() -> dict[str, str]:
+    return _read_memory_file(ASSISTANT_SYSTEM_PROMPT_FILE)
+
+
+def get_assistant_system_prompt_content() -> str | None:
+    content = read_assistant_system_prompt()["content"].strip()
+    return content or None
+
+
+async def save_assistant_system_prompt(content: str) -> dict[str, str]:
+    return _write_memory_file(ASSISTANT_SYSTEM_PROMPT_FILE, content)
 
 
 def get_global_memory_system_messages() -> list[dict[str, str]]:

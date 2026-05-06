@@ -35,7 +35,7 @@ def create_task(client: TestClient, title: str) -> str:
 def make_step_streamer(step_func):
     """Wrap an async step function into an async generator for stream_next_agent_step."""
 
-    async def streamer(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def streamer(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         step = await step_func(provider_id, system_messages=system_messages, history=history, tool_schemas=tool_schemas, tool_transcript=tool_transcript)
         if isinstance(step, dict) and step.get("type") == "assistant_text":
             content = step.get("content", "")
@@ -73,7 +73,7 @@ def test_agent_chat_thread_endpoint_returns_structured_snapshot(tmp_path, monkey
     client = TestClient(app_module.app)
     task_id = create_task(client, "查看 Agent Thread")
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         assert provider_id == "claude"
         assert history
         assert tool_schemas
@@ -106,7 +106,7 @@ def test_agent_chat_run_stream_emits_typed_events_and_projects_legacy_chat(tmp_p
     client = TestClient(app_module.app)
     task_id = create_task(client, "跑 Agent Chat")
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         assert provider_id == "claude"
         assert history[-1]["content"] == "继续"
         assert tool_transcript == []
@@ -154,7 +154,7 @@ def test_agent_chat_run_executes_read_only_tools_and_persists_timeline(tmp_path,
         ]
     )
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         assert provider_id == "claude"
         assert tool_schemas
         return next(responses)
@@ -210,7 +210,7 @@ def test_agent_chat_run_emits_only_tool_events_for_workspace_write(tmp_path, mon
         ]
     )
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return next(responses)
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_agent_step))
@@ -246,7 +246,7 @@ def test_agent_chat_run_recovers_from_tool_error_and_finishes_turn(tmp_path, mon
 
     call_count = 0
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -299,7 +299,7 @@ def test_agent_chat_run_feeds_completed_claude_code_result_back_into_model(tmp_p
 
     step_count = 0
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         nonlocal step_count
         assert provider_id == "openai"
         step_count += 1
@@ -414,7 +414,7 @@ def test_agent_chat_run_keeps_failed_claude_code_result_as_tool_output(tmp_path,
 
     step_count = 0
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         nonlocal step_count
         step_count += 1
         if step_count == 1:
@@ -635,7 +635,7 @@ def test_agent_chat_run_marks_failed_run_and_keeps_legacy_projection_consistent(
     client = TestClient(app_module.app)
     task_id = create_task(client, "处理 Agent Chat 失败")
 
-    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_agent_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         assert provider_id == "claude"
         assert history
         raise RuntimeError("stream exploded")

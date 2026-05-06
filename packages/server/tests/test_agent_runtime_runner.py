@@ -37,7 +37,7 @@ def make_step_streamer(step_func):
     For tool_call steps, yields only the complete event.
     """
 
-    async def streamer(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def streamer(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         step = await step_func(provider_id, system_messages=system_messages, history=history, tool_schemas=tool_schemas, tool_transcript=tool_transcript)
         if isinstance(step, dict) and step.get("type") == "assistant_text":
             content = step.get("content", "")
@@ -61,7 +61,7 @@ def test_runner_executes_readonly_tool_and_persists_timeline(tmp_path, monkeypat
         ]
     )
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return next(steps)
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
@@ -120,7 +120,7 @@ def test_runner_persists_sdk_wait_checkpoint_while_runner_is_active(tmp_path, mo
 
     step_count = 0
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         nonlocal step_count
         step_count += 1
         if step_count == 1:
@@ -209,7 +209,7 @@ def test_runner_degrades_invalid_model_output_to_plain_text_reply(tmp_path, monk
     client = TestClient(app_module.app)
     task_id = create_task(client, "降级为纯文本")
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return {"type": "assistant_text", "content": "这是降级后的纯文本回复。", "degraded": True}
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
@@ -258,7 +258,7 @@ def test_runner_executes_write_tool_and_updates_workspace(tmp_path, monkeypatch)
         ]
     )
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return next(steps)
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
@@ -314,7 +314,7 @@ def test_runner_persists_workspace_write_without_extra_events(tmp_path, monkeypa
         ]
     )
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return next(steps)
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
@@ -362,7 +362,7 @@ def test_runner_keeps_run_alive_after_recoverable_tool_error(tmp_path, monkeypat
 
     call_count = 0
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -647,7 +647,7 @@ def test_runner_executes_multiple_tool_calls_from_single_model_step(tmp_path, mo
         ]
     )
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return next(steps)
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
@@ -702,7 +702,7 @@ def test_runner_fails_invalid_multiple_tool_payload_before_persisting_assistant_
     client = TestClient(app_module.app)
     task_id = create_task(client, "非法多工具 payload")
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return {
             "type": "tool_calls",
             "toolCalls": [],
@@ -766,7 +766,7 @@ def test_runner_allows_more_than_four_tool_rounds_before_completing(tmp_path, mo
         ]
     )
 
-    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript):
+    async def fake_next_step(provider_id, *, system_messages, history, tool_schemas, tool_transcript, **kwargs):
         return next(steps)
 
     monkeypatch.setattr(model_adapter, "stream_next_agent_step", make_step_streamer(fake_next_step))
