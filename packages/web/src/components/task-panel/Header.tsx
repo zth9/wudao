@@ -39,8 +39,10 @@ interface Props {
   onDeleteConfirm: () => void;
   terminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  onTerminalHover?: () => void;
   sdkRunnerOpen?: boolean;
   onToggleSdkRunner?: () => void;
+  onSdkRunnerHover?: () => void;
   onOpenTaskList: () => void;
 }
 
@@ -55,8 +57,10 @@ export function Header({
   onDeleteConfirm,
   terminalOpen = true,
   onToggleTerminal,
+  onTerminalHover,
   sdkRunnerOpen = false,
   onToggleSdkRunner,
+  onSdkRunnerHover,
   onOpenTaskList,
 }: Props) {
   const { t, i18n } = useTranslation();
@@ -279,6 +283,7 @@ export function Header({
       <div className="flex items-center gap-1 shrink-0">
         <IconButton
           onPress={onToggleTerminal}
+          onMouseEnter={onTerminalHover}
           className={cn(
             "rounded-full transition-colors",
             terminalOpen
@@ -293,6 +298,7 @@ export function Header({
 
         <IconButton
           onPress={onToggleSdkRunner}
+          onMouseEnter={onSdkRunnerHover}
           className={cn(
             "rounded-full transition-colors",
             sdkRunnerOpen

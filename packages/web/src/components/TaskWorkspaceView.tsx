@@ -628,9 +628,11 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onDeleteCancel={() => setShowDeleteConfirm(false)}
         onDeleteConfirm={() => void handleDeleteConfirm()}
         terminalOpen={terminalOpen}
-        onToggleTerminal={() => toggleTerminal(taskId)}
+        onToggleTerminal={() => requestAnimationFrame(() => toggleTerminal(taskId))}
+        onTerminalHover={() => void loadTiledTerminalPanel()}
         sdkRunnerOpen={sdkRunnerOpen}
-        onToggleSdkRunner={() => toggleSdkRunner(taskId)}
+        onToggleSdkRunner={() => requestAnimationFrame(() => toggleSdkRunner(taskId))}
+        onSdkRunnerHover={() => void loadSdkRunnerPanel()}
         onOpenTaskList={handleOpenTaskList}
       />
 
