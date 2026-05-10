@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef, startTransition } from "react";
 import { useTaskStore } from "../stores/taskStore";
 import {
   getSessionIdentifiers,
@@ -628,9 +628,11 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onDeleteCancel={() => setShowDeleteConfirm(false)}
         onDeleteConfirm={() => void handleDeleteConfirm()}
         terminalOpen={terminalOpen}
-        onToggleTerminal={() => toggleTerminal(taskId)}
+        onToggleTerminal={() => startTransition(() => toggleTerminal(taskId))}
+        onPreloadTerminal={() => void loadTiledTerminalPanel()}
         sdkRunnerOpen={sdkRunnerOpen}
-        onToggleSdkRunner={() => toggleSdkRunner(taskId)}
+        onToggleSdkRunner={() => startTransition(() => toggleSdkRunner(taskId))}
+        onPreloadSdkRunner={() => void loadSdkRunnerPanel()}
         onOpenTaskList={handleOpenTaskList}
       />
 
