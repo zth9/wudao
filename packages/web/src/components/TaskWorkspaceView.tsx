@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef, startTransition } from "react";
+import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTaskStore } from "../stores/taskStore";
 import {
   getSessionIdentifiers,
@@ -628,10 +628,10 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
         onDeleteCancel={() => setShowDeleteConfirm(false)}
         onDeleteConfirm={() => void handleDeleteConfirm()}
         terminalOpen={terminalOpen}
-        onToggleTerminal={() => startTransition(() => toggleTerminal(taskId))}
+        onToggleTerminal={() => toggleTerminal(taskId)}
         onPreloadTerminal={() => void loadTiledTerminalPanel()}
         sdkRunnerOpen={sdkRunnerOpen}
-        onToggleSdkRunner={() => startTransition(() => toggleSdkRunner(taskId))}
+        onToggleSdkRunner={() => toggleSdkRunner(taskId)}
         onPreloadSdkRunner={() => void loadSdkRunnerPanel()}
         onOpenTaskList={handleOpenTaskList}
       />
@@ -650,7 +650,7 @@ export default function TaskWorkspaceView({ taskId, autoStartChat = false, onBac
               sdkRunnerWidth: resolvedDrawerLayout.sdkRunnerWidth,
             }),
           }}
-          transition={isDragging || isSdkRunnerDragging ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 200 }}
+          transition={{ duration: 0 }}
           className={cn(
             "flex flex-col min-h-0 border-r border-border bg-surface/20 shrink-0",
             !terminalOpen && "border-r-0"
