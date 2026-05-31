@@ -29,6 +29,7 @@ import { Tooltip } from "@heroui/react/tooltip";
 
 interface Props {
   onNavigate: (view: ViewKey) => void;
+  onNavigateToSettingsTracker?: (trackerId: string) => void;
 }
 
 const AUTO_REFRESH_MS = 30_000;
@@ -43,7 +44,7 @@ interface TrackerUsageState {
   error?: string;
 }
 
-export default function DashboardView({ onNavigate }: Props) {
+export default function DashboardView({ onNavigate, onNavigateToSettingsTracker }: Props) {
   const { t } = useTranslation();
   const user = useSettingsStore((state) => state.user);
   const [taskStats, setTaskStats] = useState<TaskStatsSummary>({ active: 0, done: 0, high_priority: 0, all: 0 });
@@ -296,7 +297,7 @@ export default function DashboardView({ onNavigate }: Props) {
             <p className="text-xs font-bold text-danger px-4 leading-tight">{state.error || t("dashboard.auth_failed")}</p>
             <Button
               variant="ghost"
-              onPress={() => onNavigate("settings")}
+              onPress={() => onNavigateToSettingsTracker ? onNavigateToSettingsTracker(state.trackerId) : onNavigate("settings")}
               className="mt-4 h-auto p-0 text-[10px] font-black uppercase tracking-widest text-accent hover:underline"
             >
               {t("dashboard.fix_in_settings")}

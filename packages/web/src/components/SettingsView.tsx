@@ -359,7 +359,13 @@ function AgentRunnerSettingsCard() {
   );
 }
 
-export default function SettingsView() {
+interface SettingsViewProps {
+  initialSection?: string;
+  editTrackerId?: string | null;
+  onIntentHandled?: () => void;
+}
+
+export default function SettingsView({ initialSection, editTrackerId, onIntentHandled }: SettingsViewProps = {}) {
   const { t, i18n } = useTranslation();
   const {
     providers,
@@ -398,7 +404,7 @@ export default function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingAssistant, setUploadingAssistant] = useState(false);
-  const [activeSection, setActiveSection] = useState<string>("profile");
+  const [activeSection, setActiveSection] = useState<string>(initialSection || "profile");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assistantFileInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -582,6 +588,26 @@ export default function SettingsView() {
   useEffect(() => {
     void fetchTrackers();
   }, [fetchTrackers]);
+
+  useEffect(() => {
+    if (!editTrackerId || trackerLoading) return;
+    const target = usageTrackers.find((t) => t.id === editTrackerId);
+    if (target) {
+      clearTrackerError();
+      setTrackerForm({
+        provider: target.provider,
+        name: target.name,
+        auth_token: target.auth_token || "",
+        cookie: target.cookie || "",
+        curl_command: target.curl_command || "",
+        url: target.url || "",
+        enabled: target.enabled,
+      });
+      setEditingTrackerId(target.id);
+      setTrackerDialogOpen(true);
+      onIntentHandled?.();
+    }
+  }, [editTrackerId, trackerLoading, usageTrackers]);
 
   const openCreateTracker = () => {
     clearTrackerError();

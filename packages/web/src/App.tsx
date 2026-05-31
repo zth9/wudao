@@ -53,6 +53,7 @@ function AppInner() {
   const rightSectionRef = useRef<HTMLDivElement>(null);
   const fullMenuMeasureRef = useRef<HTMLDivElement>(null);
   const [menuFits, setMenuFits] = useState(true);
+  const [settingsEditTrackerId, setSettingsEditTrackerId] = useState<string | null>(null);
 
   const navItems = useMemo<Array<{ key: ViewKey; label: string; icon: LucideIcon }>>(
     () => [
@@ -125,6 +126,15 @@ function AppInner() {
       currentRoute: route,
       lastTaskCenterTaskId: lastTaskIdRef.current,
       targetView: view,
+    }));
+  }, [navigate, route]);
+
+  const handleNavigateToSettingsTracker = useCallback((trackerId: string) => {
+    setSettingsEditTrackerId(trackerId);
+    navigate(resolveViewChange({
+      currentRoute: route,
+      lastTaskCenterTaskId: lastTaskIdRef.current,
+      targetView: "settings",
     }));
   }, [navigate, route]);
 
@@ -269,7 +279,7 @@ function AppInner() {
       <main className="flex-1 relative flex flex-col min-w-0 overflow-hidden bg-surface-secondary">
         <div className="flex-1 flex flex-col min-h-0">
           <Suspense fallback={<ViewFallback />}>
-            {activeView === "dashboard" && <DashboardView onNavigate={handleViewChange} />}
+            {activeView === "dashboard" && <DashboardView onNavigate={handleViewChange} onNavigateToSettingsTracker={handleNavigateToSettingsTracker} />}
 
             {activeView === "tasks" && (
               activeTaskId ? (
@@ -287,7 +297,13 @@ function AppInner() {
 
             {activeView === "memories" && <MemoriesView />}
 
-            {activeView === "settings" && <SettingsView />}
+            {activeView === "settings" && (
+                <SettingsView
+                  initialSection={settingsEditTrackerId ? "usage" : undefined}
+                  editTrackerId={settingsEditTrackerId}
+                  onIntentHandled={() => setSettingsEditTrackerId(null)}
+                />
+              )}
           </Suspense>
         </div>
       </main>
